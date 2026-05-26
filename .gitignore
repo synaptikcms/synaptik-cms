@@ -19,7 +19,6 @@ settings.json
 install.lock
 
 # Private themes
-theme/synaptik
 theme/nova
 theme/synaptik-docs
 theme/blueish

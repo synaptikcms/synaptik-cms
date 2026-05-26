@@ -1,0 +1,8 @@
+{
+    "name": "Synaptik Theme",
+    "folder": "synaptik",
+    "version": "1.0",
+    "author": "Dorian Fichot",
+    "description": "A dark, minimal theme with green highlights for SynaptikCMS",
+    "synaptik_theme": true
+}

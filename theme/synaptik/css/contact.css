@@ -1,0 +1,153 @@
+/* ==========================================================================
+   Contact Form — theme/synaptik/css/contact.css
+   Append this file to style.css OR load it separately via add_theme_stylesheet().
+   Uses the theme's existing CSS custom properties wherever possible.
+   ========================================================================== */
+
+/* ── Form wrapper ──────────────────────────────────────────────────────────── */
+
+.contact-form {
+   width: 100%;
+   max-width: 600px;
+   margin: 0 auto;
+   display: flex;
+   flex-direction: column;
+   gap: 1.2rem;
+}
+
+/* When used inside the contact page template */
+.contact-page .contact-form-section {
+   margin-top: 2.5rem;
+   padding-top: 2rem;
+   border-top: 1px solid var(--border-color, #e2e2e2);
+}
+
+/* ── Field wrapper ─────────────────────────────────────────────────────────── */
+
+.contact-field {
+   display: flex;
+   flex-direction: column;
+   gap: 0.3rem;
+}
+
+.contact-field label {
+   font-size: 0.875rem;
+   font-weight: 600;
+   color: var(--color-text, #f6eeee);
+}
+
+.contact-field label .required-mark {
+   color: var(--color-danger, #c0392b);
+   margin-left: 2px;
+   font-weight: 700;
+}
+
+/* ── Inputs & textarea ─────────────────────────────────────────────────────── */
+
+.contact-field input[type="text"],
+.contact-field input[type="email"],
+.contact-field textarea {
+   width: 100%;
+   padding: 0.6rem 0.85rem;
+   font-size: 0.95rem;
+   font-family: inherit;
+   line-height: 1.5;
+   color: var(--color-text, #1a1a1a);
+   background-color: var(--color-bg, #fff);
+   border: 1.5px solid var(--border-color, #d4d4d4);
+   border-radius: var(--border-radius, 5px);
+   box-sizing: border-box;
+   transition: border-color 0.18s ease, box-shadow 0.18s ease;
+   -webkit-appearance: none;
+   appearance: none;
+}
+
+.contact-field input[type="text"]:focus,
+.contact-field input[type="email"]:focus,
+.contact-field textarea:focus {
+   outline: none;
+   border-color: var(--color-primary, #4a6fa5);
+   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary, #4a6fa5) 15%, transparent);
+}
+
+/* Fallback for browsers without color-mix */
+@supports not (color: color-mix(in srgb, red 50%, blue)) {
+
+   .contact-field input[type="text"]:focus,
+   .contact-field input[type="email"]:focus,
+   .contact-field textarea:focus {
+      box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.15);
+   }
+}
+
+.contact-field textarea {
+   min-height: 140px;
+   resize: vertical;
+}
+
+/* ── Submit ────────────────────────────────────────────────────────────────── */
+
+.contact-submit {
+   margin-top: 0.4rem;
+}
+
+.contact-form button[type="submit"] {
+   /* display: inline-flex; */
+   align-items: center;
+   gap: 0.5rem;
+   padding: 0.65rem 1.8rem;
+   font-size: 0.95rem;
+   font-weight: 600;
+   font-family: inherit;
+   cursor: pointer;
+   border: none;
+   border-radius: var(--border-radius, 5px);
+   background-color: var(--color-primary, #4a6fa5);
+   color: #fff;
+   transition: background-color 0.18s ease, transform 0.1s ease;
+   width: 25%;
+}
+
+.contact-form button[type="submit"]:hover {
+   background-color: var(--color-primary-dark, #3a5a8a);
+}
+
+.contact-form button[type="submit"]:active {
+   transform: scale(0.97);
+}
+
+/* ── Status messages ───────────────────────────────────────────────────────── */
+
+.contact-status {
+   padding: 0.85rem 1.1rem;
+   border-radius: var(--border-radius, 5px);
+   font-size: 0.9rem;
+   font-weight: 500;
+   line-height: 1.5;
+   margin-bottom: 0.25rem;
+}
+
+.contact-status.success {
+   background-color: #edf7f0;
+   color: #1a6636;
+   border: 1px solid #a8dbb8;
+}
+
+.contact-status.error {
+   background-color: #fdf0ee;
+   color: #922b21;
+   border: 1px solid #f0b4aa;
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+
+@media (max-width: 560px) {
+   .contact-form {
+      gap: 1rem;
+   }
+
+   .contact-form button[type="submit"] {
+      width: 100%;
+      justify-content: center;
+   }
+}
