@@ -1,0 +1,90 @@
+/* ================================================================
+   Papier — contact.css
+   Auto-injecté par render_contact_form_html() / [contact_form]
+   ================================================================ */
+
+.contact-form {
+  max-width: 520px;
+}
+
+.contact-field {
+  margin-bottom: var(--space-md, 24px);
+}
+
+.contact-form label {
+  display:        block;
+  font-size:      0.72em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color:          var(--muted, #9C8F85);
+  margin-bottom:  0.4em;
+  margin-top:     0;
+}
+
+.contact-form input[type="text"],
+.contact-form input[type="email"],
+.contact-form textarea {
+  width:         100%;
+  padding:       0.65em 0.85em;
+  border:        1px solid var(--line, #E2DAD0);
+  border-radius: var(--border-radius-sm, 2px);
+  font-family:   var(--font-main, system-ui, sans-serif);
+  font-size:     1em;
+  color:         var(--ink, #1A1613);
+  background:    var(--bg-main, #FAF8F4);
+  box-sizing:    border-box;
+  transition:    border-color 0.16s ease;
+}
+.contact-form input:focus,
+.contact-form textarea:focus {
+  outline:      none;
+  border-color: var(--color-primary, #C13B22);
+}
+.contact-form textarea {
+  min-height: 140px;
+  resize:     vertical;
+}
+
+/* Bouton submit */
+.contact-form button[type="submit"],
+.contact-form input[type="submit"] {
+  display:        inline-block;
+  padding:        0.65em 1.8em;
+  background:     var(--ink, #1A1613);
+  color:          var(--bg-main, #FAF8F4);
+  border:         none;
+  border-radius:  var(--border-radius-sm, 2px);
+  font-family:    var(--font-main, system-ui, sans-serif);
+  font-size:      0.875em;
+  font-weight:    500;
+  letter-spacing: 0.04em;
+  cursor:         pointer;
+  transition:     background 0.16s ease;
+  margin-top:     var(--space-sm, 10px);
+}
+.contact-form button[type="submit"]:hover,
+.contact-form input[type="submit"]:hover {
+  background: var(--color-primary, #C13B22);
+}
+
+/* Messages de statut */
+.contact-status {
+  margin-top:  var(--space-md, 24px);
+  padding:     0.75em 1em;
+  border-left: 2px solid;
+  font-size:   0.875em;
+  line-height: 1.6;
+}
+.contact-status.success {
+  border-color: var(--color-primary, #C13B22);
+  background:   rgba(193,59,34,0.05);
+  color:        var(--ink, #1A1613);
+}
+.contact-status.error {
+  border-color: var(--color-warning, #B84040);
+  background:   rgba(184,64,64,0.05);
+  color:        var(--color-warning, #B84040);
+}
+
+/* hCaptcha */
+.h-captcha { margin: var(--space-md, 24px) 0 0; }

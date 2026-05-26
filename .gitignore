@@ -1,0 +1,36 @@
+# IDE / OS
+.nova
+.DS_Store
+.vscode
+
+# Data — never version
+data/
+files/
+cache/
+admin/cache/
+admin/drafts/
+lang/cache/
+private/
+bckps/
+
+# Credentials & sensitive config
+admin/admin-credentials.php
+settings.json
+install.lock
+
+# Private themes
+theme/synaptik
+theme/nova
+theme/synaptik-docs
+theme/blueish
+theme/natura
+theme/nihonium
+
+# Generated
+sitemap.xml
+*.log
+
+# Misc
+LICENSE.txt
+SynaptikCMS_Documentation.md
+SynaptikCMS_Theme-API.md

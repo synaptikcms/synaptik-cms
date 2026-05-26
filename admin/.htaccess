@@ -1,0 +1,28 @@
+
+<Files "admin-credentials.php">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# -----------------------------------------------
+# Security Headers — Admin /deevious/
+# -----------------------------------------------
+<IfModule mod_headers.c>
+    # Clickjacking : l'admin ne doit jamais s'afficher dans une iframe, même du même domaine
+    Header always set X-Frame-Options "DENY"
+
+    # MIME sniffing
+    Header always set X-Content-Type-Options "nosniff"
+
+    # Referer : ne fuite aucune URL admin vers l'extérieur
+    Header always set Referrer-Policy "no-referrer"
+
+    # Fonctionnalités navigateur inutiles dans un admin
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+
+    # CSP admin
+    # script-src  : self + CodeMirror (cdnjs) + jQuery (code.jquery.com) + jsDelivr (cdn.jsdelivr.net)
+    # style-src   : self + CodeMirror (cdnjs) + Google Fonts CSS (fonts.googleapis.com)
+    # font-src    : self + CodeMirror (cdnjs) + Google Fonts fichiers (fonts.gstatic.com)
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://code.jquery.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'none';"
+</IfModule>

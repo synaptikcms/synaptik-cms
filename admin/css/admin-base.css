@@ -1,0 +1,954 @@
+/* 
+ * ADMIN-BASE.CSS - Core styles for SynaptikCMS Admin
+ * Contains: Variables, Reset, Typography, Layout, Forms, Buttons, Messages
+ * This file is required on ALL admin pages
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;600;700&display=swap');
+
+/* =======================================================
+   CSS Variables (Color Scheme & Theming)
+   ======================================================= */
+:root {
+  /* Main color scheme */
+  --primary: #4fa75c;
+  --primary-dark: #398643;
+  --primary-light: #e8f5e9;
+  --primary-shadow: rgba(79, 167, 92, 0.2);
+  --primary-highlight: #15dd33;
+
+  /* Secondary colors */
+  --secondary: #1e2a3a;
+  --secondary-dark: #162535;
+  --secondary-light: #2c3b4c;
+
+  /* Text colors */
+  --text-dark: #2d3748;
+  --text-light: #b2bac6;
+  --text-muted: #718096;
+  --text-muted-darker: #606d7f;
+
+  /* UI colors */
+  --danger: #e74c3c;
+  --danger-dark: #c0392b;
+  --danger-light: #ffebee;
+
+  --info: #3498db;
+  --info-dark: #2980b9;
+  --info-darker: #286b97;
+  --info-light: #e3f2fd;
+
+  /* Background colors */
+  --bg-light: #e8eef2;
+  --bg-white: #ffffff;
+  --bg-dark: #1a2432;
+
+  /* Border colors */
+  --border-light: #dde2e8;
+  --border-dark: rgba(255, 255, 255, 0.1);
+
+  /* Misc */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 5px 15px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.15);
+  --transition-standard: all 0.2s ease;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --font-main: "Helvetica", sans-serif;
+  --font-headings: "Saira Extra Condensed", sans-serif;
+}
+
+/* =======================================================
+   Reset & Base Styles
+   ======================================================= */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-main);
+  line-height: 1.6;
+  color: var(--text-dark);
+  background-color: var(--bg-light);
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  font-weight: normal;
+  font-size: 15px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin-top: 0;
+  line-height: 1.3;
+  color: var(--secondary);
+  font-weight: 600;
+  font-family: 'Saira Condensed', sans-serif;
+}
+
+h1 {
+  font-size: 3.5em;
+  margin-bottom: 25px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.main-heading {
+  font-size: 2.5em;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+h2 {
+  font-size: 3em;
+  margin-bottom: 20px;
+}
+
+h3 {
+  font-size: 2em;
+  margin-bottom: 15px;
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: var(--transition-standard);
+}
+
+a:hover {
+  color: var(--primary-dark);
+}
+
+a.edit-list-link {
+  color: var(--info-dark);
+  font-size: 1.1em;
+}
+
+a.edit-list-link:hover {
+  color: var(--info-darker);
+}
+
+code {
+  font-family: monospace;
+  font-size: .9em;
+}
+
+/* =======================================================
+   Layout Structure
+   ======================================================= */
+.admin-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* admin-sidebar fallback/base styles before JS initializes */
+.content {
+  flex: 1;
+  padding: 20px 30px;
+  padding-top: 80px;
+  min-height: 100vh;
+  background-color: var(--bg-light);
+  color: var(--text-dark);
+  position: relative;
+}
+
+/* =======================================================
+   Login Page Styles
+   ======================================================= */
+.login-container {
+  width: 100%;
+  max-width: 400px;
+  padding: 30px;
+  background: var(--secondary-light);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  margin: 50px auto;
+}
+
+.login-container label {
+  color: white;
+}
+
+.login-header h1 {
+  color: white;
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.login-form input[type="password"] {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+}
+
+.login-button {
+  width: 100%;
+  padding: 12px;
+  background-color: var(--primary-dark);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.login-button:hover {
+  background-color: var(--primary);
+}
+
+/* =======================================================
+   Form & Input Elements
+   ======================================================= */
+.form-group {
+  margin-bottom: 20px;
+  padding: 0 20px;
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+  margin-top: 15px;
+  font-weight: 500;
+  color: var(--text-dark);
+  line-height: 1;
+}
+
+input,
+textarea {
+  font-size: 16px;
+  font-family: inherit;
+  padding: 12px 12px;
+  /* background-color: var(--bg-white); */
+  border: 1px solid #bbc0c6;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-standard);
+  color: var(--text-dark);
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+textarea {
+  width: 100%;
+  font-size: 1em;
+}
+
+input[type="number"] {
+  width: auto;
+  min-width: 80px;
+}
+
+input[type="email"] {
+  width: 50%;
+  min-width: 280px;
+}
+
+input[type="file"] {
+  background-color: var(--bg-light);
+  padding: 12px;
+  border: 2px dashed #b6babd;
+  cursor: pointer;
+  width: 30%;
+  background-color: #f7f7f7;
+}
+
+input[type="file"]:hover {
+  border-color: var(--primary);
+  background-color: white;
+}
+
+input:focus,
+textarea:focus {
+  outline: 2px solid var(--primary);
+  border-color: var(--primary);
+  background-color: rgb(250, 250, 250);
+}
+
+select:focus {
+  outline: 1px solid var(--primary);
+  border-color: var(--primary);
+  box-shadow: 3px 5px 3px var(--primary-shadow);
+  transition: all 0.3s ease;
+}
+
+/* Checkbox styling */
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  padding: 3px 6px;
+  margin-bottom: 0;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.checkbox-label input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  padding: 8px;
+  border: 2px solid var(--border-light);
+  border-radius: 4px;
+  margin-right: 10px;
+  position: relative;
+  cursor: pointer;
+  background-color: var(--bg-white);
+}
+
+.checkbox-label input[type="checkbox"]:checked {
+  background-color: var(--primary);
+}
+
+.checkbox-label input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: -2px;
+  width: 6px;
+  height: 14px;
+  border: solid white;
+  /*  check sign color */
+  border-width: 0 2px 2px 0;
+  /*  check sign width */
+  transform: rotate(45deg);
+}
+
+.checkbox-label input[type="checkbox"]:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* Form-group checkboxes */
+.form-group-options .checkbox-label {
+  display: flex;
+}
+
+.form-group label {
+  margin-top: 5px;
+}
+
+/* Select box styling */
+select {
+  width: 75%;
+  padding: 10px 12px;
+  background-color: #394a47;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-size: 1em;
+  color: var(--text-light);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: calc(100% - 12px) center;
+  padding-right: 35px;
+}
+
+select#sort-filter,
+select#category-filter,
+select#bulk-suggestion-type {
+  width: 100%;
+}
+
+.help-text {
+  font-size: 0.8em;
+  color: var(--text-muted);
+  margin-top: 5px;
+}
+
+/* Optimize form styling for specific elements */
+.site-settings-section input[type="text"],
+.site-settings-section input[type="password"],
+.seo-meta-section input[type="text"],
+input#title,
+input#custom_slug,
+input#category_name,
+input#tag_name,
+input#tags,
+input#category {
+  width: 100%;
+  transition: all 0.2s ease;
+}
+
+/* =======================================================
+   Button Styles
+   ======================================================= */
+.button,
+.view-website-btn {
+  padding: 6px 10px;
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  font-size: 0.9em;
+  transition: var(--transition-standard);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px var(--primary-shadow);
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+button:hover,
+.button:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-1px);
+  color: white;
+}
+
+button:active,
+.button:active {
+  transform: translateY(1px);
+}
+
+.cancel {
+  background-color: var(--danger);
+  box-shadow: 0 2px 4px rgba(231, 76, 60, 0.2);
+}
+
+.cancel:hover {
+  background-color: var(--danger-dark);
+}
+
+.danger {
+  background-color: var(--danger);
+}
+
+.danger:hover {
+  background-color: var(--danger-dark);
+}
+
+.save-button {
+  padding: 12px 24px;
+  font-size: 1em;
+}
+
+.primary-btn,
+.add-new-btn {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--primary);
+  color: white;
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  text-decoration: none;
+  transition: var(--transition-standard);
+  box-shadow: 0 2px 5px var(--primary-shadow);
+}
+
+.primary-btn:hover,
+.add-new-btn:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-1px);
+  color: white;
+}
+
+.view-website-btn {
+  background-color: #506d8d;
+  position: absolute;
+  top: 10px;
+  right: 30px;
+  box-shadow: none;
+  transform: none;
+}
+
+.view-website-btn:hover {
+  background-color: #374b61;
+  color: white;
+}
+
+.view-website-btn .icon {
+  margin-right: 8px;
+}
+
+.button.small {
+  padding: 5px 10px;
+  font-size: 13px;
+}
+
+/* =======================================================
+   Messages & Alerts
+   ======================================================= */
+.message {
+  padding: 15px 20px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.message.success {
+  background-color: var(--primary-light);
+  color: var(--primary-dark);
+  border-left: 4px solid var(--primary);
+}
+
+.message.error {
+  background-color: var(--danger-light);
+  color: var(--danger-dark);
+  border-left: 4px solid var(--danger);
+}
+
+.message.warning {
+  background-color: #fff8e1;
+  color: #7a5a00;
+  border-left: 4px solid #f0a500;
+}
+
+.error-message {
+  color: var(--danger-dark);
+  background-color: var(--danger-light);
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+/* =======================================================
+   Basic Table Styles
+   ======================================================= */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  margin-bottom: 30px;
+  background-color: var(--bg-white);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+table th {
+  background-color: var(--secondary-light);
+  color: white;
+  font-weight: 500;
+  text-align: left;
+  padding: 8px 15px;
+  border: none;
+}
+
+table td {
+  padding: 8px;
+  text-align: left;
+  vertical-align: middle;
+  border: none;
+  border-bottom: 1px solid var(--border-light);
+}
+
+table td code {
+  font-size: .9em;
+}
+
+table tr:last-child td {
+  border-bottom: none;
+}
+
+table tr:nth-child(odd) {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+table tr:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.sortable {
+  cursor: pointer;
+  position: relative;
+}
+
+.sort-icon {
+  font-size: 12px;
+  margin-left: 5px;
+  opacity: 0.5;
+}
+
+th.sorted-asc .sort-icon {
+  content: "↑";
+  opacity: 1;
+}
+
+th.sorted-desc .sort-icon {
+  content: "↓";
+  opacity: 1;
+}
+
+.sortable:hover .sort-icon {
+  opacity: 1;
+}
+
+/* =======================================================
+   Tags & Badges (Used across multiple pages)
+   ======================================================= */
+.tag-pill,
+.more-tags {
+  background-color: var(--bg-light);
+  color: var(--text-muted);
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-size: 0.75em;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-size: 0.75em;
+  font-weight: 600;
+}
+
+.badge-scheduled {
+  background-color: #fff3cd;
+  color: #7a5a00;
+  border: 1px solid #f0a500;
+  margin: 5px;
+  font-size: 0.7em;
+  font-weight: normal;
+  padding: 1px 4px;
+}
+
+/* =======================================================
+   Dropdown Menu Styling (Used in dashboard & elsewhere)
+   ======================================================= */
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 80%;
+  right: 0;
+  z-index: 1000;
+  display: none;
+  min-width: 180px;
+  padding: 8px 0;
+  margin: 2px 0 0;
+  background-color: var(--bg-white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+
+.dropdown-menu li {
+  list-style: none;
+}
+
+.dropdown-menu li a {
+  display: block;
+  padding: 8px 15px;
+  color: var(--text-dark);
+  text-decoration: none;
+  transition: var(--transition-standard);
+}
+
+.dropdown-menu li a:hover {
+  background-color: var(--primary-light);
+  color: var(--primary-dark);
+}
+
+.dropdown:hover .dropdown-menu,
+.dropdown.show .dropdown-menu {
+  display: block;
+}
+
+.caret {
+  display: inline-block;
+  margin-left: 5px;
+  transition: transform 0.2s ease;
+}
+
+.dropdown:hover .caret,
+.dropdown.show .caret {
+  transform: rotate(180deg);
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+/* Social Links Container  */
+#social-links-container {
+  display: block;
+  width: 100%;
+  margin-top: 15px;
+  padding: 15px;
+  background-color: var(--bg-light, #f8f9fa);
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid var(--border-light, #e0e0e0);
+}
+
+#social-links-container h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: var(--text-dark);
+}
+
+#social-links {
+  margin-bottom: 15px;
+}
+
+.social-link-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 10px;
+  background-color: white;
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid var(--border-light, #e0e0e0);
+}
+
+.social-link-row .form-group {
+  /* flex: 1; */
+  margin-bottom: 0;
+  padding: 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.social-link-row select {
+  flex: 0 0 150px;
+}
+
+.social-link-row input[type="text"] {
+  flex: 1;
+}
+
+.social-link-row .button {
+  flex-shrink: 0;
+}
+
+/* =======================================================
+   Basic Animations
+   ======================================================= */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-30px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.update-notice {
+  background: #fff8e1;
+  border-left: 4px solid #f0a500;
+  color: #7a5a00;
+  padding: 12px 18px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 20px;
+  font-size: 0.9em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.update-notice a {
+  color: #7a5a00;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.dashboard-news {
+  background: var(--bg-white);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.dashboard-news h3 {
+  font-size: 1em;
+  margin-bottom: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.news-item {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+  font-size: 0.875em;
+}
+
+.news-item:last-child {
+  margin-bottom: 0;
+}
+
+.news-item--info {
+  background: var(--info-light);
+  border-left: 3px solid var(--info);
+}
+
+.news-item--warning {
+  background: #fff8e1;
+  border-left: 3px solid #f0a500;
+}
+
+.news-item--update {
+  background: var(--primary-light);
+  border-left: 3px solid var(--primary);
+}
+
+.news-date {
+  color: var(--text-muted);
+  font-size: 0.85em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.news-message {
+  color: var(--text-dark);
+}
+
+/* =======================================================
+   Responsive - Layout & Sidebar
+   Note: Main responsive sidebar logic is in admin-sidebar.css
+   These are supplementary styles for other elements
+   ======================================================= */
+@media (min-width: 993px) {
+  ::-webkit-scrollbar {
+    width: 14px
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--info-dark);
+  }
+
+  ::-webkit-scrollbar-track {
+    background-color: #171b16;
+    box-shadow: inset 1px 1px 4px rgb(0 0 0 / .392)
+  }
+}
+
+@media (max-width: 992px) {
+  ::-webkit-scrollbar {
+    width: 12px
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--info-dark);
+  }
+
+  ::-webkit-scrollbar-track {
+    background-color: #171b16;
+    box-shadow: inset 1px 1px 4px rgb(0 0 0 / .392)
+  }
+
+  .site-settings-section input[type="text"],
+  .site-settings-section input[type="password"],
+  .seo-meta-section input[type="text"],
+  input#title,
+  input#custom_slug,
+  input#category_name,
+  input#tag_name,
+  input#tags,
+  input#category {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar-divider.hidden-mobile {
+    display: none;
+  }
+
+  ::-webkit-scrollbar {
+    width: 0;
+    display: none;
+  }
+
+  .site-settings-section input[type="text"],
+  .site-settings-section input[type="password"],
+  .seo-meta-section input[type="text"],
+  input#title,
+  input#custom_slug,
+  input#category_name,
+  input#tag_name,
+  input#tags,
+  input#category {
+    width: 100%;
+  }
+
+  .view-website-btn {
+    position: static;
+    margin-bottom: 20px;
+    display: block;
+    text-align: center;
+  }
+
+  .view-website-btn a {
+    display: inline-flex;
+  }
+
+  /* Dashboard adjustments for mobile */
+  .dashboard-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 576px) {
+  ::-webkit-scrollbar {
+    width: 0;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  h1 {
+    font-size: 2em;
+  }
+
+  h2 {
+    font-size: 1.8em;
+  }
+
+  .main-heading {
+    font-size: 1.8em;
+  }
+}

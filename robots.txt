@@ -1,0 +1,10 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /bckps/
+Disallow: /data/
+Disallow: /js/
+Disallow: /lang/
+Disallow: /theme/
+Allow: /
+Allow: *.css$
+Allow: *.js$
