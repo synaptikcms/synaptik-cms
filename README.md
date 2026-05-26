@@ -2,16 +2,47 @@
 
 SynaptikCMS is a **Super Lightweight**, **Super Fast**, **Super Simple**, and **Super Flexible** file-based content management system. 
 It was built from the ground up, with a strong focus on **page load speed**, **SEO** (optimization for search engines) and **user-friendliness**.
+
 It intends to remain as lightweight as possible, while natively offering most of the powerful features any larger CMS can offer, and without sacrificing options and useful features.
 
 The philosophy behind it is simple:
 
 > Everything you need, nothing you don't.
 
+Which makes it one of the most lightweight CMS on the market. Powerful features packed in **less than 1.5Mb**.
+ 
+---
+
+## What's inside
+
+- **Zero-install setup** — extract the ZIP, run `install.php`, done
+- **Flat-file JSON data** — split-file architecture, each content item is its own file
+- **Built-in i18n** — front-end and admin panel, separate locale files
+- **Theme system** — hooks, filters, partials, live CSS editor, live theme preview
+- **Content types** — Articles, Pages, Projects (Portfolio)
+- **Draft system** — manually or autosaved JSON drafts, one-click publish
+- **Autosave** — save posts automatically every 5 minutes so you never lose content, even after closing a page accidentally
+- **Categories and Tags** — organize and link your content as you like
+- **Image Galleries built-in** — add one or more image galleries to your posts, choose between 4 layouts (grid, masonry, justified or carousel)
+- **Scheduled publication** — delay publishing your post and set a date for automatic later posting
+- **Post Preview** — see posts in current theme's context before actually saving or publishing 
+- **Built-in powerful search engine** — `Ctrl+K` overlay, no external dependency
+- **Media manager** — upload, browse, reorganize with drag &amp; drop, batch-image optimisation
+- **Shortcode engine** — galleries, TOC, callouts, quotes, buttons, contact form, recent articles/projects
+- **SEO built-in** — meta tags, Open Graph, JSON-LD schema, canonical URLs, sitemap generator...
+- **Backup &amp; Restore** — save your database, restore your website content in 1 click
+- **Menu Builder** — create your optimal navigation menu easily with a drag and drop custom tool
+- **CSS Editor** — live-edit your current theme's CSS styles
+- **Alt Text Assistant** — add alt-text and captions to all your gallery images in one place
+
+---
+
 # Installation
 
 There is **Zero** installation required. Just extract the ZIP archive, and you are already up and running.
-After extracting the zip content, visit your domain and open install.php mysite.com/install.php to set up your website.
+
+After extracting the zip content, visit `yourdomain.com/install.php` (or `yourdomain.com/subfolder/install.php` if you uploaded the CMS files to a domain subfolder) to complete the initial setup (site name, language, admin password, admin folder name).
+It is recommended to change your website's admin folder name for added security.
 
 ## System Requirements
 
