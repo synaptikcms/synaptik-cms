@@ -46,15 +46,6 @@
     </div>
     <?php endif; ?>
 
-    <?php if (!empty($article['category'])): ?>
-    <div class="article-category">
-        <a href="<?php echo getBaseUrl() . url_slug('category') . '/' . sanitizeSlug($article['category']) . '/'; ?>"
-           class="category-badge">
-            <?php echo htmlspecialchars($article['category']); ?>
-        </a>
-    </div>
-    <?php endif; ?>
-
     <?php if (!empty($article['tags']) && is_array($article['tags'])): ?>
     <div class="article-tags">
         <?php foreach ($article['tags'] as $tag): ?>

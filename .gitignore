@@ -24,6 +24,8 @@ theme/synaptik-docs
 theme/blueish
 theme/natura
 theme/nihonium
+theme/synaptik/page-templates/bilan-vitalite.php
+theme/synaptik/page-templates/landing.php
 
 # Generated
 sitemap.xml

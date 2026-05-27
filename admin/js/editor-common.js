@@ -52,7 +52,7 @@ window.EditorCommon = (function () {
 /* Format switcher */
 .editor-format-switcher { display:flex; align-items:center; gap:4px; padding:6px 0 4px; margin: 0 20px; }
 .editor-format-tab { padding:4px 12px; border:1px solid var(--border-light,#ddd); border-radius:4px; background:transparent; font-size:12px; font-weight:500; color:var(--text-muted,#888); cursor:pointer; transition:background .15s,color .15s,border-color .15s; }
-.editor-format-tab:hover:not(.active) { border-color:var(--primary,#3b82f6); color:var(--primary,#3b82f6); }
+.editor-format-tab:hover:not(.active) { border-color:var(--primary,#3b82f6); color:white; }
 .editor-format-tab.active { background:var(--primary,#3b82f6); border-color:var(--primary,#3b82f6); color:#fff; cursor:default; }
 `;
 		(document.head || document.documentElement).appendChild(style);
@@ -63,11 +63,11 @@ window.EditorCommon = (function () {
 		const current = window.CONTENT_FORMAT || 'html';
 		if (newFormat === current) return;
 
-		const msg = newFormat === 'markdown'
-			? t('editor_switch_to_md_confirm',   'Switch to Markdown? Your content will be preserved as-is — it will NOT be converted.')
-			: t('editor_switch_to_html_confirm', 'Switch to WYSIWYG? Your content will be preserved as-is — it will NOT be converted.');
-
-		if (!confirm(msg)) return;
+// 		const msg = newFormat === 'markdown'
+// 			? t('editor_switch_to_md_confirm',   'Switch to Markdown? Your content will be preserved as-is — it will NOT be converted.')
+// 			: t('editor_switch_to_html_confirm', 'Switch to WYSIWYG? Your content will be preserved as-is — it will NOT be converted.');
+// 
+// 		if (!confirm(msg)) return;
 
 		// Sync then hide current editor
 		const currentEd = _activeEditor();
