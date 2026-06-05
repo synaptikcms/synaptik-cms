@@ -10,7 +10,7 @@ $root      = dirname(dirname(__DIR__));
 $_upd_info = admin_check_for_update();
 
 $_skipPrefixes = ['__MACOSX/', 'data/', 'files/', 'bckps/', 'cache/', 'private/', 'admin/cache/', 'admin/drafts/'];
-$_skipFiles    = ['.DS_Store', 'settings.json', 'install.lock', 'admin/admin-credentials.php'];
+$_skipFiles    = ['.DS_Store', 'settings.json', 'install.lock', 'install.php', 'admin/admin-credentials.php'];
 
 if (!function_exists('_upd_detect_prefix')) {
 	/**
