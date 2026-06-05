@@ -1,0 +1,138 @@
+RewriteEngine On
+
+# Set your base directory if needed (uncomment and modify if your CMS is in a subdirectory)
+# RewriteBase /your-url-here/
+
+# Explicitly allow category-based URL routing (overrides server-level theme restrictions)
+RewriteRule ^theme-[^/]+/ index.php [QSA,L]
+
+# Handle specific PHP redirects first
+RewriteRule ^get-files\.php$ file-manager.php?action=get_files [QSA,L]
+RewriteRule ^file-upload\.php$ file-manager.php [QSA,L]
+
+# Don't apply rules to existing files or directories
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+# <IfModule mod_security.c>
+#     <LocationMatch "/admin/">
+#         SecRuleRemoveById 960009
+#     </LocationMatch>
+# </IfModule>
+
+# Block direct access to settings.json
+<Files ~ "settings\.json$">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Block direct access to sensitive PHP files
+<Files ~ "admin-credentials\.php$">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Protect .htaccess files
+<Files ~ "^\.ht">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Block empty search queries
+<IfModule mod_rewrite.c>
+    RewriteCond %{QUERY_STRING} ^q=$
+    RewriteRule ^search\.php - [F,L]
+</IfModule>
+
+# -----------------------------------------------
+# Security Headers
+# -----------------------------------------------
+<IfModule mod_headers.c>
+    # Prevent clickjacking — admin must never load inside an external iframe
+    Header always set X-Frame-Options "SAMEORIGIN"
+
+    # Prevent MIME-type sniffing — browser must honour declared Content-Type
+    Header always set X-Content-Type-Options "nosniff"
+
+    # Limit Referer leakage — never expose the admin URL to external domains
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Disable unused browser features
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+
+    # Content Security Policy
+    # script-src  : theme JS + hCaptcha widget loader + optional CDNs (commented)
+    # frame-src   : hCaptcha iframe only
+    # style-src   : theme CSS + inline styles + Google Fonts (if used)
+    # font-src    : Google Fonts glyphs (if used) — remove if not needed
+    # img-src     : local images, base64 data URIs, blob (e.g. image previews)
+    # connect-src : same-origin XHR/fetch + hCaptcha verification API
+    Header always set Content-Security-Policy "\
+default-src 'self'; \
+script-src 'self' 'unsafe-inline' https://js.hcaptcha.com https://cdn.jsdelivr.net https://www.googletagmanager.com; \
+frame-src https://newassets.hcaptcha.com; \
+style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; \
+font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; \
+img-src 'self' data: blob:; \
+connect-src 'self' https://hcaptcha.com https://api.hcaptcha.com https://www.google-analytics.com https://analytics.google.com; \
+frame-ancestors 'self'"
+</IfModule>
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    # Never cache HTML or PHP responses
+    ExpiresByType text/html                      "access plus 0 seconds"
+    ExpiresByType application/json               "access plus 0 seconds"
+    ExpiresByType application/xml                "access plus 0 seconds"
+    # CSS and JavaScript — 1 year (filenames are versioned via ETag / mtime)
+    ExpiresByType text/css                       "access plus 1 year"
+    ExpiresByType application/javascript         "access plus 1 year"
+    ExpiresByType text/javascript                "access plus 1 year"
+    # Images
+    ExpiresByType image/jpeg                     "access plus 1 year"
+    ExpiresByType image/png                      "access plus 1 year"
+    ExpiresByType image/gif                      "access plus 1 year"
+    ExpiresByType image/webp                     "access plus 1 year"
+    ExpiresByType image/svg+xml                  "access plus 1 year"
+    ExpiresByType image/x-icon                   "access plus 1 year"
+    ExpiresByType image/vnd.microsoft.icon       "access plus 1 year"
+    # Fonts
+    ExpiresByType font/woff                      "access plus 1 year"
+    ExpiresByType font/woff2                     "access plus 1 year"
+    ExpiresByType application/font-woff          "access plus 1 year"
+    ExpiresByType application/font-woff2         "access plus 1 year"
+</IfModule>
+
+# Cache-Control headers — complement mod_expires with explicit directives
+<IfModule mod_headers.c>
+    # CSS, JS: public + immutable (browser won't even revalidate within max-age)
+    <FilesMatch "\.(?:css|js)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+
+    # Images and fonts: public + long max-age, ETag revalidation allowed
+    <FilesMatch "\.(?:jpe?g|png|gif|webp|svg|ico|woff2?)$">
+        Header set Cache-Control "public, max-age=31536000"
+    </FilesMatch>
+
+    # HTML pages: never cache
+    <FilesMatch "\.html$">
+        Header set Cache-Control "no-store"
+    </FilesMatch>
+</IfModule>
+
+# ── Compression gzip ───────────────────────────────────────────
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE text/shtml
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/x-javascript
+</IfModule>

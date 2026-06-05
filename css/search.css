@@ -1,0 +1,390 @@
+/* -------------------------------------------------*/
+/*  --- SynaptikCMS Custom search function by Dorian FICHOT ---  */
+/* -------------------------------------------------*/
+
+/* ── Search icon in nav ── */
+.search-icon svg {
+  margin-top: 3px;
+  stroke: var(--search-primary);
+  transition: transform 0.3s ease;
+}
+.search-icon a:hover svg {
+  transform: scale(1.2);
+}
+
+/* ────────────────────────────────────────────────
+   OVERLAY
+   Full-screen fixed container.
+   position:fixed makes it the positioning context
+   for #close-search (absolute) and .search-bar
+   (absolute when centred).
+   Becomes flex column when active so .search-results
+   can fill remaining height once bar has moved up.
+──────────────────────────────────────────────── */
+.search-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--search-bg-darker);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.search-overlay.active {
+  display: flex;
+  flex-direction: column;
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ────────────────────────────────────────────────
+   CLOSE BUTTON
+   Always anchored top-right, never moves.
+──────────────────────────────────────────────── */
+#close-search {
+  position: absolute;
+  top: 20px;
+  right: 50px;
+  border: 1px solid white;
+  color: white;
+  font-size: 32px;
+  cursor: pointer;
+  padding: 5px;
+  line-height: 0.6;
+  background-color: var(--search-primary-dark);
+  border-radius: var(--search-border-radius-sm);
+  transition: background-color 0.2s ease;
+  z-index: 2;
+}
+#close-search:hover {
+  background-color: var(--search-primary);
+}
+
+/* ────────────────────────────────────────────────
+   SEARCH BAR  (input + filter checkboxes)
+
+   DEFAULT — no results:
+     position:absolute, centred in the overlay via
+     top:50% + translateY(-50%).
+
+   WITH RESULTS (.has-results on overlay):
+     position:relative → re-enters the flex column
+     at the top. padding-top keeps it clear of the
+     close button. The transition on top + transform
+     drives the visible slide-up animation.
+──────────────────────────────────────────────── */
+.search-bar {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  padding: 0 15%;
+  box-sizing: border-box;
+  transform: translateY(-50%);
+  transition: top 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+  transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 1;
+}
+
+.search-overlay.has-results .search-bar {
+  position: relative;
+  top: 50px;
+  transform: translateY(0);
+  padding-bottom: 16px;
+  margin-bottom: 40px;
+  transition: top 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+  transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── Input field ── */
+.search-input-container {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+#search-input {
+  width: 100%;
+  padding: 12px 44px 12px 15px;
+  border: 3px solid var(--search-primary);
+  border-radius: 5px;
+  background-color: var(--search-bg-accent);
+  color: var(--search-text-main);
+  font-size: 1.4rem;
+  box-sizing: border-box;
+  transition: border-color 0.3s ease;
+}
+#search-input:focus {
+  outline: none;
+  border-color: var(--search-primary-light);
+  box-shadow: none;
+}
+
+/* ── Clear (×) button inside input ── */
+.search-clear-btn {
+  position: absolute;
+  right: 15px;
+  top: 15%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  line-height: 22px;
+  text-align: center;
+  font-size: 18px;
+  background: var(--search-primary);
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  display: none;
+  transition: background-color 0.2s ease;
+}
+.search-clear-btn:hover {
+  background-color: var(--search-primary-dark);
+}
+
+/* ── Filter checkboxes ── */
+.search-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  padding: 10px 15px;
+  background-color: #1819187a;
+  border-radius: 5px;
+  color: var(--search-text-main);
+}
+.search-options label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 0.8rem;
+  margin-top: 0;
+}
+.search-options input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--search-bg-main);
+  border-radius: 3px;
+  background-color: #191d18;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: background-color 0.2s ease;
+}
+.search-options input[type="checkbox"]:checked {
+  background-color: var(--search-primary);
+}
+.search-options input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* ────────────────────────────────────────────────
+   RESULTS PANEL
+   flex:0 by default — takes zero height, invisible.
+   With .has-results: flex:1 fills all remaining
+   height below the bar; overflow-y:auto scrolls
+   independently without moving the bar above.
+   Opacity delayed so bar finishes sliding first.
+──────────────────────────────────────────────── */
+.search-results {
+  flex: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 15%;
+  box-sizing: border-box;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease 0.3s;
+}
+
+.search-overlay.has-results .search-results {
+  flex: 1;
+  opacity: 1;
+  pointer-events: auto;
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+.search-results::-webkit-scrollbar { width: 12px; }
+.search-results::-webkit-scrollbar-track { background: transparent; }
+.search-results::-webkit-scrollbar-thumb {
+  background: var(--search-primary-dark);
+  border-radius: 2px;
+}
+
+/* ── Loading indicator ── */
+.search-loading {
+  color: #aaa;
+  padding: 20px 0;
+  font-size: 0.9rem;
+}
+
+/* ── Results count ── */
+.results-count {
+  margin-bottom: 20px;
+  color: #aaa;
+  font-size: 0.9rem;
+}
+
+/* ── Section headings ── */
+.result-type-heading {
+  margin: 25px 0 15px;
+  color: var(--search-result-heading);
+  font-size: 2rem;
+  border-bottom: 1px solid #a5a5a5;
+  padding-bottom: 8px;
+}
+.result-title-heading {
+  margin: 0 0 15px;
+  color: white;
+  font-size: 1.5rem;
+}
+.result-title-heading a { color: var(--search-primary-light); }
+.result-title-heading a:hover { color: var(--search-primary); }
+
+/* ── Individual result card ── */
+.search-result-item {
+  margin-bottom: 15px;
+  padding: 15px;
+  background-color: var(--search-bg-accent);
+  border-radius: 5px;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+.search-result-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  background-color: var(--search-bg-main);
+}
+.search-result-item.has-image {
+  padding-left: 120px;
+  min-height: 100px;
+}
+
+/* ── Thumbnail ── */
+.result-image {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100px;
+  height: 100%;
+  overflow: hidden;
+}
+.result-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+.search-result-item:hover .result-image img { transform: scale(1.05); }
+
+/* ── Result body ── */
+.result-content { flex: 1; }
+.result-type {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+.result-type.article { background-color: #489e64; color: white; }
+.result-type.page    { background-color: #e6972f; color: white; }
+.result-type.project { background-color: #3f82c5; color: white; }
+
+.search-result-item h4 { margin: 0 0 8px; font-size: 1.6rem; }
+.search-result-item h4 a {
+  color: #eee;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+.search-result-item h4 a:hover { color: var(--search-primary-dark); }
+
+.result-excerpt {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--search-text-main);
+  line-height: 1.4;
+}
+
+/* ── Highlight matched text ── */
+.highlight {
+  background-color: #fcf04c;
+  padding: 2px 3px;
+  border-radius: 3px;
+  font-weight: bold;
+  color: black;
+}
+
+/* ── Empty / error states ── */
+.no-results, .error {
+  padding: 30px;
+  text-align: center;
+  background-color: var(--search-bg-darker);
+  border-radius: 5px;
+  color: #aaa;
+}
+.error { color: #e57373; }
+
+/* ────────────────────────────────────────────────
+   RESPONSIVE
+──────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  #close-search {
+    top: 12px;
+    right: 12px;
+    font-size: 28px;
+  }
+
+  .search-bar {
+    padding: 0 16px;
+  }
+  .search-overlay.has-results .search-bar {
+    padding-top: 60px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .search-results {
+    padding: 0 16px;
+  }
+  .search-overlay.has-results .search-results {
+    padding-top: 15px;
+    padding-bottom: 15px;
+  }
+
+  .search-options {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .search-result-item.has-image {
+    padding-left: 15px;
+    padding-top: 130px;
+  }
+  .result-image {
+    width: 100%;
+    height: 120px;
+  }
+}

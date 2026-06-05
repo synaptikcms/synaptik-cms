@@ -1,0 +1,465 @@
+/* -------------------------------------------------*/
+/* Custom Lightbox CSS to match search overlay style */
+/* -------------------------------------------------*/
+/* Lightbox styles */
+#lightbox-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9999;
+  display: none;
+  overflow: hidden;
+  background-color: rgba(0, 0, 0, 0);
+  transition: background-color 0.3s ease;
+}
+
+#lightbox-container.active {
+  display: block;
+  background-color: rgba(0, 0, 0, 0.8);
+  animation: fadeIn 0.3s ease forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+#lightbox-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: transparent;
+}
+
+#lightbox-content {
+  position: relative;
+  max-width: 90%;
+  max-height: 90%;
+  margin: 2% auto;
+  z-index: 10000;
+}
+
+#lightbox-image-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 80vh;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  transform: scale(0.9);
+  animation: zoomIn 0.4s ease forwards;
+}
+
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+#lightbox-container.active #lightbox-image-container {
+  opacity: 1;
+}
+
+#lightbox-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+#lightbox-image.transitioning {
+  opacity: 0;
+}
+
+#lightbox-caption {
+  color: white;
+  text-align: center;
+  padding: 10px;
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.3s ease 0.2s;
+}
+
+#lightbox-container.active #lightbox-caption {
+  opacity: 1;
+}
+
+#lightbox-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  font-size: 30px;
+  color: white;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  width: 40px;
+  height: 40px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  z-index: 10001;
+}
+
+#lightbox-close:hover {
+  background: rgb(60 220 20 / 60%);
+  transform: scale(1.1);
+}
+
+#lightbox-prev,
+#lightbox-next {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+  font-size: 24px;
+  padding: 15px 10px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  transition: all 0.3s;
+  z-index: 10001;
+  opacity: 0.7;
+}
+
+#lightbox-prev:hover,
+#lightbox-next:hover {
+  background: rgb(60 220 20 / 60%);
+  opacity: 1;
+}
+
+#lightbox-prev {
+  left: 10px;
+  border-radius: 3px 0 0 3px;
+}
+
+#lightbox-next {
+  right: 10px;
+  border-radius: 0 3px 3px 0;
+}
+
+/* -------------------------------------------------*/
+/*     Custom code syntax highlighting styles       */
+/* -------------------------------------------------*/
+pre {
+  background: #1e1e1e;
+  border-radius: 6px;
+  padding: 16px;
+  overflow-x: auto;
+  font-family: 'Courier New', 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 16px 0;
+  max-width: 100%;
+  overflow-x: auto;
+  box-sizing: border-box;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-x: auto;
+}
+
+code {
+  font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+}
+
+/* Inline code */
+:not(pre)>code {
+  background: #f4f4f4;
+  padding: 3px 10px;
+  border-radius: 3px;
+  color: #e74c3c;
+  font-size: 0.9em;
+  margin: 2px 6px;
+}
+
+/* HTML */
+.language-html .tag {
+  color: #e74c3c;
+}
+
+.language-html .attr {
+  color: #3498db;
+}
+
+.language-html .string {
+  color: #2ecc71;
+}
+
+.language-html .comment {
+  color: #95a5a6;
+  font-style: italic;
+}
+
+/* CSS */
+.language-css .property {
+  color: #e74c3c;
+}
+
+.language-css .value {
+  color: #3498db;
+}
+
+.language-css .selector {
+  color: #f39c12;
+}
+
+.language-css .comment {
+  color: #95a5a6;
+  font-style: italic;
+}
+
+/* JavaScript */
+.language-javascript .keyword {
+  color: #e74c3c;
+}
+
+.language-javascript .string {
+  color: #2ecc71;
+}
+
+.language-javascript .function {
+  color: #3498db;
+}
+
+.language-javascript .number {
+  color: #f39c12;
+}
+
+.language-javascript .comment {
+  color: #95a5a6;
+  font-style: italic;
+}
+
+.language-javascript .operator {
+  color: #ecf0f1;
+}
+
+.language-javascript .boolean {
+  color: #9b59b6;
+}
+
+/* PHP */
+.language-php .keyword {
+  color: #e74c3c;
+}
+
+.language-php .string {
+  color: #2ecc71;
+}
+
+.language-php .function {
+  color: #3498db;
+}
+
+.language-php .variable {
+  color: #9b59b6;
+}
+
+.language-php .comment {
+  color: #95a5a6;
+  font-style: italic;
+}
+
+.language-php .number {
+  color: #f39c12;
+}
+
+/* Common elements across languages */
+[class*="language-"] .punctuation {
+  color: #ecf0f1;
+}
+
+[class*="language-"] .comment {
+  color: #95a5a6;
+  font-style: italic;
+}
+
+[class*="language-"] .operator {
+  color: #ecf0f1;
+}
+
+[class*="language-"] .boolean {
+  color: #9b59b6;
+}
+
+[class*="language-"] .null {
+  color: #9b59b6;
+}
+
+/* Python */
+.language-python .keyword {
+  color: #e74c3c;
+}
+
+.language-python .string {
+  color: #2ecc71;
+}
+
+.language-python .function {
+  color: #3498db;
+}
+
+.language-python .number {
+  color: #f39c12;
+}
+
+.language-python .comment {
+  color: #95a5a6;
+  font-style: italic;
+}
+
+.language-python .operator {
+  color: #ecf0f1;
+}
+
+.language-python .boolean {
+  color: #9b59b6;
+}
+
+/* SQL */
+.language-sql .keyword {
+  color: #e74c3c;
+}
+
+.language-sql .string {
+  color: #2ecc71;
+}
+
+.language-sql .function {
+  color: #3498db;
+}
+
+.language-sql .number {
+  color: #f39c12;
+}
+
+.language-sql .comment {
+  color: #95a5a6;
+  font-style: italic;
+}
+
+.language-sql .type {
+  color: #9b59b6;
+}
+
+.language-sql .operator {
+  color: #ecf0f1;
+}
+
+/* Bash */
+.language-bash .keyword {
+  color: #e74c3c;
+}
+
+.language-bash .string {
+  color: #2ecc71;
+}
+
+.language-bash .function {
+  color: #3498db;
+}
+
+.language-bash .variable {
+  color: #f39c12;
+}
+
+.language-bash .number {
+  color: #f39c12;
+}
+
+.language-bash .comment {
+  color: #95a5a6;
+  font-style: italic;
+}
+
+.language-bash .operator {
+  color: #ecf0f1;
+}
+
+/* JSON */
+.language-json .string {
+  color: #2ecc71;
+}
+
+.language-json .number {
+  color: #f39c12;
+}
+
+.language-json .boolean {
+  color: #9b59b6;
+}
+
+.language-json .null {
+  color: #95a5a6;
+}
+
+/* XML */
+.language-xml .tag {
+  color: #e74c3c;
+}
+
+.language-xml .attr {
+  color: #f39c12;
+}
+
+.language-xml .string {
+  color: #2ecc71;
+}
+
+.language-xml .comment {
+  color: #95a5a6;
+  font-style: italic;
+}
+
+/* Light theme alternative - add .light-theme class to <pre> if needed */
+pre.light-theme {
+  background: #f8f8f8;
+  color: #2c3e50;
+}
+
+/* Optional: Add line numbers */
+pre.line-numbers {
+  counter-reset: linenumber;
+  padding-left: 50px;
+  position: relative;
+}
+
+pre.line-numbers code {
+  display: block;
+}
+
+pre.line-numbers code::before {
+  counter-increment: linenumber;
+  content: counter(linenumber);
+  position: absolute;
+  left: 16px;
+  color: #666;
+  width: 20px;
+  text-align: right;
+}
+
+@media (max-width: 768px) {
+  pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+}

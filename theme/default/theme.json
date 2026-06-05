@@ -1,0 +1,8 @@
+{
+    "name": "Mono Theme",
+    "folder": "default",
+    "version": "1.0",
+    "author": "Dorian Fichot",
+    "description": "A light, minimalist theme for SynaptikCMS with just the right amount of animations to make it cool :)",
+    "synaptik_theme": true
+}
