@@ -86,15 +86,15 @@ $categoryTree = buildCategoryTree($categories);
 					<?php endforeach; ?>
 				</select>
 				<p class="help-text"><?php _e('cat_parent_help'); ?></p>
-				<button class="button" type="submit"><?php _e('add_category_btn'); ?></button>
+				<button class="btn btn-primary" type="submit"><?php _e('add_category_btn'); ?></button>
 			</div>
 		</form>
 	</div>
 	<div class="site-settings-section">
 		<!-- Merge Categories Form -->
 		<?php if (count($categories) >= 2): ?>
-			<button type="button" class="button" id="toggle-merge-cats"><?php _e('merge_categories'); ?></button>
-			<div id="merge-cats-form" style="display:none; padding:15px; background:var(--bg-secondary); border-radius:5px;">
+			<button type="button" class="btn btn-outline" id="toggle-merge-cats"><?php _e('merge_categories'); ?></button>
+			<div id="merge-cats-form" style="display:none; margin-top: 12px; padding:15px; background:var(--surface-2); border-radius:var(--radius-sm);">
 				<h3 style="margin-top:0;"><?php _e('merge_categories'); ?></h3>
 				<p style="font-size:.85rem; opacity:.75; margin-top:0;"><?php _e('merge_cats_help'); ?></p>
 				<form id="merge-cats-submit-form" method="post" action="index.php?action=manage_categories">
@@ -102,7 +102,7 @@ $categoryTree = buildCategoryTree($categories);
 					<div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
 						<div class="form-group" style="margin:0; padding:0; flex:1; min-width:160px;">
 							<label><?php _e('merge_source'); ?></label>
-							<select name="source_slug" required>
+							<select name="source_slug" style="width:100%;" required>
 								<option value=""><?php _e('select_category'); ?></option>
 								<?php foreach ($categoryTree as $cat):
 									$prefix = str_repeat('— ', $cat['depth']);
@@ -116,7 +116,7 @@ $categoryTree = buildCategoryTree($categories);
 						<div style="padding-bottom:8px; font-size:1.6rem; opacity:.8;">→</div>
 						<div class="form-group" style="margin:0; padding:0; flex:1; min-width:160px;">
 							<label><?php _e('merge_target'); ?></label>
-							<select name="target_slug" required>
+							<select name="target_slug" style="width:100%;" required>
 								<option value=""><?php _e('select_category'); ?></option>
 								<?php foreach ($categoryTree as $cat):
 									$prefix = str_repeat('— ', $cat['depth']);
@@ -127,7 +127,7 @@ $categoryTree = buildCategoryTree($categories);
 								<?php endforeach; ?>
 							</select>
 						</div>
-						<button class="button danger merge-btn" type="button"
+						<button class="btn btn-danger merge-btn" type="button"
 							data-form="merge-cats-submit-form"
 							data-confirm="<?php _e('confirm_merge_cats'); ?>"
 							style="margin-bottom:1px;"><?php _e('merge'); ?></button>
@@ -146,7 +146,7 @@ $categoryTree = buildCategoryTree($categories);
 
 			<form method="post" action="index.php?action=manage_categories" id="purge-cats-form" style="margin:0;">
 				<input type="hidden" name="category_action" value="purge_orphans">
-				<button type="button" class="button small danger purge-btn"
+				<button type="button" class="btn btn-danger btn-sm purge-btn"
 					data-form="purge-cats-form"
 					data-confirm="<?php _e('confirm_purge_orphan_cats'); ?>">
 					<?php _e('purge_orphan_cats'); ?> (<?php echo $orphanCount; ?>)
@@ -162,7 +162,8 @@ $categoryTree = buildCategoryTree($categories);
 <?php if (empty($categories)): ?>
 	<p><?php _e('no_categories_found'); ?></p>
 <?php else: ?>
-	<table id="cats-table">
+	<div class="table-wrap">	
+		<table id="cats-table">
 		<thead>
 			<tr>
 				<th class="sortable" data-sort="name"><?php _e('category_name'); ?> <span class="sort-icon">↕</span></th>
@@ -224,16 +225,16 @@ $categoryTree = buildCategoryTree($categories);
 						data-slug="<?php echo $slug; ?>"
 						data-name="<?php echo htmlspecialchars($cat['name']); ?>"
 						data-parent="<?php echo htmlspecialchars($cat['parent'] ?? ''); ?>"
-						data-depth="<?php echo $depth; ?>"><?php _e('edit'); ?></a>
+						data-depth="<?php echo $depth; ?>"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg><?php _e('edit'); ?></a>
 					<a href="#" style="margin:0;" class="table-btn delete-btn small danger delete-category"
 						data-slug="<?php echo $slug; ?>"
-						data-name="<?php echo htmlspecialchars($cat['name']); ?>"><?php _e('delete'); ?></a>
+						data-name="<?php echo htmlspecialchars($cat['name']); ?>"><svg width="14" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></a>
 				</td>
 			</tr>
 			<?php endforeach; ?>
 		</tbody>
 	</table>
-
+	</div>
 	<!-- Edit Category — bare form, populated and submitted via JS modal -->
 	<form id="edit-category-form" method="post" action="index.php?action=manage_categories" style="display:none">
 		<input type="hidden" name="category_action" value="edit">
@@ -255,13 +256,12 @@ $categoryTree = buildCategoryTree($categories);
 		echo json_encode($opts, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
 	?>;
 	</script>
-<?php endif; ?></main>
-</div>
+<?php endif; ?>
 
 <!-- Popover for linked items -->
 <div id="items-popover" style="
-	display:none; position:fixed; z-index:9999;	background:rgba(35, 47, 61, 0.777); color:white; border:1px solid var(--border-color);border-radius:6px; padding:10px 14px; min-width:200px; max-width:320px;
-	box-shadow:0 4px 16px rgba(0,0,0,.35); font-size:.85rem; pointer-events:none;">
+	display:none; position:fixed; z-index:9999;	background:var(--sidebar-bg); color:#fff; border:1px solid var(--border);border-radius:var(--radius-sm); padding:10px 14px; min-width:200px; max-width:320px;
+	box-shadow:var(--shadow-lg); font-size:.85rem; pointer-events:none;">
 	<div id="items-popover-content"></div>
 </div>
 
@@ -382,7 +382,7 @@ document.addEventListener('DOMContentLoaded', function() {
 		let html = `<strong style="display:block;margin-bottom:6px;">${t('linked_items')}</strong><ul style="margin:0;padding:0 0 0 16px;">`;
 			items.forEach(item => {
 				const url = `index.php?action=edit&type=${item.type}&index=${item.index}`;
-				html += `<li><a href="${url}" style="color:var(--accent-color);">${escHtml(item.title)}</a> <em style="opacity:.5">(${item.type})</em></li>`;
+				html += `<li><a href="${url}" style="color:var(--primary);">${escHtml(item.title)}</a> <em style="opacity:.5">(${item.type})</em></li>`;
 			});
 			html += '</ul>';
 			popoverContent.innerHTML = html;

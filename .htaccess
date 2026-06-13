@@ -1,8 +1,8 @@
-# Enable the rewrite engine
 RewriteEngine On
 
+
 # Set your base directory if needed (uncomment and modify if your CMS is in a subdirectory)
-# RewriteBase /cmsapp/
+# RewriteBase /your-url-here/
 
 # Explicitly allow category-based URL routing (overrides server-level theme restrictions)
 RewriteRule ^theme-[^/]+/ index.php [QSA,L]
@@ -17,13 +17,13 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
 
 # <IfModule mod_security.c>
-#     <LocationMatch "/deevious/">
+#     <LocationMatch "/admin/">
 #         SecRuleRemoveById 960009
 #     </LocationMatch>
 # </IfModule>
 
-# Block direct access to sensitive JSON files
-<Files ~ "(settings|data)\.json$">
+# Block direct access to settings.json
+<Files ~ "settings\.json$">
     Order allow,deny
     Deny from all
 </Files>
@@ -44,12 +44,6 @@ RewriteRule ^(.*)$ index.php [QSA,L]
 <IfModule mod_rewrite.c>
     RewriteCond %{QUERY_STRING} ^q=$
     RewriteRule ^search\.php - [F,L]
-</IfModule>
-
-# Protect bckps directory from direct access
-<IfModule mod_rewrite.c>
-    RewriteCond %{HTTP_REFERER} !deevious [NC]
-    RewriteRule ^bckps/.*$ - [F,L]
 </IfModule>
 
 # -----------------------------------------------
@@ -77,13 +71,56 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     # connect-src : same-origin XHR/fetch + hCaptcha verification API
     Header always set Content-Security-Policy "\
 default-src 'self'; \
-script-src 'self' 'unsafe-inline' https://js.hcaptcha.com https://cdn.jsdelivr.net; \
+script-src 'self' 'unsafe-inline' https://js.hcaptcha.com https://cdn.jsdelivr.net https://www.googletagmanager.com; \
 frame-src https://newassets.hcaptcha.com; \
 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; \
 font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; \
 img-src 'self' data: blob:; \
-connect-src 'self' https://hcaptcha.com https://api.hcaptcha.com; \
+connect-src 'self' https://hcaptcha.com https://api.hcaptcha.com https://www.google-analytics.com https://analytics.google.com; \
 frame-ancestors 'self'"
+</IfModule>
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    # Never cache HTML or PHP responses
+    ExpiresByType text/html                      "access plus 0 seconds"
+    ExpiresByType application/json               "access plus 0 seconds"
+    ExpiresByType application/xml                "access plus 0 seconds"
+    # CSS and JavaScript — 1 year (filenames are versioned via ETag / mtime)
+    ExpiresByType text/css                       "access plus 1 year"
+    ExpiresByType application/javascript         "access plus 1 year"
+    ExpiresByType text/javascript                "access plus 1 year"
+    # Images
+    ExpiresByType image/jpeg                     "access plus 1 year"
+    ExpiresByType image/png                      "access plus 1 year"
+    ExpiresByType image/gif                      "access plus 1 year"
+    ExpiresByType image/webp                     "access plus 1 year"
+    ExpiresByType image/svg+xml                  "access plus 1 year"
+    ExpiresByType image/x-icon                   "access plus 1 year"
+    ExpiresByType image/vnd.microsoft.icon       "access plus 1 year"
+    # Fonts
+    ExpiresByType font/woff                      "access plus 1 year"
+    ExpiresByType font/woff2                     "access plus 1 year"
+    ExpiresByType application/font-woff          "access plus 1 year"
+    ExpiresByType application/font-woff2         "access plus 1 year"
+</IfModule>
+
+# Cache-Control headers — complement mod_expires with explicit directives
+<IfModule mod_headers.c>
+    # CSS, JS: public + immutable (browser won't even revalidate within max-age)
+    <FilesMatch "\.(?:css|js)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+
+    # Images and fonts: public + long max-age, ETag revalidation allowed
+    <FilesMatch "\.(?:jpe?g|png|gif|webp|svg|ico|woff2?)$">
+        Header set Cache-Control "public, max-age=31536000"
+    </FilesMatch>
+
+    # HTML pages: never cache
+    <FilesMatch "\.html$">
+        Header set Cache-Control "no-store"
+    </FilesMatch>
 </IfModule>
 
 # ── Compression gzip ───────────────────────────────────────────

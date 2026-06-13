@@ -5,7 +5,7 @@ if (!defined('INCLUDED')) {
 }
 
 // ── Media stats — read from cache, rebuild only when stale ───────────────────
-$_sb_mediaCache  = dirname(__DIR__) . '/private/media-stats.json';
+$_sb_mediaCache  = dirname(__DIR__) . '/cache/media-stats.json';
 $_sb_filesDir    = dirname(__DIR__) . '/files';
 $_sb_fileCount   = 0;
 $_sb_fileSize    = 0;
@@ -30,7 +30,7 @@ if ($_sb_cacheValid) {
 			$_sb_fileSize += $_sb_f->getSize();
 		}
 	}
-	// Persist cache only if bckps/ is writable
+	// Persist cache only if cache/ is writable
 	if (is_writable(dirname($_sb_mediaCache))) {
 		file_put_contents(
 			$_sb_mediaCache,
@@ -97,7 +97,7 @@ function dash_icon(string $name): string {
 		'settings'   => '<line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="9" cy="18" r="2" fill="currentColor" stroke="none"/>',
 		'article'    => '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
 		'page'       => '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
-		'project'    => '<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>',
+		'project'    => '<path d="M2 7.5V5c0-1.1.9-2 2-2h4l2 2h8a2 2 0 0 1 2 2v1"/><path d="M2 7.5h20l-1.5 9a2 2 0 0 1-2 1.5H5.5a2 2 0 0 1-2-1.5z"/>',
 	];
 
 	$inner = $paths[$name] ?? '';
@@ -110,9 +110,9 @@ function dash_icon(string $name): string {
 
 	<?php /* ── Header ─────────────────────────────────────────── */ ?>
 	<div class="dashboard-header">
-		<h2><?php _e('dashboard_greeting'); ?></h2>
+		<h2><?php _e('dashboard_greeting'); ?>, <span><?php echo htmlspecialchars(admin_get_display_name()); ?>!</span></h2>
 		<div class="quick-actions">
-			<div class="dropdown">
+			<!-- <div class="dropdown">
 				<button class="button dropdown-toggle">
 					<?php _e('quick_add'); ?> <span class="caret">▼</span>
 				</button>
@@ -121,21 +121,20 @@ function dash_icon(string $name): string {
 					<li><a href="index.php?action=add&type=page"><?php _e('new_page'); ?></a></li>
 					<li><a href="index.php?action=add&type=project"><?php _e('new_project'); ?></a></li>
 				</ul>
-			</div>
+			</div> -->
 		</div>
 	</div>
 <?php if (!empty($_sb_update)): ?>
 	<div class="update-notice">
-		<strong>⬆ <?php _e('update_available'); ?></strong>
+		<strong><?php echo admin_icon('update'); ?> <?php _e('update_available'); ?></strong>
 		<?php echo __t('update_version'); ?> <b><?php echo htmlspecialchars($_sb_update['version']); ?></b>
 		<?php if (!empty($_sb_update['notes'])): ?>
 			— <?php echo htmlspecialchars($_sb_update['notes']); ?>
 		<?php endif; ?>
-		<?php if (!empty($_sb_update['download_url'])): ?>
-			<a href="<?php echo htmlspecialchars($_sb_update['download_url']); ?>" target="_blank" rel="noopener">
-				<?php _e('download'); ?>
-			</a>
+		<?php if (!empty($_sb_update['changelog_url'])): ?>
+			<a href="<?php echo htmlspecialchars($_sb_update['changelog_url']); ?>" target="_blank" rel="noopener"><?php _e('update_changelog_link'); ?></a>
 		<?php endif; ?>
+		<a href="index.php?action=update"><?php _e('update_apply_btn'); ?> →</a>
 	</div>
 	<?php endif; ?>
 	
@@ -196,7 +195,7 @@ function dash_icon(string $name): string {
 
 		<div class="stat-card<?php echo $contentStats['project'] === 0 ? ' stat-card--empty' : ''; ?>">
 			<div class="stat-icon">
-				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7.5V5c0-1.1.9-2 2-2h4l2 2h8a2 2 0 0 1 2 2v1"/><path d="M2 7.5h20l-1.5 9a2 2 0 0 1-2 1.5H5.5a2 2 0 0 1-2-1.5z"/></svg>
 			</div>
 			<div class="stat-content">
 				<div class="stat-value"><?php echo $contentStats['project']; ?></div>
@@ -247,7 +246,7 @@ function dash_icon(string $name): string {
 		<?php /* ── Left column : recent content ─────────────── */ ?>
 		<div class="dashboard-column">
 			<div class="dashboard-panel">
-				<h3><?php _e('recent_activity'); ?></h3>
+				<h3><?php _e('recent_posts'); ?></h3>
 				<div class="activity-list">
 					<?php if (empty($recentItems)): ?>
 
@@ -255,8 +254,8 @@ function dash_icon(string $name): string {
 						<div class="dashboard-empty-state">
 							<p><?php _e('no_recent_activity'); ?></p>
 							<div class="dashboard-empty-cta">
-								<a href="index.php?action=add&type=article" class="button"><?php _e('new_article'); ?></a>
-								<a href="index.php?action=add&type=page" class="button button--secondary"><?php _e('new_page'); ?></a>
+								<a href="index.php?action=add&type=article" class="btn btn-primary"><?php _e('new_article'); ?></a>
+								<a href="index.php?action=add&type=page" class="btn btn-outline"><?php _e('new_page'); ?></a>
 							</div>
 						</div>
 
@@ -271,7 +270,15 @@ function dash_icon(string $name): string {
 								     loading="lazy">
 							</div>
 							<?php else: ?>
-							<div class="activity-icon <?php echo $item['type']; ?>-icon"></div>
+							<div class="activity-icon">
+						<?php if ($item['type'] === 'article'): ?>
+							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+						<?php elseif ($item['type'] === 'page'): ?>
+							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+						<?php else: ?>
+							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7.5V5c0-1.1.9-2 2-2h4l2 2h8a2 2 0 0 1 2 2v1"/><path d="M2 7.5h20l-1.5 9a2 2 0 0 1-2 1.5H5.5a2 2 0 0 1-2-1.5z"/></svg>
+						<?php endif; ?>
+					</div>
 							<?php endif; ?>
 
 							<div class="activity-content">

@@ -1,5 +1,4 @@
 <?php
-ob_start();
 session_start();
 if (empty($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -140,22 +139,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_alt_save']) && (
 	exit;
 }
 
-// Include common header
-include_once 'includes/header.php';
+// Load data before buffering page content — templates like dashboard.php depend on $data
+$data = admin_load_data();
 
-// Handle routing based on action parameter
+// Buffer page content
 $action = $_GET['action'] ?? '';
 $type   = $_GET['type']   ?? '';
 
-// Route to appropriate section
+ob_start();
 if ($action === 'add' || $action === 'edit' || $action === 'delete' || $action === 'drafts' || $action === 'manage_categories' || $action === 'manage_tags' || $action === 'manage_themes') {
 	include_once 'content.php';
 } elseif ($action === 'settings' || $action === 'menu_builder') {
 	include_once 'settings.php';
+} elseif ($action === 'account') {
+	include 'templates/account.php';
 } elseif ($action === 'tools') {
 	include 'templates/tools-view.php';
 } elseif ($action === 'backup') {
 	include 'templates/backup.php';
+} elseif ($action === 'update') {
+	include 'templates/update.php';
 } elseif ($action === 'drafts') {
 	include 'templates/drafts.php';
 } elseif ($type === 'article' || $type === 'page' || $type === 'project') {
@@ -163,6 +166,6 @@ if ($action === 'add' || $action === 'edit' || $action === 'delete' || $action =
 } else {
 	include_once 'dashboard.php';
 }
+$pageContent = ob_get_clean();
 
-// Include common footer
-include_once 'includes/footer.php';
+require_once 'includes/layout.php';

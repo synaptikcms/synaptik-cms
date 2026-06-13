@@ -30,6 +30,10 @@ $i18n = [
         'lbl_timezone'          => 'Timezone',
         'lbl_contact_email'     => 'Admin Email',
         'lbl_admin_dir'         => 'Admin Folder Name',
+        'lbl_username'          => 'Admin Username',
+        'lbl_display_name'      => 'Display Name',
+        'help_username'         => 'Used to log in. Letters, numbers, hyphens and underscores only (3–32 characters).',
+        'help_display_name'     => 'Shown in the admin sidebar. Leave empty to use username.',
         'lbl_password'          => 'Admin Password',
         'lbl_password_confirm'  => 'Confirm Password',
         'optional'              => '(optional)',
@@ -51,10 +55,10 @@ $i18n = [
         'security_note'         => '⚠ Security reminder: delete <code>install.php</code> from your server.',
         'footer_note'           => '⚠ Remember: delete <code>install.php</code> from your server after installation.',
         'summary_password'      => 'Hash your password and write <code>admin-credentials.php</code>',
-        'summary_rename'        => 'Rename the admin folder and patch all path references',
+        'summary_rename'        => 'Rename the admin folder (the new name is saved in settings.json — no file patching needed)',
         'summary_settings'      => 'Write site settings to <code>settings.json</code>',
-        'summary_htaccess'      => 'Create <code>.htaccess</code> protection on <code>/data/</code> and <code>/bckps/</code>',
-        'summary_dirs'          => 'Create missing directories (<code>/files/</code>, <code>/bckps/</code>)',
+        'summary_htaccess'      => 'Add deny-all <code>.htaccess</code> to <code>/data/</code>, <code>/bckps/</code>, <code>/private/</code> — and PHP-execution block to <code>/files/</code>',
+        'summary_dirs'          => 'Create missing directories (<code>/files/</code>, <code>/bckps/</code>, <code>/private/</code>)',
         'summary_lock'          => 'Lock the installer with <code>install.lock</code>',
         'req_blocked'           => '⚠ One or more requirements are not met. Fix the issues above before installing.',
         'err_invalid_lang'      => 'Please select a valid language.',
@@ -99,6 +103,10 @@ $i18n = [
         'lbl_timezone'          => 'Fuseau horaire',
         'lbl_contact_email'     => 'E-mail administrateur',
         'lbl_admin_dir'         => 'Nom du dossier admin',
+        'lbl_username'          => 'Identifiant admin',
+        'lbl_display_name'      => 'Nom affiché',
+        'help_username'         => 'Utilisé pour la connexion. Lettres, chiffres, tirets et underscores uniquement (3–32 caractères).',
+        'help_display_name'     => 'Affiché dans la sidebar admin. Laisser vide pour utiliser l\u2019identifiant.',
         'lbl_password'          => 'Mot de passe admin',
         'lbl_password_confirm'  => 'Confirmer le mot de passe',
         'optional'              => '(optionnel)',
@@ -120,10 +128,10 @@ $i18n = [
         'security_note'         => '⚠ Rappel de sécurité : supprimez <code>install.php</code> de votre serveur.',
         'footer_note'           => '⚠ N\'oubliez pas : supprimez <code>install.php</code> de votre serveur après l\'installation.',
         'summary_password'      => 'Hacher votre mot de passe et écrire <code>admin-credentials.php</code>',
-        'summary_rename'        => 'Renommer le dossier admin et mettre à jour toutes les références',
+        'summary_rename'        => 'Renommer le dossier admin (le nouveau nom est sauvegardé dans settings.json — aucun patch de fichiers)',
         'summary_settings'      => 'Écrire les paramètres dans <code>settings.json</code>',
-        'summary_htaccess'      => 'Créer la protection <code>.htaccess</code> sur <code>/data/</code> et <code>/bckps/</code>',
-        'summary_dirs'          => 'Créer les dossiers manquants (<code>/files/</code>, <code>/bckps/</code>)',
+        'summary_htaccess'      => 'Ajouter <code>.htaccess</code> deny-all sur <code>/data/</code>, <code>/bckps/</code>, <code>/private/</code> — et blocage PHP sur <code>/files/</code>',
+        'summary_dirs'          => 'Créer les dossiers manquants (<code>/files/</code>, <code>/bckps/</code>, <code>/private/</code>)',
         'summary_lock'          => 'Verrouiller l\'installeur avec <code>install.lock</code>',
         'req_blocked'           => '⚠ Un ou plusieurs prérequis ne sont pas satisfaits. Corrigez les problèmes avant d\'installer.',
         'err_invalid_lang'      => 'Veuillez sélectionner une langue valide.',
@@ -168,6 +176,10 @@ $i18n = [
         'lbl_timezone'          => 'Zona horaria',
         'lbl_contact_email'     => 'Correo del administrador',
         'lbl_admin_dir'         => 'Nombre de la carpeta admin',
+        'lbl_username'          => 'Usuario admin',
+        'lbl_display_name'      => 'Nombre mostrado',
+        'help_username'         => 'Usado para iniciar sesión. Solo letras, números, guiones y guiones bajos (3–32 caracteres).',
+        'help_display_name'     => 'Mostrado en la barra lateral. Dejar vacío para usar el nombre de usuario.',
         'lbl_password'          => 'Contraseña de administrador',
         'lbl_password_confirm'  => 'Confirmar contraseña',
         'optional'              => '(opcional)',
@@ -189,10 +201,10 @@ $i18n = [
         'security_note'         => '⚠ Aviso de seguridad: elimine <code>install.php</code> de su servidor.',
         'footer_note'           => '⚠ Recuerde: elimine <code>install.php</code> de su servidor tras la instalación.',
         'summary_password'      => 'Cifrar su contraseña y escribir <code>admin-credentials.php</code>',
-        'summary_rename'        => 'Renombrar la carpeta admin y actualizar todas las referencias',
+        'summary_rename'        => 'Renombrar la carpeta admin (el nuevo nombre se guarda en settings.json — sin parcheo de archivos)',
         'summary_settings'      => 'Escribir la configuración en <code>settings.json</code>',
-        'summary_htaccess'      => 'Crear protección <code>.htaccess</code> en <code>/data/</code> y <code>/bckps/</code>',
-        'summary_dirs'          => 'Crear directorios faltantes (<code>/files/</code>, <code>/bckps/</code>)',
+        'summary_htaccess'      => 'Añadir <code>.htaccess</code> deny-all en <code>/data/</code>, <code>/bckps/</code>, <code>/private/</code> — y bloqueo PHP en <code>/files/</code>',
+        'summary_dirs'          => 'Crear directorios faltantes (<code>/files/</code>, <code>/bckps/</code>, <code>/private/</code>)',
         'summary_lock'          => 'Bloquear el instalador con <code>install.lock</code>',
         'req_blocked'           => '⚠ Uno o más requisitos no se cumplen. Corrija los problemas antes de instalar.',
         'err_invalid_lang'      => 'Seleccione un idioma válido.',
@@ -295,7 +307,7 @@ if (file_exists(__DIR__ . '/install.lock')) {
 function installer_detect_admin(): ?string
 {
     $root = __DIR__;
-    foreach (['admin', 'deevious'] as $candidate) {
+    foreach (['admin'] as $candidate) {
         if (
             is_dir($root . '/' . $candidate) &&
             file_exists($root . '/' . $candidate . '/auth.php') &&
@@ -430,11 +442,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $adminDir     = strtolower(preg_replace('/[^a-zA-Z0-9\-_]/', '', trim($_POST['admin_dir'] ?? 'admin')));
     $timezone     = trim($_POST['timezone']         ?? 'UTC');
     $contactEmail = trim($_POST['contact_email']    ?? '');
+    $adminUsername = preg_replace('/[^a-zA-Z0-9_\-]/', '', trim($_POST['admin_username'] ?? 'admin'));
+    $adminDisplayName = trim($_POST['admin_display_name'] ?? '');
     $password     = $_POST['password']              ?? '';
     $passwordConf = $_POST['password_confirm']      ?? '';
 
     $pv = ['language' => $language, 'site_title' => $siteTitle, 'site_description' => $siteDesc,
-           'admin_dir' => $adminDir, 'timezone' => $timezone, 'contact_email' => $contactEmail];
+           'admin_dir' => $adminDir, 'timezone' => $timezone, 'contact_email' => $contactEmail,
+           'admin_username' => $adminUsername, 'admin_display_name' => $adminDisplayName];
 
     // ── Validation ────────────────────────────────────────────────────────────
 
@@ -484,11 +499,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         $dstAdminPath = __DIR__ . '/' . $adminDir;
 
-        // Step 2 — Write hashed password and admin email
+        // Step 2 — Write credentials (username, display_name, password, email)
         $hash        = password_hash($password, PASSWORD_BCRYPT);
-        $credContent = "<?php\n// Admin credentials — generated by SynaptikCMS installer\n\$admin_password = '"
-                     . str_replace("'", "\\'", $hash) . "';\n"
-                     . "\$admin_email = '" . str_replace("'", "\\'", $contactEmail) . "';\n?>\n";
+        $esc         = fn(string $v): string => str_replace("'", "\\'", $v);
+        $credContent = "<?php\n// Admin credentials — generated by SynaptikCMS installer\n"
+                     . "\$admin_username     = '" . $esc($adminUsername ?: 'admin') . "';\n"
+                     . "\$admin_display_name = '" . $esc($adminDisplayName) . "';\n"
+                     . "\$admin_password     = '" . $esc($hash) . "';\n"
+                     . "\$admin_email        = '" . $esc($contactEmail) . "';\n"
+                     . "?>\n";
         if (!file_put_contents($dstAdminPath . '/admin-credentials.php', $credContent)) {
             $errors[] = __i('err_credentials');
         }
@@ -497,49 +516,135 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         $dstAdminPath = __DIR__ . '/' . $adminDir;
 
-        // Step 3 — Update settings.json
+        // Step 3 — Write a complete settings.json with all defaults + user-supplied values.
+        // This ensures the file is explicit and complete from day one; nothing relies
+        // on runtime-only defaults after first install.
         $settingsFile = __DIR__ . '/settings.json';
-        $settings     = file_exists($settingsFile)
-                      ? (json_decode(file_get_contents($settingsFile), true) ?? [])
-                      : [];
-        $settings['site_title']      = $siteTitle;
-        $settings['site_description'] = $siteDesc;
-        $settings['active_language'] = $language;
-        $settings['admin_dir']       = $adminDir;
-        $settings['timezone']        = $timezone;
-        $settings['contact_email']   = $contactEmail; // always set — required since v2
-        file_put_contents($settingsFile, json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 
-        // Step 4 — Patch hardcoded admin folder name in source files
-        if ($currentAdminName !== $adminDir) {
-            $filesToPatch = [
-                $dstAdminPath . '/js/common.js',   $dstAdminPath . '/js/editor.js',
-                $dstAdminPath . '/js/gallery.js',  $dstAdminPath . '/js/panel.js',
-                $dstAdminPath . '/theme-preview.php',
-                __DIR__ . '/functions.php',        __DIR__ . '/template-functions.php',
-            ];
-            $search  = ['/' . $currentAdminName . '/', "'" . $currentAdminName . '/', '"' . $currentAdminName . '/'];
-            $replace = ['/' . $adminDir . '/',         "'" . $adminDir . '/',         '"' . $adminDir . '/'];
-
-            foreach ($filesToPatch as $f) {
-                if (!file_exists($f)) continue;
-                $orig = file_get_contents($f);
-                $patched = str_replace($search, $replace, $orig);
-                if ($patched !== $orig) file_put_contents($f, $patched);
+        // Scan installed themes from the filesystem (same logic as getAvailableThemes())
+        $_themes  = [];
+        $_themeDir = __DIR__ . '/theme';
+        if (is_dir($_themeDir)) {
+            foreach (scandir($_themeDir) as $_t) {
+                if ($_t === '.' || $_t === '..' || $_t[0] === '.') continue;
+                if (is_dir($_themeDir . '/' . $_t) && file_exists($_themeDir . '/' . $_t . '/css/style.css')) {
+                    $_themes[] = $_t;
+                }
             }
         }
+        if (empty($_themes)) $_themes = ['default'];
 
-        // Step 5 — .htaccess on sensitive directories + ensure required dirs exist
-        $htaccess = "<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n"
-                  . "<IfModule !mod_authz_core.c>\n    Deny from all\n</IfModule>\n";
-        foreach (['data', 'bckps'] as $d) {
+        $settings = [
+            // Content display
+            'articles_per_page'          => 6,
+            'projects_per_page'          => 3,
+            'show_articles_on_homepage'  => true,
+            'show_projects_on_homepage'  => true,
+            'show_breadcrumbs'           => false,
+
+            // Menu
+            'main_menu'                  => [],
+            'use_custom_menu'            => false,
+            'show_search_icon'           => false,
+            'default_menu_style'         => 'grouped',
+            'default_menu_order'         => 'date_desc',
+
+            // Site metadata
+            'site_title'                 => $siteTitle,
+            'site_description'           => $siteDesc,
+            'default_meta_title'         => '{page_title} | {site_title}',
+            'default_meta_description'   => '{site_description}',
+            'enable_seo'                 => true,
+            'show_site_title_in_header'  => true,
+            'date_format'                => 'Y-m-d',
+
+            // Homepage
+            'homepage_type'              => 'default',
+            'homepage_page_id'           => '',
+
+            // Theme & language
+            'active_theme'               => 'default',
+            'available_themes'           => $_themes,
+            'active_language'            => $language,
+
+            // Image optimization
+            'image_optimization_enabled' => true,
+            'max_width'                  => 1920,
+            'max_height'                 => 1080,
+            'image_quality'              => 85,
+            'create_thumbnails'          => true,
+            'thumb_width'                => 350,
+            'thumb_height'               => 350,
+            'convert_to_webp'            => true,
+
+            // Footer
+            'footer_text'                => 'Powered by <a href="https://synaptikcms.com">SynaptikCMS</a> • &copy; {year}',
+            'footer_show_login'          => false,
+            'footer_show_social'         => false,
+            'footer_social_links'        => [],
+
+            // Editor autosave
+            'autosave_enabled'           => true,
+            'autosave_interval'          => 10,
+
+            // Contact form
+            'contact_email'              => $contactEmail,
+            'contact_subject'            => 'New message from {name}',
+            'contact_success_message'    => '',
+            'contact_error_message'      => '',
+            'hcaptcha_site_key'          => '',
+            'hcaptcha_secret_key'        => '',
+
+            // Custom fields schema
+            'custom_fields_schema'       => ['article' => [], 'page' => [], 'project' => []],
+
+            // System
+            'admin_dir'                  => $adminDir,
+            'timezone'                   => $timezone,
+
+            // Branding
+            'site_logo'                  => '',
+            'site_favicon'               => '',
+        ];
+
+        file_put_contents($settingsFile, json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+
+        // Step 4 — .htaccess on sensitive directories + ensure required dirs exist
+        //
+        // Deny-all block: dual-syntax covers Apache 2.2 (Deny from all)
+        // and Apache 2.4 (Require all denied).
+        $denyAll = "<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n"
+                 . "<IfModule !mod_authz_core.c>\n    Deny from all\n</IfModule>\n";
+
+        // Deny-all protection on data, bckps, private.
+        // Always (re)write the file so an upgrade or partial install gets the
+        // correct content even if the directory already existed.
+        foreach (['data', 'bckps', 'private'] as $d) {
             $dp = __DIR__ . '/' . $d;
             if (!is_dir($dp)) @mkdir($dp, 0755, true);
-            if (is_dir($dp) && !file_exists($dp . '/.htaccess')) file_put_contents($dp . '/.htaccess', $htaccess);
+            if (is_dir($dp)) file_put_contents($dp . '/.htaccess', $denyAll);
         }
-        if (!is_dir(__DIR__ . '/files')) @mkdir(__DIR__ . '/files', 0755, true);
 
-        // Step 6 — Lock the installer
+        // Create /files/ and block PHP execution inside it.
+        // Media files (images, documents) continue to be served normally.
+        $filesDir = __DIR__ . '/files';
+        if (!is_dir($filesDir)) @mkdir($filesDir, 0755, true);
+        $filesHtaccess = $filesDir . '/.htaccess';
+        if (!file_exists($filesHtaccess)) {
+            $filesHta = "# Block PHP execution inside /files/ — media files are served normally.\n"
+                      . "<FilesMatch \\.php[s5]?\$>\n"
+                      . "    <IfModule mod_authz_core.c>\n"
+                      . "        Require all denied\n"
+                      . "    </IfModule>\n"
+                      . "    <IfModule !mod_authz_core.c>\n"
+                      . "        Order allow,deny\n"
+                      . "        Deny from all\n"
+                      . "    </IfModule>\n"
+                      . "</FilesMatch>\n";
+            file_put_contents($filesHtaccess, $filesHta);
+        }
+
+        // Step 5 — Lock the installer
         file_put_contents(__DIR__ . '/install.lock', json_encode(
             ['installed_at' => date('Y-m-d H:i:s'), 'admin_dir' => $adminDir],
             JSON_PRETTY_PRINT
@@ -700,7 +805,8 @@ select option { background: var(--secondary); }
             <div class="form-group">
                 <label for="site_description"><?= __i('lbl_site_desc') ?> <span class="opt"><?= __i('optional') ?></span></label>
                 <input type="text" id="site_description" name="site_description"
-                       value="<?= htmlspecialchars($pv['site_description']) ?>">
+                       value="<?= htmlspecialchars($pv['site_description']) ?>"
+                       placeholder="A short description of your site — shown in search results and the site header.">
                 <p class="help-text"><?= __i('help_site_desc') ?></p>
             </div>
             <div class="form-row">
@@ -738,6 +844,22 @@ select option { background: var(--secondary); }
                        required pattern="[a-zA-Z0-9\-_]{3,}" autocomplete="off" spellcheck="false">
                 <div class="dir-preview"><?= __i('dir_preview') ?><span id="dir-val"><?= htmlspecialchars($pv['admin_dir']) ?></span>/</div>
                 <p class="help-text"><?= __i('help_admin_dir', implode(', ', $reservedNames)) ?></p>
+                <span id="dir-reserved-error" style="display:none;margin-top:5px;font-size:.82rem;color:var(--danger);font-weight:600;"></span>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="admin_username"><?= __i('lbl_username') ?></label>
+                    <input type="text" id="admin_username" name="admin_username"
+                           value="<?= htmlspecialchars($pv['admin_username'] ?? 'admin') ?>"
+                           required pattern="[a-zA-Z0-9_\-]{3,32}" autocomplete="username" spellcheck="false">
+                    <p class="help-text"><?= __i('help_username') ?></p>
+                </div>
+                <div class="form-group">
+                    <label for="admin_display_name"><?= __i('lbl_display_name') ?> <span class="opt"><?= __i('optional') ?></span></label>
+                    <input type="text" id="admin_display_name" name="admin_display_name"
+                           value="<?= htmlspecialchars($pv['admin_display_name'] ?? '') ?>">
+                    <p class="help-text"><?= __i('help_display_name') ?></p>
+                </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
@@ -784,13 +906,33 @@ select option { background: var(--secondary); }
 
 <script>
 (function () {
-    // ── Admin folder name live preview ────────────────────────────────────────
-    var dirInput = document.getElementById('admin_dir');
-    var dirVal   = document.getElementById('dir-val');
-    if (dirInput && dirVal) {
-        dirInput.addEventListener('input', function () {
-            dirVal.textContent = this.value.toLowerCase().replace(/[^a-z0-9\-_]/g, '') || '…';
-        });
+    // ── Admin folder name live preview + reserved-name guard ─────────────────
+    var dirInput   = document.getElementById('admin_dir');
+    var dirVal     = document.getElementById('dir-val');
+    var dirErr     = document.getElementById('dir-reserved-error');
+    var installBtn = document.querySelector('.btn-install');
+    var reserved   = <?= json_encode($reservedNames) ?>;
+
+    function checkAdminDir() {
+        if (!dirInput) return;
+        var raw = dirInput.value.toLowerCase().replace(/[^a-z0-9\-_]/g, '');
+        if (dirVal) dirVal.textContent = raw || '\u2026';
+        var isReserved = reserved.indexOf(raw) !== -1;
+        if (dirErr) {
+            if (isReserved) {
+                dirErr.textContent = '\u26A0 \u201C' + raw + '\u201D is a reserved folder name. Choose another.';
+                dirErr.style.display = 'block';
+            } else {
+                dirErr.style.display = 'none';
+            }
+        }
+        dirInput.style.borderColor = isReserved ? 'var(--danger)' : '';
+        if (installBtn) installBtn.disabled = isReserved || <?= $requirementsOk ? 'false' : 'true' ?>;
+    }
+
+    if (dirInput) {
+        dirInput.addEventListener('input', checkAdminDir);
+        checkAdminDir();
     }
 
     // ── Password strength badges ──────────────────────────────────────────────

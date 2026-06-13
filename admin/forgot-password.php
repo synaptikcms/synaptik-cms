@@ -13,7 +13,7 @@
  *   1. $admin_email in admin-credentials.php  (installer v2+)
  *   2. contact_email in settings.json         (pre-v2 fallback)
  *
- * Token: stored in bckps/reset_token.json (protected by .htaccess)
+ * Token: stored in private/reset_token.json (protected by .htaccess)
  * TTL  : 15 minutes
  */
 session_start();
@@ -27,7 +27,7 @@ if (admin_is_logged_in()) {
 define('RESET_TOKEN_TTL', 900); // 15 minutes
 
 $adminCredFile = __DIR__ . '/admin-credentials.php';
-$tokenFile     = dirname(__DIR__) . '/bckps/reset_token.json';
+$tokenFile     = dirname(__DIR__) . '/private/reset_token.json';
 
 // ── Resolve admin email ───────────────────────────────────────────────────────
 $admin_email    = '';
@@ -88,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 if ($writeOk === false) {
                     // Can't write the token file — abort entirely
-                    $error = 'Could not write reset token. Check write permissions on <code>bckps/</code>.';
+                    $error = 'Could not write reset token. Check write permissions on <code>/private/</code>.';
                 } else {
                     // Build reset URL — points to the CMS root (?reset_token=TOKEN)
                     // so the admin folder name is never exposed in the email.
@@ -142,34 +142,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(__t('reset_page_title', 'Password Reset')); ?> — SynaptikCMS</title>
-    <link rel="stylesheet" href="css/admin-base.css">
+    <script>
+    (function() {
+        try {
+            var t = localStorage.getItem('synaptik_theme');
+            if (t !== 'dark' && t !== 'light') {
+                t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {
+            document.documentElement.setAttribute('data-theme', 'light');
+        }
+    })();
+    </script>
+    <link rel="stylesheet" href="assets/css/admin-base.css?v=<?php echo @filemtime(__DIR__ . '/assets/css/admin-base.css'); ?>">
     <style>
         .login-container { max-width: 420px; }
         .help-text  { font-size: 0.85rem; color: var(--text-muted); margin-top: 6px; }
         .back-link  { display: block; text-align: center; margin-top: 16px; font-size: 0.875rem; }
         .notice-warning {
-            background: #fff8e1; border-left: 4px solid #f0a500;
-            border-radius: var(--radius-sm, 4px); padding: 12px 16px;
-            font-size: 0.875rem; margin-bottom: 20px; color: #5f4c00;
+            background: var(--warning-soft); border: 1px solid var(--warning); border-left: 4px solid var(--warning);
+            border-radius: var(--radius-sm); padding: 12px 16px;
+            font-size: 0.875rem; margin-bottom: 20px; color: var(--warning-text);
         }
-        .notice-warning code { background: rgba(0,0,0,.06); padding: 1px 4px; border-radius: 3px; }
+        .notice-warning code { background: var(--surface-3); padding: 1px 4px; border-radius: 3px; }
         .reset-link-fallback {
-            background: #f0f7ff; border: 1px solid #bcd4f0;
-            border-radius: var(--radius-sm, 4px); padding: 14px 16px;
+            background: var(--info-soft); border: 1px solid var(--info);
+            border-radius: var(--radius-sm); padding: 14px 16px;
             margin-top: 16px; font-size: 0.875rem; word-break: break-all;
         }
         .reset-link-fallback strong { display: block; margin-bottom: 8px; }
         .reset-link-fallback a {
-            color: var(--color-primary, #4a6cf7);
+            color: var(--info-text);
             font-weight: 600;
         }
         .reset-link-fallback .expires {
             display: block; margin-top: 8px;
-            font-size: 0.8rem; color: var(--text-muted, #888);
+            font-size: 0.8rem; color: var(--text-muted);
         }
     </style>
 </head>
-<body>
+<body style="background-color: var(--surface2);">
 <div class="login-container">
     <div class="login-header">
         <h1><?php echo htmlspecialchars(__t('reset_send_link_heading', 'Forgot your password?')); ?></h1>
@@ -177,7 +190,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <?php if ($error): ?>
 
-        <div class="message error"><?php echo $error; ?></div>
+        <div class="blockquote error"><?php echo $error; ?></div>
         <a class="back-link" href="auth.php">
             <?php echo htmlspecialchars(__t('reset_back_to_login', '← Back to login')); ?>
         </a>
@@ -185,7 +198,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php elseif ($sent && $fallbackUrl): ?>
 
         <!-- mail() failed — show the link directly -->
-        <div class="message warning">
+        <div class="blockquote warning">
             <strong>⚠ Email could not be sent</strong><br>
             No mail server is configured on this environment (common on MAMP / local dev).
         </div>
@@ -202,7 +215,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <?php elseif ($sent): ?>
 
-        <div class="message success" style="text-align:center;">
+        <div class="blockquote success" style="text-align:center;">
             <strong><?php echo htmlspecialchars(__t('reset_inbox_title', 'Check your inbox.')); ?></strong><br>
             <?php echo htmlspecialchars(__t('reset_inbox_detail', 'If that address is registered, a reset link has been sent. It expires in 15 minutes.')); ?>
         </div>
@@ -232,7 +245,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php echo htmlspecialchars(__t('reset_email_help', "We'll send a one-time reset link to this address.")); ?>
             </p>
 
-            <button type="submit" class="login-button">
+            <button type="submit" class="btn btn-primary btn-lg btn-block login-button">
                 <?php echo htmlspecialchars(__t('reset_send_btn', 'Send reset link')); ?>
             </button>
         </form>

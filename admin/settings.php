@@ -5,18 +5,23 @@ if (!defined('INCLUDED')) {
 	exit('Direct access to this file is not allowed');
 }
 
-// Add this at the top of each major file
-error_log('Executing file: ' . __FILE__);
-
-// And right before the error is set
-if (isset($_SESSION['error'])) {
-  error_log('Error set in file: ' . __FILE__ . ' at line: ' . __LINE__);
-}
-
 require_once 'includes/admin-functions.php';
 
 // Load settings
 $appSettings = admin_load_settings();
+
+// Handle cache clear request
+if (isset($_POST['clear_cache'])) {
+	sl_clear_all_cache();
+	// Also remove the media stats cache
+	$_mediaCacheFile = dirname(__DIR__) . '/cache/media-stats.json';
+	if (file_exists($_mediaCacheFile)) {
+		@unlink($_mediaCacheFile);
+	}
+	$_SESSION['message'] = __t('cache_cleared');
+	header('Location: index.php?action=settings&tab=general');
+	exit;
+}
 
 // Handle menu builder submissions
 if (isset($_POST['save_menu'])) {
@@ -71,7 +76,7 @@ if (isset($_POST['save_menu'])) {
 	
 	// Save settings to file
 	$jsonData = json_encode($appSettings, JSON_PRETTY_PRINT);
-	$result = file_put_contents('../settings.json', $jsonData);
+	$result = file_put_contents(dirname(__DIR__) . '/settings.json', $jsonData);
 	
 	if ($result !== false) {
 		$_SESSION['message'] = __t('menu_saved');
@@ -98,10 +103,10 @@ if (isset($_POST['save_settings'])) {
 	$appSettings['articles_per_page'] = (int)$_POST['articles_per_page'];
 	$appSettings['show_articles_on_homepage'] = isset($_POST['show_articles_on_homepage']);
 	$appSettings['show_projects_on_homepage'] = isset($_POST['show_projects_on_homepage']);
-	$appSettings['site_title'] = htmlspecialchars(trim($_POST['site_title']));
-	$appSettings['site_description'] = htmlspecialchars(trim($_POST['site_description']));
-	$appSettings['default_meta_title'] = htmlspecialchars(trim($_POST['default_meta_title']));
-	$appSettings['default_meta_description'] = htmlspecialchars(trim($_POST['default_meta_description']));
+	$appSettings['site_title'] = trim($_POST['site_title']);
+	$appSettings['site_description'] = trim($_POST['site_description']);
+	$appSettings['default_meta_title'] = trim($_POST['default_meta_title']);
+	$appSettings['default_meta_description'] = trim($_POST['default_meta_description']);
 	$appSettings['enable_seo'] = isset($_POST['enable_seo']);
 	$appSettings['show_site_title_in_header'] = isset($_POST['show_site_title_in_header']);
 	$appSettings['homepage_type'] = $_POST['homepage_type'];
@@ -117,11 +122,19 @@ if (isset($_POST['save_settings'])) {
 	$appSettings['projects_per_page'] = max(1, min(20, (int)($_POST['projects_per_page'] ?? 3)));
 	$appSettings['show_breadcrumbs'] = isset($_POST['show_breadcrumbs']);
 	$appSettings['date_format'] = $_POST['date_format'] ?? 'Y-m-d';
+	// Validate timezone against PHP's list to prevent arbitrary string injection
+	$submittedTz = $_POST['timezone'] ?? 'UTC';
+	$appSettings['timezone'] = in_array($submittedTz, DateTimeZone::listIdentifiers(), true)
+		? $submittedTz
+		: 'UTC';
 	// $appSettings['footer_text'] = htmlspecialchars(trim($_POST['settings']['footer_text'] ?? 'Developed with ♥ by Dorian • &copy; {year}'));
 	$appSettings['footer_text'] = trim($_POST['settings']['footer_text'] ?? 'Developed with ♥ by Dorian • &copy; {year}');
 	$appSettings['footer_show_login'] = isset($_POST['settings']['footer_show_login']);
 	$appSettings['footer_show_social'] = isset($_POST['settings']['footer_show_social']);
 	$appSettings['autosave_enabled'] = isset($_POST['autosave_enabled']);
+	$appSettings['autosave_interval'] = in_array((int)($_POST['autosave_interval'] ?? 5), [1, 3, 5, 10], true)
+		? (int)$_POST['autosave_interval']
+		: 5;
 	$socialLinks = [];
 	if (isset($_POST['settings']['footer_social_links']) && is_array($_POST['settings']['footer_social_links'])) {
 		foreach ($_POST['settings']['footer_social_links'] as $link) {
@@ -135,13 +148,13 @@ if (isset($_POST['save_settings'])) {
 	}
 	$appSettings['footer_social_links'] = $socialLinks;
 	
-	// Get the selected theme and validate it's in our auto-detected list
-	$selectedTheme = $_POST['active_theme'];
-	if (in_array($selectedTheme, $autoDetectedThemes)) {
-		$appSettings['active_theme'] = $selectedTheme;
-	} else {
-		$appSettings['active_theme'] = 'default';
+	// Preserve active_theme — the theme selector now lives in the Appearance sidebar section,
+	// not in the settings form, so active_theme is not posted here. Only update it when
+	// a valid value is explicitly submitted (e.g. from the theme manager).
+	if (!empty($_POST['active_theme']) && in_array($_POST['active_theme'], $autoDetectedThemes)) {
+		$appSettings['active_theme'] = $_POST['active_theme'];
 	}
+	// If absent or invalid, keep the current value already loaded in $appSettings.
 	
 	// Always update the available_themes with the auto-detected ones
 	$appSettings['available_themes'] = $autoDetectedThemes;
@@ -158,15 +171,93 @@ if (isset($_POST['save_settings'])) {
 		$appSettings['hcaptcha_secret_key'] = $newSecret;
 	}
 
+	// Homepage SEO overrides
+	$appSettings['home_meta_title']       = trim($_POST['home_meta_title']       ?? '');
+	$appSettings['home_meta_description'] = trim($_POST['home_meta_description'] ?? '');
+	$appSettings['home_meta_keywords']    = trim($_POST['home_meta_keywords']    ?? '');
+	$appSettings['home_og_title']         = trim($_POST['home_og_title']         ?? '');
+	$appSettings['home_og_description']   = trim($_POST['home_og_description']   ?? '');
+	// home_og_image is handled by the image picker below
+
 	// WebP conversion settings
 	$appSettings['convert_to_webp'] = isset($_POST['convert_to_webp']);
+
+	// robots.txt — write directly to the file at the CMS root
+	if (isset($_POST['robots_txt'])) {
+		$_robotsContent = str_replace("\r\n", "\n", $_POST['robots_txt']);
+		$_robotsPath    = dirname(__DIR__) . '/robots.txt';
+		file_put_contents($_robotsPath, $_robotsContent);
+	}
+
+	// Custom fields schema — always fully replaced on save.
+	// We iterate all three types unconditionally so that deleting all fields
+	// from a type (which sends no POST data for that type) correctly saves an
+	// empty array instead of preserving the old values.
+	$_cfSchema     = [];
+	$_cfRaw        = (isset($_POST['custom_fields_schema']) && is_array($_POST['custom_fields_schema']))
+		? $_POST['custom_fields_schema']
+		: [];
+	$_cfAllowedTypes = ['text', 'textarea', 'number', 'url', 'checkbox', 'select'];
+	foreach (['article', 'page', 'project'] as $_cfType) {
+		$_cfFields = [];
+		if (!empty($_cfRaw[$_cfType]) && is_array($_cfRaw[$_cfType])) {
+			foreach ($_cfRaw[$_cfType] as $_field) {
+				$_key = preg_replace('/[^a-z0-9\-_]/', '', strtolower(trim($_field['key'] ?? '')));
+				if ($_key === '') continue;
+				$_fType   = in_array($_field['type'] ?? '', $_cfAllowedTypes, true) ? $_field['type'] : 'text';
+				$_cfEntry = [
+					'key'      => $_key,
+					'label'    => htmlspecialchars(trim($_field['label'] ?? $_key)),
+					'type'     => $_fType,
+					'required' => !empty($_field['required']),
+				];
+				if ($_fType === 'select' && !empty($_field['options'])) {
+					$_cfEntry['options'] = trim($_field['options']);
+				}
+				$_cfFields[] = $_cfEntry;
+			}
+		}
+		$_cfSchema[$_cfType] = $_cfFields; // empty array when no rows remain
+	}
+	$appSettings['custom_fields_schema'] = $_cfSchema;
 	
+	// ── Site logo
+	if (!empty($_FILES['site_logo_file']['name']) && $_FILES['site_logo_file']['error'] === UPLOAD_ERR_OK) {
+		$_logoPath = _settings_upload_image('site_logo_file');
+		if ($_logoPath !== '') $appSettings['site_logo'] = $_logoPath;
+	} elseif (!empty($_POST['site_logo_path'])) {
+		$appSettings['site_logo'] = _settings_sanitize_image_path($_POST['site_logo_path']);
+	} elseif (!empty($_POST['site_logo_remove'])) {
+		$appSettings['site_logo'] = '';
+	}
+
+	// ── Site favicon
+	if (!empty($_FILES['site_favicon_file']['name']) && $_FILES['site_favicon_file']['error'] === UPLOAD_ERR_OK) {
+		$_faviconPath = _settings_upload_image('site_favicon_file');
+		if ($_faviconPath !== '') $appSettings['site_favicon'] = $_faviconPath;
+	} elseif (!empty($_POST['site_favicon_path'])) {
+		$appSettings['site_favicon'] = _settings_sanitize_image_path($_POST['site_favicon_path']);
+	} elseif (!empty($_POST['site_favicon_remove'])) {
+		$appSettings['site_favicon'] = '';
+	}
+
+	// ── Homepage OG image
+	if (!empty($_FILES['home_og_image_file']['name']) && $_FILES['home_og_image_file']['error'] === UPLOAD_ERR_OK) {
+		$_homeOgPath = _settings_upload_image('home_og_image_file');
+		if ($_homeOgPath !== '') $appSettings['home_og_image'] = $_homeOgPath;
+	} elseif (!empty($_POST['home_og_image_path'])) {
+		$appSettings['home_og_image'] = _settings_sanitize_image_path($_POST['home_og_image_path']);
+	} elseif (!empty($_POST['home_og_image_remove'])) {
+		$appSettings['home_og_image'] = '';
+	}
+
 	// Save settings
-	$saveResult = file_put_contents('../settings.json', json_encode($appSettings, JSON_PRETTY_PRINT));
+	$saveResult = file_put_contents(dirname(__DIR__) . '/settings.json', json_encode($appSettings, JSON_PRETTY_PRINT));
 	if ($saveResult === false) {
 		error_log('Failed to save settings to file: ../settings.json');
 		$_SESSION['error'] = __t('settings_save_failed');
 	} else {
+		if (function_exists('loadSettings_invalidate')) loadSettings_invalidate();
 		$_SESSION['message'] = __t('settings_saved');
 	}
 	header('Location: index.php?action=settings&tab=' . $activeTab);
@@ -182,72 +273,45 @@ if ($action === 'menu_builder') {
 }
 
 /**
- * Load settings from file specifically for the admin panel
- * 
- * @return array Settings array
+ * Upload an image from $_FILES to /files/ and return its relative path (files/name.ext).
+ * Returns empty string on failure or invalid file type.
  */
-function loadedSettings() {
-	$defaultSettings = [
-		'articles_per_page' => 3,
-		'projects_per_page' => 3,
-		'show_articles_on_homepage' => true,
-		'show_projects_on_homepage' => true,
-		'main_menu' => [],
-		'use_custom_menu' => false,
-		'default_menu_style' => 'grouped',
-		'default_menu_order' => 'alphabetical',
-		'site_title' => 'Synaptik CMS',
-		'site_description' => 'A super lightweight, blazing fast, crazy simple, and very flexible file-based content management system for artists, creatives and personal websites.',
-		// Basic SEO settings
-		'default_meta_title' => '{page_title} | {site_title}',
-		'default_meta_description' => '{site_description}',
-		'default_meta_keywords' => '',
-		'enable_seo' => true,
-		// Advanced SEO settings
-		'generate_schema_markup' => true,
-		'default_schema_type' => 'WebSite',
-		'auto_canonical_urls' => true,
-		'social_image_width' => 1200,
-		'social_image_height' => 630,
-		// Standard settings
-		'show_site_title_in_header' => true,
-		'show_search_icon' => true,
-		'homepage_type' => 'default',
-		'homepage_page_id' => '',
-		// Image settings
-		'image_optimization_enabled' => true,
-		'max_width' => 1920,
-		'max_height' => 1080,
-		'image_quality' => 85,
-		'create_thumbnails' => true,
-		'thumb_width' => 300,
-		'thumb_height' => 300,
-		'convert_to_webp' => false,
-		// Theme & footer settings
-		'active_theme' => 'default',
-		'active_language' => 'en',
-		'footer_text' => 'Developed with ♥ by Dorian • &copy; {year}',
-		'footer_show_login' => true,
-		'footer_show_social' => false,
-		'footer_social_links' => [
-			['platform' => 'instagram', 'url' => 'https://instagram.com/'],
-			['platform' => 'twitter', 'url' => 'https://twitter.com/']
-		],
-		'autosave_enabled' => false,
-		// Social media sharing settings
-		'og_site_name' => '',
-		'twitter_card_type' => 'summary_large_image',
-		'twitter_site' => '',
-		'show_breadcrumbs' => true,
-	];
+function _settings_upload_image(string $inputName): string
+{
+	$file = $_FILES[$inputName] ?? [];
+	if (empty($file['name']) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) return '';
 
-	$settingsFile = '../settings.json';
-	if (file_exists($settingsFile)) {
-		$loadedSettings = json_decode(file_get_contents($settingsFile), true);
-		if (is_array($loadedSettings)) {
-			return array_merge($defaultSettings, $loadedSettings);
-		}
+	$allowedMime = ['image/jpeg','image/png','image/gif','image/webp','image/svg+xml','image/x-icon','image/vnd.microsoft.icon'];
+	$finfo = new finfo(FILEINFO_MIME_TYPE);
+	$mime  = $finfo->file($file['tmp_name']);
+	if (!in_array($mime, $allowedMime, true)) return '';
+
+	$ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+	if (!in_array($ext, ['jpg','jpeg','png','gif','webp','svg','ico'], true)) return '';
+
+	$base     = preg_replace('/[^a-z0-9_\-]/', '-', strtolower(pathinfo($file['name'], PATHINFO_FILENAME)));
+	$base     = trim($base, '-') ?: 'upload';
+	$destDir  = dirname(__DIR__) . '/files/';
+	$destName = $base . '.' . $ext;
+	$destPath = $destDir . $destName;
+	$i = 1;
+	while (file_exists($destPath)) {
+		$destName = $base . '-' . $i . '.' . $ext;
+		$destPath = $destDir . $destName;
+		$i++;
 	}
-	
-	return $defaultSettings;
+
+	if (!move_uploaded_file($file['tmp_name'], $destPath)) return '';
+	return 'files/' . $destName;
+}
+
+/**
+ * Validate and sanitize a files/-relative image path coming from POST.
+ * Returns empty string if the path fails validation.
+ */
+function _settings_sanitize_image_path(string $path): string
+{
+	$path = ltrim(str_replace(['..', "\0"], '', $path), '/');
+	if (!preg_match('/^files\/[a-zA-Z0-9_\-\/\.]+\.(jpe?g|png|gif|webp|svg|ico)$/i', $path)) return '';
+	return $path;
 }

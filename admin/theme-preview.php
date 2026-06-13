@@ -40,7 +40,8 @@ if (
 }
 
 // ── Build HMAC token ──────────────────────────────────────────────────────────
-$credFile = $rootDir . '/admin/admin-credentials.php';
+// admin-credentials.php lives in the same directory as this file.
+$credFile = __DIR__ . '/admin-credentials.php';
 if (!file_exists($credFile)) {
     http_response_code(500);
     exit('Admin credentials file not found.');
@@ -58,10 +59,15 @@ $hmac      = hash_hmac('sha256', $payload, $secret);
 $token = strtr(base64_encode($payload . '|' . $hmac), '+/', '-_');
 
 // ── Redirect to site homepage with token in URL ───────────────────────────────
-$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+// Use getBaseUrl() when available (handles OVH reverse proxy via HTTP_X_FORWARDED_PROTO).
+// Cannot use getBaseUrl() directly — SCRIPT_NAME points to admin/theme-preview.php,
+// so we must go two levels up to get the CMS root.
+$isHttps  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+           || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+           || (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on');
 $host     = $_SERVER['HTTP_HOST'];
 $baseDir  = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');
-$siteRoot = $protocol . '://' . $host . $baseDir . '/';
+$siteRoot = ($isHttps ? 'https' : 'http') . '://' . $host . $baseDir . '/';
 
 header('Location: ' . $siteRoot . '?_tp=' . urlencode($token));
 exit;

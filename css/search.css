@@ -5,7 +5,7 @@
 /* ── Search icon in nav ── */
 .search-icon svg {
   margin-top: 3px;
-  stroke: var(--search-secondary);
+  stroke: var(--search-accent);
   transition: transform 0.3s ease;
 }
 .search-icon a:hover svg {
@@ -28,7 +28,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: var(--search-bg-darker);
+  background-color: var(--search-overlay-bg);
   backdrop-filter: blur(2px);
   z-index: 1000;
   opacity: 0;
@@ -57,13 +57,13 @@
   cursor: pointer;
   padding: 5px;
   line-height: 0.6;
-  background-color: var(--search-primary-dark);
-  border-radius: var(--search-border-radius-sm);
+  background-color: var(--search-accent-dark);
+  border-radius: var(--search-radius);
   transition: background-color 0.2s ease;
   z-index: 2;
 }
 #close-search:hover {
-  background-color: var(--search-primary);
+  background-color: var(--search-accent);
 }
 
 /* ────────────────────────────────────────────────
@@ -111,17 +111,17 @@
 #search-input {
   width: 100%;
   padding: 12px 44px 12px 15px;
-  border: 3px solid var(--search-primary-light);
+  border: 3px solid var(--search-accent);
   border-radius: 5px;
-  background-color: var(--search-bg-accent);
-  color: var(--search-text-main);
+  background-color: var(--search-card-bg);
+  color: var(--search-text);
   font-size: 1.4rem;
   box-sizing: border-box;
   transition: border-color 0.3s ease;
 }
 #search-input:focus {
   outline: none;
-  border-color: var(--search-primary);
+  border-color: var(--search-accent-light);
   box-shadow: none;
 }
 
@@ -129,7 +129,7 @@
 .search-clear-btn {
   position: absolute;
   right: 15px;
-  top: 15%;
+  top: 50%;
   transform: translateY(-50%);
   width: 22px;
   height: 22px;
@@ -137,7 +137,7 @@
   line-height: 22px;
   text-align: center;
   font-size: 18px;
-  background: var(--search-primary);
+  background: var(--search-accent);
   color: #fff;
   border: none;
   border-radius: 3px;
@@ -146,7 +146,7 @@
   transition: background-color 0.2s ease;
 }
 .search-clear-btn:hover {
-  background-color: var(--search-primary-dark);
+  background-color: var(--search-accent-dark);
 }
 
 /* ── Filter checkboxes ── */
@@ -157,7 +157,7 @@
   padding: 10px 15px;
   background-color: #1819187a;
   border-radius: 5px;
-  color: var(--search-text-main);
+  color: var(--search-text);
 }
 .search-options label {
   display: flex;
@@ -173,7 +173,7 @@
   -webkit-appearance: none;
   width: 18px;
   height: 18px;
-  border: 1px solid var(--search-bg-main);
+  border: 1px solid var(--search-card-bg-hover);
   border-radius: 3px;
   background-color: #191d18;
   cursor: pointer;
@@ -182,7 +182,7 @@
   transition: background-color 0.2s ease;
 }
 .search-options input[type="checkbox"]:checked {
-  background-color: var(--search-primary);
+  background-color: var(--search-accent);
 }
 .search-options input[type="checkbox"]:checked::after {
   content: '';
@@ -226,7 +226,7 @@
 .search-results::-webkit-scrollbar { width: 12px; }
 .search-results::-webkit-scrollbar-track { background: transparent; }
 .search-results::-webkit-scrollbar-thumb {
-  background: var(--search-primary-dark);
+  background: var(--search-accent-dark);
   border-radius: 2px;
 }
 
@@ -247,7 +247,7 @@
 /* ── Section headings ── */
 .result-type-heading {
   margin: 25px 0 15px;
-  color: var(--search-result-heading);
+  color: var(--search-section-heading);
   font-size: 2rem;
   border-bottom: 1px solid #a5a5a5;
   padding-bottom: 8px;
@@ -257,14 +257,14 @@
   color: white;
   font-size: 1.5rem;
 }
-.result-title-heading a { color: var(--search-primary-light); }
-.result-title-heading a:hover { color: var(--search-primary); }
+.result-title-heading a { color: var(--search-accent-light); }
+.result-title-heading a:hover { color: var(--search-accent); }
 
 /* ── Individual result card ── */
 .search-result-item {
   margin-bottom: 15px;
   padding: 15px;
-  background-color: var(--search-bg-accent);
+  background-color: var(--search-card-bg);
   border-radius: 5px;
   display: flex;
   position: relative;
@@ -272,13 +272,16 @@
   transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 .search-result-item:hover {
-  transform: translateY(-2px);
+  /* transform: translateY(-2px); */
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-  background-color: var(--search-bg-main);
+  background-color: var(--search-card-bg-hover);
 }
 .search-result-item.has-image {
   padding-left: 120px;
   min-height: 100px;
+}
+.search-result-item.has-image:hover {
+  background-color: var(--search-card-bg-hover);
 }
 
 /* ── Thumbnail ── */
@@ -319,12 +322,12 @@
   text-decoration: none;
   transition: color 0.2s ease;
 }
-.search-result-item h4 a:hover { color: var(--search-primary-dark); }
+.search-result-item h4 a:hover { color: var(--search-accent-dark); }
 
 .result-excerpt {
   margin: 0;
   font-size: 0.9rem;
-  color: var(--search-text-main);
+  color: var(--search-text);
   line-height: 1.4;
 }
 
@@ -341,7 +344,7 @@
 .no-results, .error {
   padding: 30px;
   text-align: center;
-  background-color: var(--search-bg-darker);
+  background-color: var(--search-overlay-bg);
   border-radius: 5px;
   color: #aaa;
 }

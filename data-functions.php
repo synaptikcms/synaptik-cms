@@ -280,6 +280,15 @@ function generateSEO($pageTitle, $type, $slug, $data, $settings)
     $metaTitle = $settings["site_title"]; // Default
     $metaDescription = $settings["site_description"]; // Default
 
+    // Homepage SEO overrides (homepage_type === 'default' only;
+    // when a page is set as homepage it carries its own meta fields).
+    if (empty($type) && empty($slug)) {
+        if (!empty($settings['home_meta_title']))
+            $metaTitle = decodeHtmlEntities($settings['home_meta_title']);
+        if (!empty($settings['home_meta_description']))
+            $metaDescription = decodeHtmlEntities($settings['home_meta_description']);
+    }
+
     if (!empty($type) && !empty($slug)) {
         // Individual content page
         if (in_array($type, ["article", "page", "project"])) {
