@@ -205,61 +205,17 @@ function listDirectories($dir, $rel = '') {
 $availableDirs = ($baseDirAbs !== false)
 	? array_merge([''], listDirectories($baseDirAbs))
 	: [''];
+$pageTitle = __t('image_optimizer');
+$extraHead = '<style>#processing-warning{display:none;background-color:var(--warning-soft);color:var(--warning-text);border:1px solid var(--warning);border-left:4px solid var(--warning);padding:12px 20px;border-radius:var(--radius-sm);margin-bottom:20px;font-size:1.1em;}</style>';
+
+ob_start();
 ?>
-<!DOCTYPE html>
-<html lang="<?php echo htmlspecialchars(lang_current()); ?>">
-<head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>SynaptikCMS Admin | <?php _e('image_optimizer'); ?></title>
-	<link rel="icon" type="image/x-icon" href="../files/favicon.ico">
-	<link rel="icon" type="image/png" sizes="32x32" href="../files/favicon-32x32.png">
-	<link rel="stylesheet" href="css/admin-base.css">
-	<link rel="stylesheet" href="css/admin-components.css">
-	<link rel="stylesheet" href="css/admin-sidebar.css">
-	<script>window.CMS_LANG = <?php echo lang_js_bridge(); ?>;</script>
-	<style>
-		#processing-warning {
-			display: none;
-			background-color: #fdb33d;
-			color: #6b4c1d;
-			border-left: 4px solid #c17c07;
-			padding: 12px 20px;
-			border-radius: 6px;
-			margin-bottom: 20px;
-			font-size: 1.1em;
-		}
-	</style>
-</head>
-<body>
-<script>
-(function() {
-	try {
-		var s = JSON.parse(localStorage.getItem('synaptik_sidebar_state') || '{}');
-		document.body.classList.add(s.isExpanded === false ? 'sidebar-collapsed' : 'sidebar-expanded');
-	} catch(e) { document.body.classList.add('sidebar-expanded'); }
-})();
-</script>
-<div class="admin-container">
-<?php include_once 'includes/sidebar.php'; ?>
-<main class="content">
-
-	<h1 class="main-heading"><?php _e('image_optimizer'); ?></h1>
-	<a href="<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')
-		. '://' . $_SERVER['HTTP_HOST']
-		. rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/') . '/'; ?>"
-	   target="_blank" class="view-website-btn">
-		<span class="icon">🌐</span> <?php _e('view_website'); ?>
-	</a>
-
-	<?php if ($message): ?><div class="message success"><?php echo $message; ?></div><?php endif; ?>
-	<?php if ($error):   ?><div class="message error"><?php echo $error; ?></div><?php endif; ?>
 
 	<div id="processing-warning">
 		⚠️ <?php _e('batch_do_not_close'); ?>
 	</div>
 
-	<div class="form-group" style="background-color:#ffffff;border-radius:5px;padding:20px;">
+	<div class="form-group" style="background-color:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;">
 		<p><?php _e('batch_description'); ?></p>
 		<p><b><?php _e('batch_current_settings'); ?></b></p>
 		<ul>
@@ -271,7 +227,7 @@ $availableDirs = ($baseDirAbs !== false)
 			<p class="message error"><?php _e('batch_webp_not_supported'); ?></p>
 		<?php endif; ?>
 		<p><strong><?php _e('note'); ?></strong> <?php _e('batch_settings_note'); ?>
-		   <a href="index.php?action=settings"><?php _e('settings'); ?></a>.</p>
+		   <a href="index.php?action=settings&tab=images"><?php _e('settings'); ?></a>.</p>
 	</div>
 
 	<form id="optimize-form" method="post" action="">
@@ -286,7 +242,7 @@ $availableDirs = ($baseDirAbs !== false)
 			</select>
 		</div>
 		<div class="form-group">
-			<button type="submit" name="optimize" id="start-optimization" class="button">
+			<button type="submit" name="optimize" id="start-optimization" class="btn btn-primary">
 				<?php _e('batch_start_btn'); ?>
 			</button>
 		</div>
@@ -333,10 +289,10 @@ $availableDirs = ($baseDirAbs !== false)
 			<?php endif; ?>
 		</div>
 	</div>
-</main>
-</div>
-<script src="js/common.js"></script>
-<script src="js/admin-sidebar.js"></script>
+<?php
+$pageContent = ob_get_clean();
+
+$extraFooterScripts = <<<'JSINLINE'
 <script>
 (function () {
 	'use strict';
@@ -355,8 +311,6 @@ $availableDirs = ($baseDirAbs !== false)
 		e.preventDefault();
 		if (isRunning) return;
 		isRunning = true;
-
-		// Reset UI
 		container.style.display = 'block';
 		resultsEl.style.display = 'none';
 		warningEl.style.display = 'block';
@@ -365,61 +319,35 @@ $availableDirs = ($baseDirAbs !== false)
 		btn.disabled            = true;
 		btn.textContent         = window.t('optimizing');
 		select.disabled         = true;
-
 		ajaxGet(
 			'batch-optimize.php?scan=1&directory=' + encodeURIComponent(select.value),
 			function (data) {
-				if (data.status !== 'ok') {
-					showError(data.message || window.t('error'));
-					return;
-				}
-				if (data.count === 0) {
-					showError(window.t('batch_no_images'));
-					return;
-				}
+				if (data.status !== 'ok') { showError(data.message || window.t('error')); return; }
+				if (data.count === 0)    { showError(window.t('batch_no_images')); return; }
 				statusEl.textContent = window.t('batch_images_found').replace('%d', data.count);
-				processFiles(data.files, 0, {
-					processed: 0, errors: 0,
-					totalOriginal: 0, totalOptimized: 0, webpCount: 0
-				});
+				processFiles(data.files, 0, { processed: 0, errors: 0, totalOriginal: 0, totalOptimized: 0, webpCount: 0 });
 			},
-			function (err) {
-				showError(window.t('error') + ': ' + err);
-			}
+			function (err) { showError(window.t('error') + ': ' + err); }
 		);
 	});
 
 	function processFiles(files, index, stats) {
-		if (index >= files.length) {
-			finishProcessing(stats, files.length);
-			return;
-		}
-
+		if (index >= files.length) { finishProcessing(stats, files.length); return; }
 		var file    = files[index];
 		var percent = Math.min(99, Math.round((index / files.length) * 100));
 		fill.style.width     = percent + '%';
 		statusEl.textContent = (index + 1) + '/' + files.length + ' — ' + file.name;
-
-		ajaxPost(
-			'batch-optimize.php',
-			'process_one=1&file_path=' + encodeURIComponent(file.path),
+		ajaxPost('batch-optimize.php', 'process_one=1&file_path=' + encodeURIComponent(file.path),
 			function (result) {
 				if (result.status === 'ok') {
 					stats.processed++;
 					stats.totalOriginal  += result.original_size  || 0;
 					stats.totalOptimized += result.optimized_size || 0;
 					if (result.webp) stats.webpCount++;
-				} else {
-					stats.errors++;
-					console.warn('Erreur sur ' + file.name + ':', result.message);
-				}
+				} else { stats.errors++; }
 				processFiles(files, index + 1, stats);
 			},
-			function (err) {
-				stats.errors++;
-				console.error('Exception sur ' + file.name + ':', err);
-				processFiles(files, index + 1, stats);
-			}
+			function (err) { stats.errors++; processFiles(files, index + 1, stats); }
 		);
 	}
 
@@ -431,12 +359,8 @@ $availableDirs = ($baseDirAbs !== false)
 		btn.textContent         = window.t('batch_start_btn');
 		select.disabled         = false;
 		isRunning               = false;
-
 		var saved     = stats.totalOriginal - stats.totalOptimized;
-		var reduction = stats.totalOriginal > 0
-			? Math.round((saved / stats.totalOriginal) * 10000) / 100
-			: 0;
-
+		var reduction = stats.totalOriginal > 0 ? Math.round((saved / stats.totalOriginal) * 10000) / 100 : 0;
 		setText('stat-processed', stats.processed);
 		setText('stat-errors',    stats.errors);
 		setText('stat-saved',     formatBytes(saved));
@@ -445,27 +369,14 @@ $availableDirs = ($baseDirAbs !== false)
 		setText('stat-optimized', formatBytes(stats.totalOptimized));
 		if (document.getElementById('stat-webp')) setText('stat-webp', stats.webpCount);
 		resultsEl.style.display = 'block';
-
-		var msgHtml = window.t('batch_complete_msg')
-			.replace('%d', stats.processed)
-			.replace('%d', stats.errors)
-			.replace('%s', formatBytes(saved))
-			.replace('%s', reduction + '%');
-		if (stats.webpCount > 0) {
-			msgHtml += window.t('batch_complete_msg_webp').replace('%d', stats.webpCount);
-		}
+		var msgHtml = window.t('batch_complete_msg').replace('%d', stats.processed).replace('%d', stats.errors).replace('%s', formatBytes(saved)).replace('%s', reduction + '%');
+		if (stats.webpCount > 0) msgHtml += window.t('batch_complete_msg_webp').replace('%d', stats.webpCount);
 		var msg = document.createElement('div');
 		msg.className = 'message success';
 		msg.innerHTML = msgHtml;
 		var content = document.querySelector('.content');
 		content.insertBefore(msg, content.firstChild);
-		setTimeout(function () {
-			msg.style.transition = 'opacity 0.5s ease';
-			msg.style.opacity    = '0';
-			setTimeout(function () {
-				if (msg.parentNode) msg.parentNode.removeChild(msg);
-			}, 500);
-		}, 5000);
+		setTimeout(function () { msg.style.transition = 'opacity 0.5s ease'; msg.style.opacity = '0'; setTimeout(function () { if (msg.parentNode) msg.parentNode.removeChild(msg); }, 500); }, 5000);
 	}
 
 	function showError(msg) {
@@ -481,14 +392,10 @@ $availableDirs = ($baseDirAbs !== false)
 		var xhr = new XMLHttpRequest();
 		xhr.open('GET', url, true);
 		xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-		xhr.timeout = 30000; // 30s pour le scan
+		xhr.timeout = 30000;
 		xhr.onload = function () {
-			if (xhr.status === 200) {
-				try { onSuccess(JSON.parse(xhr.responseText)); }
-				catch (e) { onError('JSON parse error: ' + e.message + '\n' + xhr.responseText.substring(0, 200)); }
-			} else {
-				onError('HTTP ' + xhr.status + ': ' + xhr.responseText.substring(0, 200));
-			}
+			if (xhr.status === 200) { try { onSuccess(JSON.parse(xhr.responseText)); } catch (e) { onError('JSON parse error: ' + e.message); } }
+			else { onError('HTTP ' + xhr.status); }
 		};
 		xhr.onerror   = function () { onError(window.t('batch_network_error')); };
 		xhr.ontimeout = function () { onError('Timeout'); };
@@ -500,24 +407,17 @@ $availableDirs = ($baseDirAbs !== false)
 		xhr.open('POST', url, true);
 		xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
 		xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-		xhr.timeout = 120000; // 2 min par fichier
+		xhr.timeout = 120000;
 		xhr.onload = function () {
-			if (xhr.status === 200) {
-				try { onSuccess(JSON.parse(xhr.responseText)); }
-				catch (e) { onError('JSON parse error: ' + e.message + '\n' + xhr.responseText.substring(0, 200)); }
-			} else {
-				onError('HTTP ' + xhr.status + ': ' + xhr.responseText.substring(0, 200));
-			}
+			if (xhr.status === 200) { try { onSuccess(JSON.parse(xhr.responseText)); } catch (e) { onError('JSON parse error: ' + e.message); } }
+			else { onError('HTTP ' + xhr.status); }
 		};
 		xhr.onerror   = function () { onError(window.t('batch_network_error')); };
 		xhr.ontimeout = function () { onError(window.t('batch_timeout')); };
 		xhr.send(body);
 	}
 
-	function setText(id, val) {
-		var el = document.getElementById(id);
-		if (el) el.textContent = val;
-	}
+	function setText(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
 
 	function formatBytes(bytes) {
 		if (!bytes || bytes <= 0) return '0 B';
@@ -527,5 +427,6 @@ $availableDirs = ($baseDirAbs !== false)
 	}
 }());
 </script>
-</body>
-</html>
+JSINLINE;
+
+require_once 'includes/layout.php';

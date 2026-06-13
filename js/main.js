@@ -749,13 +749,9 @@ const highlighters = {
 
 		// ── Resolve image URL ─────────────────────────────────────────────────
 		function getCorrectImageUrl(imagePath) {
-			if (imagePath.startsWith('http') || imagePath.startsWith('/')) {
-				return imagePath;
-			}
-			if (!imagePath.startsWith('files/')) {
-				imagePath = 'files/' + imagePath;
-			}
-			return getBaseUrl() + imagePath;
+			if (imagePath.startsWith('http') || imagePath.startsWith('/')) return imagePath;
+			if (!imagePath.startsWith('files/')) imagePath = 'files/' + imagePath;
+			return (window._searchBaseUrl || getBaseUrl()) + imagePath;
 		}
 
 		// ── Fetch and display search results ──────────────────────────────────
@@ -769,12 +765,11 @@ const highlighters = {
 
 			if (searchLoading) searchLoading.style.display = 'block';
 
-			const baseUrl = getBaseUrl();
-			let apiUrl = `${baseUrl}search.php?q=${encodeURIComponent(query)}`;
-			apiUrl += `&content=${inContent}`;
-			apiUrl += `&articles=${inArticles}`;
-			apiUrl += `&pages=${inPages}`;
-			apiUrl += `&projects=${inProjects}`;
+			let apiUrl = `search.php?q=${encodeURIComponent(query)}`
+			           + `&content=${inContent}`
+			           + `&articles=${inArticles}`
+			           + `&pages=${inPages}`
+			           + `&projects=${inProjects}`;
 
 			fetch(apiUrl)
 				.then(response => {
@@ -783,6 +778,7 @@ const highlighters = {
 				})
 				.then(data => {
 					if (searchLoading) searchLoading.style.display = 'none';
+					window._searchBaseUrl = data.base_url;
 					displaySearchResults(data.results, query);
 				})
 				.catch(error => {

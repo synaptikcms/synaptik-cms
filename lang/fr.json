@@ -60,5 +60,19 @@
   "contact_email_ph": "Votre adresse email",
   "contact_message_ph": "Votre message…",
   "contact_sent_ok": "Votre message a bien été envoyé. Merci !",
-  "contact_sent_error": "Une erreur est survenue. Veuillez réessayer."
+  "contact_sent_error": "Une erreur est survenue. Veuillez réessayer.",
+  "related_content": "Sur un sujet similaire, vous aimerez aussi :",
+  "tags_label": "Tags :",
+  "toggle_menu": "Afficher la navigation",
+  "support_cta": "Soutenir",
+  "lang_switcher_label": "Langue",
+  "lang_current_label": "Langue actuelle",
+  "portfolio_hero_eyebrow": "Portfolio Créatif",
+  "toc_label": "Sur cette page",
+  "welcome": "Bienvenue",
+  "explore_articles": "Explorer les articles",
+  "view_projects": "Voir les projets",
+  "latest_articles": "Derniers articles",
+  "featured": "À la une",
+  "navigate": "Navigation"
 }

@@ -124,6 +124,16 @@ $item = [
 	'og_description'      => $str('og_description'),
 	'slug'                => 'preview-' . time(),
 	'custom_slug'         => '',
+	'page_template'       => $str('page_template'),
+	'show_related_items'  => $chk('show_related_items'),
+	'related_items'       => (function() {
+		$raw     = $_POST['related_items'] ?? '[]';
+		$decoded = json_decode($raw, true);
+		return is_array($decoded) ? $decoded : [];
+	})(),
+	'custom_fields'       => (isset($_POST['custom_fields']) && is_array($_POST['custom_fields']))
+		? array_map('trim', $_POST['custom_fields'])
+		: [],
 ];
 
 $metaTitle       = $item['meta_title']       !== '' ? $item['meta_title']       : $item['title'];
@@ -183,7 +193,13 @@ $themeVars = [
 	'headerScripts'   => $headerScripts,
 ];
 
+// For pages with a custom template, load page-templates/{name}.php instead of content-pages.php.
+// basename() prevents path traversal in the page_template value.
+$contentTemplate = ($contentType === 'page' && !empty($item['page_template']))
+	? 'page-templates/' . basename($item['page_template'])
+	: 'content-' . $contentType . 's';
+
 loadThemeTemplate('header', $themeVars);
-loadThemeTemplate("content-{$contentType}s", $themeVars + ['item' => $item]);
+loadThemeTemplate($contentTemplate, $themeVars + ['item' => $item]);
 echo $previewBannerHtml;
 loadThemeTemplate('footer', $themeVars);

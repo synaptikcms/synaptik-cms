@@ -320,7 +320,7 @@ function sl_admin_save_categories(array $categories): bool
 {
     $path    = sl_data_dir() . '/categories.json';
     $success = _sl_write_json($path, $categories);
-    if ($success) _sl_cache_del('categories');
+    if ($success) sl_invalidate_taxonomy_cache('categories');
     return $success;
 }
 
@@ -334,7 +334,7 @@ function sl_admin_save_tags(array $tags): bool
 {
     $path    = sl_data_dir() . '/tags.json';
     $success = _sl_write_json($path, $tags);
-    if ($success) _sl_cache_del('tags');
+    if ($success) sl_invalidate_taxonomy_cache('tags');
     return $success;
 }
 

@@ -130,6 +130,35 @@ if ($action === 'get_content_items') {
 	exit;
 }
 
+// Handle duplicate action via GET
+if ($action === 'duplicate' && $contentType && isset($data[$contentType][$index])) {
+	$original = $data[$contentType][$index];
+	$copy = $original;
+	// Append " (copy)" to title, generate new slug, clear custom slug
+	$copy['title']       = $original['title'] . ' ' . __t('duplicate_suffix', '(copy)');
+	$copy['slug']        = sanitizeSlug($copy['title']);
+	$copy['custom_slug'] = '';
+	$copy['status']      = 'draft';
+	$copy['publish_at']  = '';
+	$copy['last_modified'] = date('Y-m-d H:i');
+	$copy['date']        = date('Y-m-d H:i');
+	// Ensure slug uniqueness
+	$existingSlugs = array_map(fn($i) => !empty($i['custom_slug']) ? $i['custom_slug'] : ($i['slug'] ?? ''), $data[$contentType]);
+	$base = $copy['slug']; $n = 2;
+	while (in_array($copy['slug'], $existingSlugs)) { $copy['slug'] = $base . '-' . $n++; }
+	$data[$contentType][] = $copy;
+	saveData($data);
+	$_SESSION['message'] = __t('content_duplicated', 'Item duplicated.');
+	// If AJAX request, return JSON
+	if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+		header('Content-Type: application/json');
+		echo json_encode(['success' => true, 'message' => $_SESSION['message']]);
+		exit;
+	}
+	header('Location: index.php?type=' . urlencode($contentType));
+	exit;
+}
+
 // Handle delete action via GET
 if ($action === 'delete' && $contentType && isset($data[$contentType][$index])) {
 	unset($data[$contentType][$index]);
@@ -200,8 +229,24 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 		if ($categoryAction === 'merge' && isset($_POST['source_slug'], $_POST['target_slug'])) {
 			$sourceSlug = $_POST['source_slug'];
 			$targetSlug = $_POST['target_slug'];
-			if ($sourceSlug !== $targetSlug && isset($data['categories'][$targetSlug])) {
-				$targetName = $data['categories'][$targetSlug]['name'];
+
+			// Resolve target name: check the dedicated categories store first,
+			// then fall back to scanning content items for inline-only categories
+			// (categories that were never explicitly added/edited via the admin).
+			$targetName = $data['categories'][$targetSlug]['name'] ?? null;
+			if ($targetName === null) {
+				foreach (['article', 'project'] as $ct) {
+					if (!isset($data[$ct])) continue;
+					foreach ($data[$ct] as $item) {
+						if (!empty($item['category']) && sanitizeSlug($item['category']) === $targetSlug) {
+							$targetName = $item['category'];
+							break 2;
+						}
+					}
+				}
+			}
+
+			if ($sourceSlug !== $targetSlug && $targetName !== null) {
 				foreach (['article', 'project', 'page'] as $ct) {
 					if (!isset($data[$ct])) continue;
 					foreach ($data[$ct] as &$item) {
@@ -307,8 +352,27 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 		if ($tagAction === 'merge' && isset($_POST['source_slug'], $_POST['target_slug'])) {
 			$sourceSlug = $_POST['source_slug'];
 			$targetSlug = $_POST['target_slug'];
-			if ($sourceSlug !== $targetSlug && isset($data['tags'][$targetSlug])) {
-				$targetName = $data['tags'][$targetSlug]['name'];
+
+			// Resolve target name: check the dedicated tags store first,
+			// then fall back to scanning content items for inline-only tags
+			// (tags that were never explicitly added/edited via the admin).
+			$targetName = $data['tags'][$targetSlug]['name'] ?? null;
+			if ($targetName === null) {
+				foreach (['article', 'project'] as $ct) {
+					if (!isset($data[$ct])) continue;
+					foreach ($data[$ct] as $item) {
+						if (!isset($item['tags']) || !is_array($item['tags'])) continue;
+						foreach ($item['tags'] as $tag) {
+							if (sanitizeSlug($tag) === $targetSlug) {
+								$targetName = $tag;
+								break 3;
+							}
+						}
+					}
+				}
+			}
+
+			if ($sourceSlug !== $targetSlug && $targetName !== null) {
 				foreach (['article', 'project', 'page'] as $ct) {
 					if (!isset($data[$ct])) continue;
 					foreach ($data[$ct] as &$item) {
@@ -586,7 +650,18 @@ function handleContentAddition() {
 	}
 
 	// Additional fields for projects
-	$date = $_POST['date'] ?? date('Y-m-d');
+	// Combine date and time fields into a single 'YYYY-MM-DD HH:MM' string
+	// Input comes from a datetime-local field (format: YYYY-MM-DDTHH:MM)
+	$_dt_raw = trim($_POST['publish_datetime'] ?? '');
+	if ($_dt_raw !== '') {
+		// datetime-local sends 'YYYY-MM-DDTHH:MM' — normalise to 'YYYY-MM-DD HH:MM'
+		$date = str_replace('T', ' ', $_dt_raw);
+	} else {
+		// Fallback: hidden fields from old form submissions or autosave
+		$dateRaw = $_POST['date'] ?? date('Y-m-d');
+		$timeRaw = trim($_POST['time'] ?? '');
+		$date = ($timeRaw !== '') ? $dateRaw . ' ' . $timeRaw : $dateRaw;
+	}
 	
 	// Handle tags
 	$tags = [];
@@ -624,6 +699,7 @@ function handleContentAddition() {
 				'show_featured_image' => isset($_POST['show_featured_image']) ? true : false,
 				'show_date' => isset($_POST['show_date']) ? true : false,
 				'show_title' => isset($_POST['show_title']) ? true : false,
+				'show_related_items' => isset($_POST['show_related_items']) ? true : false,
 				'gallery_layout' => $_POST['gallery_layout'] ?? 'grid',
 				'category' => $category,
 				'tags' => $tags,
@@ -675,6 +751,35 @@ function handleContentAddition() {
 		// Show in menu (all content types)
 		$newItem['show_in_menu'] = isset($_POST['show_in_menu']) ? true : false;
 		$newItem['menu_order'] = isset($_POST['menu_order']) ? max(0, min(999, (int)$_POST['menu_order'])) : 0;
+
+		// Custom fields — sanitize and store as a flat key/value map
+		if (isset($_POST['custom_fields']) && is_array($_POST['custom_fields'])) {
+			$_cf_clean = [];
+			foreach ($_POST['custom_fields'] as $_cfk => $_cfv) {
+				$_cf_clean[sanitizeSlug($_cfk, true)] = is_array($_cfv) ? '' : trim((string)$_cfv);
+			}
+			$newItem['custom_fields'] = $_cf_clean;
+		}
+
+		// Related items — decode JSON from hidden input, sanitize each reference
+		$_ri_raw = (string)($_POST['related_items'] ?? '');
+		if ($_ri_raw !== '') {
+			$_ri_decoded = json_decode(stripslashes($_ri_raw), true);
+			if (is_array($_ri_decoded)) {
+				$_ri_clean = [];
+				foreach ($_ri_decoded as $_ri_ref) {
+					$_ri_type  = $_ri_ref['type']  ?? '';
+					$_ri_slug  = $_ri_ref['slug']  ?? '';
+					$_ri_title = mb_substr(strip_tags((string)($_ri_ref['title'] ?? '')), 0, 300);
+					if (in_array($_ri_type, ['article', 'page', 'project'], true) && $_ri_slug !== '') {
+						$_ri_clean[] = ['type' => $_ri_type, 'slug' => sanitizeSlug($_ri_slug), 'title' => $_ri_title];
+					}
+				}
+				if (!empty($_ri_clean)) {
+					$newItem['related_items'] = $_ri_clean;
+				}
+			}
+		}
 
 		// Content format: html (WYSIWYG) or markdown
 		$newItem['content_format'] = in_array($_POST['content_format'] ?? 'html', ['html', 'markdown'])
@@ -835,7 +940,8 @@ function handleContentEdit() {
 			'show_featured_image' => isset($_POST['show_featured_image']) ? true : false,
 			'show_date' => isset($_POST['show_date']) ? true : false,
 			'show_title' => isset($_POST['show_title']) ? true : false,
-			'gallery_layout' => $_POST['gallery_layout'] ?? 'grid',
+			'show_related_items' => isset($_POST['show_related_items']) ? true : false,
+		'gallery_layout' => $_POST['gallery_layout'] ?? 'grid',
 			'category' => $category,
 			'tags' => $tags,
 			'show_tags_at_bottom' => isset($_POST['show_tags_at_bottom']) ? true : false,
@@ -868,13 +974,24 @@ function handleContentEdit() {
 		}
 		
 		// Update content type specific fields
+		// Combine date and time fields into a single 'YYYY-MM-DD HH:MM' string
+		// Input comes from a datetime-local field (format: YYYY-MM-DDTHH:MM)
+		$_dt_raw_edit = trim($_POST['publish_datetime'] ?? '');
+		if ($_dt_raw_edit !== '') {
+			$_editDate = str_replace('T', ' ', $_dt_raw_edit);
+		} else {
+			// Fallback: hidden fields from old form submissions or autosave
+			$_editDateRaw = $_POST['date'] ?? date('Y-m-d');
+			$_editTimeRaw = trim($_POST['time'] ?? '');
+			$_editDate    = ($_editTimeRaw !== '') ? $_editDateRaw . ' ' . $_editTimeRaw : $_editDateRaw;
+		}
 		if ($contentType === 'project') {
-			$updatedItem['date'] = $_POST['date'] ?? date('Y-m-d');
+			$updatedItem['date'] = $_editDate;
 			$updatedItem['description'] = htmlspecialchars($_POST['description'] ?? '');
 		}
 		
 		if ($contentType === 'article' || $contentType === 'page') {
-			$updatedItem['date'] = $_POST['date'] ?? date('Y-m-d');
+			$updatedItem['date'] = $_editDate;
 		}
 		// Save article summary (replaces auto-generated excerpt in cards)
 		if ($contentType === 'article') {
@@ -893,6 +1010,41 @@ function handleContentEdit() {
 		// Show in menu (all content types)
 		$updatedItem['show_in_menu'] = isset($_POST['show_in_menu']) ? true : false;
 		$updatedItem['menu_order'] = isset($_POST['menu_order']) ? max(0, min(999, (int)$_POST['menu_order'])) : 0;
+
+		// Custom fields — sanitize and store as a flat key/value map
+		if (isset($_POST['custom_fields']) && is_array($_POST['custom_fields'])) {
+			$_cf_clean = [];
+			foreach ($_POST['custom_fields'] as $_cfk => $_cfv) {
+				$_cf_clean[sanitizeSlug($_cfk, true)] = is_array($_cfv) ? '' : trim((string)$_cfv);
+			}
+			$updatedItem['custom_fields'] = $_cf_clean;
+		} else {
+			// Preserve existing custom fields if the form sent none (e.g. no CF defined for this type)
+			if (!empty($data[$contentType][$index]['custom_fields'])) {
+				$updatedItem['custom_fields'] = $data[$contentType][$index]['custom_fields'];
+			}
+		}
+
+		// Related items — always overwrite from POST (empty array = all links cleared by user)
+		$_ri_raw_edit = (string)($_POST['related_items'] ?? '');
+		if ($_ri_raw_edit !== '') {
+			$_ri_decoded_edit = json_decode(stripslashes($_ri_raw_edit), true);
+			if (is_array($_ri_decoded_edit)) {
+				$_ri_clean_edit = [];
+				foreach ($_ri_decoded_edit as $_ri_ref) {
+					$_ri_type  = $_ri_ref['type']  ?? '';
+					$_ri_slug  = $_ri_ref['slug']  ?? '';
+					$_ri_title = mb_substr(strip_tags((string)($_ri_ref['title'] ?? '')), 0, 300);
+					if (in_array($_ri_type, ['article', 'page', 'project'], true) && $_ri_slug !== '') {
+						$_ri_clean_edit[] = ['type' => $_ri_type, 'slug' => sanitizeSlug($_ri_slug), 'title' => $_ri_title];
+					}
+				}
+				$updatedItem['related_items'] = $_ri_clean_edit;
+			}
+		} elseif (!empty($data[$contentType][$index]['related_items'])) {
+			// Preserve existing if hidden field was somehow absent (edge case)
+			$updatedItem['related_items'] = $data[$contentType][$index]['related_items'];
+		}
 
 		// Content format: preserve the existing value; only update if the form explicitly sends a valid value
 		$submittedFormat = $_POST['content_format'] ?? '';
@@ -934,7 +1086,7 @@ function handleContentEdit() {
 			}
 		}
 		
-		$updatedItem['last_modified'] = date('Y-m-d');
+		$updatedItem['last_modified'] = date('Y-m-d H:i');
 		
 		// Capture old slug/category BEFORE overwrite, for menu sync
 		$oldMenuSlug = !empty($data[$contentType][$index]['custom_slug'])

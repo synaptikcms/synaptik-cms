@@ -101,49 +101,12 @@ if (file_exists($draftsDir)) {
 $message = $_SESSION['message'] ?? null;
 $error   = $_SESSION['error']   ?? null;
 unset($_SESSION['message'], $_SESSION['error']);
+
+$pageTitle = __t('seo_overview');
+$extraHead = '<link rel="stylesheet" href="assets/css/admin-content.css">';
+
+ob_start();
 ?>
-<!DOCTYPE html>
-<html lang="<?php echo htmlspecialchars(lang_current()); ?>">
-<head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>SynaptikCMS Admin | <?php _e('seo_overview'); ?></title>
-	<link rel="icon" type="image/x-icon" href="../files/favicon.ico">
-	<link rel="icon" type="image/png" sizes="32x32" href="../files/favicon-32x32.png">
-	<link rel="apple-touch-icon" href="../files/apple-touch-icon.png">
-	<link rel="stylesheet" href="css/admin-base.css">
-	<link rel="stylesheet" href="css/admin-components.css">
-	<link rel="stylesheet" href="css/admin-content.css">
-	<link rel="stylesheet" href="css/admin-sidebar.css">
-	<script>window.CMS_LANG = <?php echo lang_js_bridge(); ?>;</script>
-</head>
-<body>
-<script>
-(function() {
-	try {
-		var saved = localStorage.getItem('synaptik_sidebar_state');
-		if (saved) {
-			var s = JSON.parse(saved);
-			document.body.classList.add(s.isExpanded === false ? 'sidebar-collapsed' : 'sidebar-expanded');
-		} else {
-			document.body.classList.add('sidebar-expanded');
-		}
-	} catch(e) { document.body.classList.add('sidebar-expanded'); }
-})();
-</script>
-<div class="admin-container">
-	<?php include_once 'includes/sidebar.php'; ?>
-	<main class="content">
-		<?php if ($message): ?>
-			<div class="message success"><?php echo htmlspecialchars($message); ?></div>
-		<?php endif; ?>
-		<?php if ($error): ?>
-			<div class="message error"><?php echo htmlspecialchars($error); ?></div>
-		<?php endif; ?>
-		<h1 class="main-heading"><?php _e('seo_overview'); ?></h1>
-		<a href="<?php echo $baseUrl; ?>" target="_blank" class="view-website-btn">
-			<span class="icon">🌐</span> <?php _e('view_website'); ?>
-		</a>
 			<!-- ── Stats ─────────────────────────────────────────────── -->
 			<div class="seo-stats">
 				<a href="seo-overview.php?filter=all" class="seo-stat-card <?php echo $filter === 'all' ? 'active' : ''; ?>">
@@ -254,10 +217,10 @@ unset($_SESSION['message'], $_SESSION['error']);
 				</table>
 			</div>
 			<?php endif; ?>
-	</main>
-</div>
-<script src="js/common.js"></script>
-<script src="js/admin-sidebar.js"></script>
+<?php
+$pageContent = ob_get_clean();
+
+$extraFooterScripts = <<<'JSINLINE'
 <script>
 (function() {
 	'use strict';
@@ -273,23 +236,16 @@ unset($_SESSION['message'], $_SESSION['error']);
 		counter.className   = 'char-counter';
 		if (len > max * 0.9) counter.classList.add('warn');
 		if (len >= max)      counter.classList.add('over');
-		// Styling vide/rempli
-		if (len === 0) {
-			field.classList.add('empty');
-		} else {
-			field.classList.remove('empty');
-		}
+		if (len === 0) { field.classList.add('empty'); } else { field.classList.remove('empty'); }
 	}
 
 	function showSaveIndicator(field, ok) {
 		var ind = field.parentNode.querySelector('.save-indicator');
 		if (!ind) return;
-		ind.textContent  = ok ? '✓ ' + window.t('saved', 'Saved') : '✗ ' + window.t('save_error', 'Error');
+		ind.textContent  = ok ? '\u2713 ' + window.t('saved', 'Saved') : '\u2717 ' + window.t('save_error', 'Error');
 		ind.className    = 'save-indicator visible' + (ok ? '' : ' error');
 		clearTimeout(ind._hideTimer);
-		ind._hideTimer = setTimeout(function() {
-			ind.classList.remove('visible');
-		}, 2000);
+		ind._hideTimer = setTimeout(function() { ind.classList.remove('visible'); }, 2000);
 	}
 
 	function saveField(field) {
@@ -298,48 +254,21 @@ unset($_SESSION['message'], $_SESSION['error']);
 		var index = row.dataset.index;
 		var fname = field.dataset.field;
 		var val   = field.value;
-
 		field.classList.add('saving');
-
-		var body = new URLSearchParams({
-			ajax_seo_save: '1',
-			type:          type,
-			index:         index,
-			field:         fname,
-			value:         val
-		});
-
-		fetch('seo-overview.php', {
-			method:  'POST',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body:    body.toString()
-		})
-		.then(function(r) { return r.json(); })
-		.then(function(data) {
-			field.classList.remove('saving');
-			showSaveIndicator(field, data.ok);
-		})
-		.catch(function() {
-			field.classList.remove('saving');
-			showSaveIndicator(field, false);
-		});
+		var body = new URLSearchParams({ ajax_seo_save: '1', type: type, index: index, field: fname, value: val });
+		fetch('seo-overview.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() })
+			.then(function(r) { return r.json(); })
+			.then(function(data) { field.classList.remove('saving'); showSaveIndicator(field, data.ok); })
+			.catch(function() { field.classList.remove('saving'); showSaveIndicator(field, false); });
 	}
 
 	document.querySelectorAll('.seo-field').forEach(function(field) {
-		// Compteur initial
 		updateCounter(field);
-
-		// Mise à jour compteur à chaque frappe
 		field.addEventListener('input', function() {
 			updateCounter(field);
-			// Debounce save : 800ms après la dernière frappe
 			clearTimeout(saveTimers.get(field));
-			saveTimers.set(field, setTimeout(function() {
-				saveField(field);
-			}, 800));
+			saveTimers.set(field, setTimeout(function() { saveField(field); }, 800));
 		});
-
-		// Sauvegarde immédiate au blur
 		field.addEventListener('blur', function() {
 			clearTimeout(saveTimers.get(field));
 			saveField(field);
@@ -348,5 +277,6 @@ unset($_SESSION['message'], $_SESSION['error']);
 
 })();
 </script>
-</body>
-</html>
+JSINLINE;
+
+require_once 'includes/layout.php';

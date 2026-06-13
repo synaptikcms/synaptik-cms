@@ -41,18 +41,15 @@ if (file_exists($_sb_versionFile)) {
 	}
 }
 
-$_sb_content_active  = !empty($_sb_type) || in_array($_sb_action, ['add', 'drafts', 'manage_categories', 'manage_tags']);
+$_sb_content_active    = !empty($_sb_type) || in_array($_sb_action, ['add', 'drafts', 'manage_categories', 'manage_tags']);
 $_sb_appearance_active = in_array($_sb_action, ['appearance', 'manage_themes', 'menu_builder'])
-|| $_sb_file === 'css-editor.php';
-$_sb_settings_active = in_array($_sb_action, ['settings'])
+	|| $_sb_file === 'css-editor.php';
+$_sb_settings_active   = in_array($_sb_action, ['settings'])
 	|| $_sb_file === 'seo-overview.php';
-$_sb_tools_active = in_array($_sb_action, ['tools', 'backup'])
-	|| $_sb_file === 'batch-optimize.php'
-	|| $_sb_file === 'alt-text-assistant.php'
-	|| $_sb_file === 'sitemap-generator.php';
-	// || $_sb_file === 'css-editor.php';
-$_sb_settings_tab    = $_GET['tab'] ?? '';
-$_sb_tools_tab       = $_GET['tab'] ?? '';
+$_sb_tools_active      = $_sb_action === 'backup'
+	|| in_array($_sb_file, ['batch-optimize.php', 'alt-text-assistant.php', 'sitemap-generator.php']);
+$_sb_account_active    = $_sb_action === 'account';
+$_sb_settings_tab      = $_GET['tab'] ?? '';
 
 /**
  * Return an inline Lucide SVG icon.
@@ -62,18 +59,18 @@ $_sb_tools_tab       = $_GET['tab'] ?? '';
  * @param string $class Extra CSS classes
  */
 function sb_icon(string $name, string $class = ''): string {
-	// stroke-width="1.75" keeps them readable at 16px
 	$base = 'width="16" height="16" viewBox="0 0 24 24" fill="none" '
 		  . 'stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"';
 	$cls  = 'sb-icon' . ($class ? ' ' . $class : '');
 
 	$paths = [
-		'dashboard'  => '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+		'dashboard'  => '<svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-dashboard-icon lucide-layout-dashboard"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>',
 		'content'    => '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>',
 		'media'      => '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>',
-		'appearance' => '<circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20"/><path d="M12 2v20M2 12h20" opacity=".3"/><path d="M12 7a5 5 0 1 0 5 5"/>',
+		'appearance' => '<svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-venetian-mask-icon lucide-venetian-mask"><path d="M18 11c-1.5 0-2.5.5-3 2"/><path d="M4 6a2 2 0 0 0-2 2v4a5 5 0 0 0 5 5 8 8 0 0 1 5 2 8 8 0 0 1 5-2 5 5 0 0 0 5-5V8a2 2 0 0 0-2-2h-3a8 8 0 0 0-5 2 8 8 0 0 0-5-2z"/><path d="M6 11c1.5 0 2.5.5 3 2"/></svg>',
 		'settings'   => '<line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="9" cy="18" r="2" fill="currentColor" stroke="none"/>',
 		'tools'      => '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+		'account'    => '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
 		'logout'     => '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
 	];
 
@@ -83,9 +80,18 @@ function sb_icon(string $name, string $class = ''): string {
 }
 ?>
 <div class="sidebar">
-	<h2>Synaptik</h2>
-	<?php if ($_sb_version): ?>
-	<div class="sidebar-version">v<?php echo htmlspecialchars($_sb_version); ?></div>
+	<div class="admin-logo">
+		<img src="assets/img/logo.webp" alt="SynaptikCMS">
+		<h2>Synaptik</h2>
+	</div>
+	
+	<?php
+	$_sb_display_name = $_SESSION['admin_display_name'] ?? ($_SESSION['admin_username'] ?? '');
+	if ($_sb_display_name !== ''):
+	?>
+	<div class="sidebar-user">
+		<span id="sidebar-display-name"><?php echo htmlspecialchars($_sb_display_name); ?></span>
+	</div>
 	<?php endif; ?>
 
 	<?php /* ── Dashboard ─────────────────────────────────────── */ ?>
@@ -150,7 +156,7 @@ function sb_icon(string $name, string $class = ''): string {
 	</div>
 
 	<div class="sidebar-divider"></div>
-	
+
 	<?php /* ── Appearance (flyout) ───────────────────────────── */ ?>
 	<div class="sidebar-section sidebar-has-flyout <?php echo $_sb_appearance_active ? 'is-open' : ''; ?>" data-flyout="appearance">
 		<ul>
@@ -174,9 +180,8 @@ function sb_icon(string $name, string $class = ''): string {
 			<a href="css-editor.php" class="sidebar-flyout-link <?php echo $_sb_file === 'css-editor.php' ? 'active' : ''; ?>" role="menuitem"><?php _e('css_theme_editor'); ?></a>
 		</div>
 	</div>
-	
-	<div class="sidebar-divider"></div>
 
+	<div class="sidebar-divider"></div>
 
 	<?php /* ── Settings (flyout parent) ──────────────────────── */ ?>
 	<div class="sidebar-section sidebar-has-flyout <?php echo $_sb_settings_active ? 'is-open' : ''; ?>" data-flyout="settings">
@@ -191,18 +196,22 @@ function sb_icon(string $name, string $class = ''): string {
 		</ul>
 		<ul class="sidebar-subitems">
 			<li><a href="index.php?action=settings&tab=general" class="sidebar-subitem <?php echo ($_sb_settings_active && $_sb_settings_tab === 'general') ? 'active' : ''; ?>"><?php _e('settings_general'); ?></a></li>
-			<li><a href="index.php?action=settings&tab=appearance" class="sidebar-subitem <?php echo ($_sb_settings_active && $_sb_settings_tab === 'appearance') ? 'active' : ''; ?>"><?php _e('appearance'); ?></a></li>
+			<li><a href="index.php?action=settings&tab=reading" class="sidebar-subitem <?php echo ($_sb_settings_active && $_sb_settings_tab === 'reading') ? 'active' : ''; ?>"><?php _e('settings_tab_reading'); ?></a></li>
+			<li><a href="index.php?action=settings&tab=writing" class="sidebar-subitem <?php echo ($_sb_settings_active && $_sb_settings_tab === 'writing') ? 'active' : ''; ?>"><?php _e('settings_tab_writing'); ?></a></li>
 			<li><a href="index.php?action=settings&tab=seo" class="sidebar-subitem <?php echo ($_sb_settings_active && $_sb_settings_tab === 'seo') ? 'active' : ''; ?>"><?php _e('seo'); ?></a></li>
 			<li><a href="index.php?action=settings&tab=images" class="sidebar-subitem <?php echo ($_sb_settings_active && $_sb_settings_tab === 'images') ? 'active' : ''; ?>"><?php _e('images'); ?></a></li>
 			<li><a href="index.php?action=settings&tab=contact" class="sidebar-subitem <?php echo ($_sb_settings_active && $_sb_settings_tab === 'contact') ? 'active' : ''; ?>"><?php _e('settings_tab_contact'); ?></a></li>
+			<li><a href="index.php?action=settings&tab=custom_fields" class="sidebar-subitem <?php echo ($_sb_settings_active && $_sb_settings_tab === 'custom_fields') ? 'active' : ''; ?>"><?php _e('cf_tab'); ?></a></li>
 		</ul>
 		<div class="sidebar-flyout-panel" data-flyout-panel="settings" role="menu" aria-hidden="true">
 			<div class="sidebar-flyout-label"><?php _e('settings'); ?></div>
 			<a href="index.php?action=settings&tab=general" class="sidebar-flyout-link <?php echo ($_sb_settings_active && $_sb_settings_tab === 'general') ? 'active' : ''; ?>" role="menuitem"><?php _e('settings_general'); ?></a>
-			<a href="index.php?action=settings&tab=appearance" class="sidebar-flyout-link <?php echo ($_sb_settings_active && $_sb_settings_tab === 'appearance') ? 'active' : ''; ?>" role="menuitem"><?php _e('appearance'); ?></a>
+			<a href="index.php?action=settings&tab=reading" class="sidebar-flyout-link <?php echo ($_sb_settings_active && $_sb_settings_tab === 'reading') ? 'active' : ''; ?>" role="menuitem"><?php _e('settings_tab_reading'); ?></a>
+			<a href="index.php?action=settings&tab=writing" class="sidebar-flyout-link <?php echo ($_sb_settings_active && $_sb_settings_tab === 'writing') ? 'active' : ''; ?>" role="menuitem"><?php _e('settings_tab_writing'); ?></a>
 			<a href="index.php?action=settings&tab=seo" class="sidebar-flyout-link <?php echo ($_sb_settings_active && $_sb_settings_tab === 'seo') ? 'active' : ''; ?>" role="menuitem"><?php _e('seo_settings'); ?></a>
 			<a href="index.php?action=settings&tab=images" class="sidebar-flyout-link <?php echo ($_sb_settings_active && $_sb_settings_tab === 'images') ? 'active' : ''; ?>" role="menuitem"><?php _e('images'); ?></a>
 			<a href="index.php?action=settings&tab=contact" class="sidebar-flyout-link <?php echo ($_sb_settings_active && $_sb_settings_tab === 'contact') ? 'active' : ''; ?>" role="menuitem"><?php _e('settings_tab_contact'); ?></a>
+			<a href="index.php?action=settings&tab=custom_fields" class="sidebar-flyout-link <?php echo ($_sb_settings_active && $_sb_settings_tab === 'custom_fields') ? 'active' : ''; ?>" role="menuitem"><?php _e('cf_tab'); ?></a>
 		</div>
 	</div>
 
@@ -212,7 +221,7 @@ function sb_icon(string $name, string $class = ''): string {
 	<div class="sidebar-section sidebar-has-flyout <?php echo $_sb_tools_active ? 'is-open' : ''; ?>" data-flyout="tools">
 		<ul>
 			<li class="sidebar-parent-item <?php echo $_sb_tools_active ? 'active' : ''; ?>">
-				<a href="index.php?action=tools" class="sidebar-parent-link <?php echo $_sb_tools_active ? 'active' : ''; ?>">
+				<a href="index.php?action=backup" class="sidebar-parent-link <?php echo $_sb_tools_active ? 'active' : ''; ?>">
 					<?php echo sb_icon('tools'); ?>
 					<span class="sb-parent-label"><?php _e('tools'); ?></span>
 					<span class="sidebar-flyout-arrow" aria-hidden="true"></span>
@@ -236,7 +245,31 @@ function sb_icon(string $name, string $class = ''): string {
 
 	<div class="sidebar-divider"></div>
 
-	<?php /* ── Logout ───────────────────────────────────────────── */ ?>
+	<?php /* ── Account ──────────────────────────────────────── */ ?>
+	<div class="sidebar-section sidebar-theme-section">
+		<button type="button" id="theme-toggle" class="sidebar-theme-toggle" aria-label="Basculer le thème clair/sombre">
+			<svg class="sb-icon theme-icon-moon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+			<svg class="sb-icon theme-icon-sun" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+			<span class="sb-parent-label theme-label-dark"><?php _e('dark_mode'); ?></span>
+			<span class="sb-parent-label theme-label-light"><?php _e('light_mode'); ?></span>
+		</button>
+	</div>
+
+	<div class="sidebar-divider"></div>
+
+	<div class="sidebar-section">
+		<ul>
+			<li>
+				<a href="index.php?action=account" class="<?php echo $_sb_account_active ? 'active' : ''; ?>">
+					<?php echo sb_icon('account'); ?><?php _e('account'); ?>
+				</a>
+			</li>
+		</ul>
+	</div>
+
+	<div class="sidebar-divider"></div>
+
+	<?php /* ── Logout ───────────────────────────────────────── */ ?>
 	<div class="sidebar-section">
 		<ul>
 			<li>
@@ -246,5 +279,4 @@ function sb_icon(string $name, string $class = ''): string {
 			</li>
 		</ul>
 	</div>
-
 </div>

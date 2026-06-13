@@ -62,8 +62,8 @@ $contentTypes = ['article', 'page', 'project'];
 								echo '<div class="menu-item-handle"><span class="handle">≡</span></div>';
 								echo '<div class="menu-item-title">' . $itemLabel . '</div>';
 								echo '<div class="menu-item-controls">';
-								echo '<button type="button" class="button edit-menu-item">'  . __t('edit')   . '</button>';
-								echo '<button type="button" class="button remove-menu-item">' . __t('remove') . '</button>';
+								echo '<button type="button" class="btn btn-sm edit-menu-item">'  . __t('edit')   . '</button>';
+								echo '<button type="button" class="btn btn-sm remove-menu-item">' . __t('remove') . '</button>';
 								echo '</div>';
 								echo '<input type="hidden" name="menu[' . $index . '][type]"      value="' . $itemType  . '">';
 								echo '<input type="hidden" name="menu[' . $index . '][label]"     value="' . $itemLabel . '">';
@@ -87,8 +87,8 @@ $contentTypes = ['article', 'page', 'project'];
 						<?php _e('no_menu_items'); ?>
 					</div>
 					<div class="menu-builder-controls">
-						<button type="button" class="button" id="add-custom-link"><?php _e('add_custom_link'); ?></button>
-						<button type="button" class="button" id="add-content-link"><?php _e('add_content_link'); ?></button>
+						<button type="button" class="btn btn-outline" id="add-custom-link"><?php _e('add_custom_link'); ?></button>
+						<button type="button" class="btn btn-outline" id="add-content-link"><?php _e('add_content_link'); ?></button>
 					</div>
 
 					<div id="custom-link-form" class="menu-item-form" style="display: none;">
@@ -114,8 +114,8 @@ $contentTypes = ['article', 'page', 'project'];
 							</label>
 						</div>
 					<div class="form-actions">
-							<button type="button" class="button" id="add-custom-link-btn"><?php _e('add_to_menu'); ?></button>
-							<button type="button" class="button cancel" id="cancel-custom-link"><?php _e('cancel'); ?></button>
+							<button type="button" class="btn btn-primary" id="add-custom-link-btn"><?php _e('add_to_menu'); ?></button>
+							<button type="button" class="btn btn-neutral" id="cancel-custom-link"><?php _e('cancel'); ?></button>
 						</div>
 					</div>
 
@@ -158,15 +158,15 @@ $contentTypes = ['article', 'page', 'project'];
 							</label>
 						</div>
 					<div class="form-actions">
-							<button type="button" class="button" id="add-content-link-btn"><?php _e('add_to_menu'); ?></button>
-							<button type="button" class="button cancel" id="cancel-content-link"><?php _e('cancel'); ?></button>
+							<button type="button" class="btn btn-primary" id="add-content-link-btn"><?php _e('add_to_menu'); ?></button>
+							<button type="button" class="btn btn-neutral" id="cancel-content-link"><?php _e('cancel'); ?></button>
 						</div>
 					</div>
 				</div>
 			</div>
 			</div>
 			<input type="hidden" name="save_menu" value="1">
-			<button type="submit" class="button save-button"><?php _e('save_menu_btn'); ?></button>
+			<button type="submit" class="btn btn-primary btn-lg"><?php _e('save_menu_btn'); ?></button>
 		</form>
 
 	<script>

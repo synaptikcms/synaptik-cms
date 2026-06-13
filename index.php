@@ -1,4 +1,5 @@
 <?php
+ini_set('memory_limit', '256M');
 session_start();
 // Include the functions file
 require_once 'functions.php';
@@ -16,17 +17,9 @@ if (isset($_GET['reset_token']) && $_GET['reset_token'] !== '') {
     // Forward token as the param reset-password.php expects
     $_GET['token'] = $_GET['reset_token'];
 
-    // Resolve admin folder: settings first, then filesystem scan as fallback
-    $adminDirName = $settings['admin_dir'] ?? null;
-    if (!$adminDirName || !is_dir(__DIR__ . '/' . $adminDirName)) {
-        // Scan for a folder that contains admin-credentials.php
-        foreach (glob(__DIR__ . '/*/admin-credentials.php') ?: [] as $_f) {
-            $adminDirName = basename(dirname($_f));
-            break;
-        }
-    }
-
-    $resetFile = $adminDirName ? (__DIR__ . '/' . $adminDirName . '/reset-password.php') : null;
+    // Resolve admin folder via shared helper (settings → filesystem scan → default)
+    $adminDirName = resolve_admin_dir();
+    $resetFile = __DIR__ . '/' . $adminDirName . '/reset-password.php';
     if ($resetFile && file_exists($resetFile)) {
         // chdir() to the admin folder so that relative paths inside
         // admin-functions.php (e.g. '../data-functions.php') resolve correctly.
@@ -202,6 +195,16 @@ $ogDescription = '';
 // synaptikCSS.php, the active theme stylesheet, and main.js via its $system
 // array. Do NOT add them here — this array is for page-specific extras only.
 
+// Homepage SEO overrides — only for homepage_type === 'default'.
+// When homepage_type === 'page', the selected page carries its own SEO fields
+// and is handled by the single-item block below.
+if (empty($type) && empty($slug) && ($settings['homepage_type'] ?? 'default') === 'default') {
+	$metaKeywords  = $settings['home_meta_keywords']  ?? '';
+	$ogTitle       = !empty($settings['home_og_title'])       ? $settings['home_og_title']       : $metaTitle;
+	$ogDescription = !empty($settings['home_og_description']) ? $settings['home_og_description'] : $metaDescription;
+	$ogImage       = !empty($settings['home_og_image'])       ? getBaseUrl() . $settings['home_og_image'] : '';
+}
+
 // For single content items, extract SEO data
 // $data[$type] now contains only the one matching item — the foreach finds it on the first iteration.
 if (!empty($type) && !empty($slug) && in_array($type, $contentTypes)) {
@@ -239,15 +242,7 @@ if (!empty($type) && !empty($slug) && in_array($type, $contentTypes)) {
 	}
 }
 
-// Check if preference is set to display featured image as header
-if (empty($type) && empty($slug) && isset($settings['homepage_type']) && $settings['homepage_type'] === 'page') {
-	// Find page used as homepage and display its image
-	foreach ($data['page'] as $page) {
-		// Show featured image code that needs to be fixed
-	}
-}
-
-// Also check if homepage is a page with gallery
+// Check if homepage is a page with gallery
 if (empty($type) && empty($slug) && $settings['homepage_type'] === 'page' && !empty($settings['homepage_page_id'])) {
 	foreach ($data['page'] as $page) {
 		$pageSlug = !empty($page['custom_slug']) ? $page['custom_slug'] : $page['slug'];
@@ -281,6 +276,120 @@ $headerScripts = array_values(array_unique($requiredGalleryScripts));
 
 $headerScripts[] = '	<script>window.appSettings = window.appSettings || {}; window.appSettings.showSearchIcon = ' . (isset($settings["show_search_icon"]) && $settings["show_search_icon"] ? 'true' : 'false') . ';</script>';
 
+// ── Admin top bar ────────────────────────────────────────────────────────────
+// Visible only when an admin session is active.
+// CSS injected into <head> via $headerScripts.
+// body.has-adminbar adds padding-top so content clears the bar.
+// z-index:2147483647 (CSS max) + isolation:isolate ensures the bar renders
+// above all theme stacking contexts, including those created by backdrop-filter.
+$isAdminLoggedIn = isset($_SESSION['admin']) && $_SESSION['admin'] === true;
+$_adminBarHtml   = '';
+if ($isAdminLoggedIn) {
+	$_adminDir  = resolve_admin_dir();
+	$_adminBase = getBaseUrl() . $_adminDir;
+
+	// Load admin locale strings for correct translations (edit, new_article, etc.).
+	// Direct JSON read — cheap single file, no cache overhead, admin-only path.
+	$_adminLang = [];
+	$_adminLangFile = __DIR__ . '/lang/admin/' . ($settings['active_language'] ?? 'en') . '.json';
+	if (!file_exists($_adminLangFile)) {
+		$_adminLangFile = __DIR__ . '/lang/admin/en.json';
+	}
+	if (file_exists($_adminLangFile)) {
+		$_adminLang = json_decode(file_get_contents($_adminLangFile), true) ?? [];
+	}
+	$_at = static function(string $key) use ($_adminLang): string {
+		return htmlspecialchars($_adminLang[$key] ?? $key);
+	};
+
+	// Contextual actions: edit/manage button + new item button.
+	// The home icon always goes to the dashboard.
+	$_ctxLabel     = '';
+	$_ctxHref      = '';
+	$_newLabel     = '';
+	$_newHref      = '';
+	$_listLink     = ''; // optional secondary link to current content-type list
+	$_showSettings = true;
+
+	if (!empty($type) && !empty($slug)) {
+		// Single item view
+		$_singleType = in_array($type, $contentTypes) ? $type : rtrim($type, 's');
+		if (in_array($_singleType, $contentTypes)) {
+			$_indexFound = sl_find_in_index($_singleType, $slug);
+			if ($_indexFound !== null) {
+				[, $_contentIndex] = $_indexFound;
+				$_ctxLabel  = $_adminLang['edit']                   ?? 'Edit';
+				$_ctxHref   = $_adminBase . '/index.php?action=edit&type=' . $_singleType . '&index=' . $_contentIndex;
+				$_newLabel  = $_adminLang['new_' . $_singleType]    ?? ('New ' . $_singleType);
+				$_newHref   = $_adminBase . '/index.php?action=add&type=' . $_singleType;
+				$_listLink  = $_adminBase . '/index.php?type=' . $_singleType;
+			}
+		}
+	} elseif (!empty($type) && empty($slug) && in_array(rtrim($type, 's'), $contentTypes)) {
+		// Content list view
+		$_listType     = rtrim($type, 's');
+		$_ctxLabel     = $_adminLang['manage']                  ?? 'Manage';
+		$_ctxHref      = $_adminBase . '/index.php?type=' . $_listType;
+		$_newLabel     = $_adminLang['new_' . $_listType]       ?? ('New ' . $_listType);
+		$_newHref      = $_adminBase . '/index.php?action=add&type=' . $_listType;
+		$_showSettings = false;
+	}
+
+	// CSS and JS injected into <head> via $headerScripts.
+	$_s  = '<style>';
+	$_s .= ':root{--snk-adminbar-height:36px;}';
+	$_s .= '#snk-admin-bar{position:fixed;top:0;left:0;right:0;z-index:2147483647;isolation:isolate;display:flex;align-items:center;gap:4px;padding:0 12px;height:var(--snk-adminbar-height);background:#1e2a3a;color:#b2bac6;font-family:system-ui,sans-serif;font-size:12px;line-height:1;}';
+	$_s .= 'body.has-adminbar{padding-top:var(--snk-adminbar-height);}';
+	$_s .= '#snk-admin-bar a{display:inline-flex;align-items:center;gap:5px;padding:0 10px;height:26px;border-radius:4px;color:#b2bac6;text-decoration:none;white-space:nowrap;transition:background .15s,color .15s;}';
+	$_s .= '#snk-admin-bar a:hover{background:rgba(255,255,255,.08);color:#fff;}';
+	$_s .= '#snk-admin-bar .snk-ab-site{font-weight:700;color:#fff;}';
+	$_s .= '#snk-admin-bar .snk-ab-divider{width:1px;height:18px;background:rgba(255,255,255,.12);margin:0 4px;flex-shrink:0;}';
+	$_s .= '#snk-admin-bar .snk-ab-ctx{background:rgba(79,167,92,.2);color:#b2e8b8;font-weight:600;border:1px solid rgba(79,167,92,.3);}';
+	$_s .= '#snk-admin-bar .snk-ab-ctx:hover{background:rgba(79,167,92,.35);color:#fff;}';
+	$_s .= '#snk-admin-bar .snk-ab-spacer{flex:1;}';
+	$_s .= '#snk-admin-bar svg{flex-shrink:0;}';
+	$_s .= '</style>';
+	$_s .= '<script>document.addEventListener("DOMContentLoaded",function(){document.body.classList.add("has-adminbar");});</script>';
+	$headerScripts[] = $_s;
+
+	$_ico_home = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>';
+	$_ico_list = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>';
+	$_ico_edit = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+	$_ico_new  = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>';
+	$_ico_cog  = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l-.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+
+	$_adminBarHtml  = '<div id="snk-admin-bar">';
+
+	// Home icon — always goes to the admin dashboard
+	$_adminBarHtml .= '<a class="snk-ab-site" href="' . htmlspecialchars($_adminBase . '/index.php') . '">' . $_ico_home . htmlspecialchars($settings['site_title'] ?? 'SynaptikCMS') . '</a>';
+
+	$_adminBarHtml .= '<div class="snk-ab-divider"></div>';
+
+	// Link to the current content-type list (only on single item or list pages)
+	if (!empty($_listLink)) {
+		$_adminBarHtml .= '<a href="' . htmlspecialchars($_listLink) . '">' . $_ico_list . htmlspecialchars($_adminLang[rtrim($type, 's') . 's'] ?? ucfirst($type)) . '</a>';
+	}
+
+	// Contextual primary action (edit this item / manage this list)
+	if (!empty($_ctxLabel) && !empty($_ctxHref)) {
+		$_adminBarHtml .= '<a class="snk-ab-ctx" href="' . htmlspecialchars($_ctxHref) . '">' . $_ico_edit . htmlspecialchars($_ctxLabel) . '</a>';
+	}
+
+	// New item shortcut
+	if (!empty($_newLabel) && !empty($_newHref)) {
+		$_adminBarHtml .= '<a href="' . htmlspecialchars($_newHref) . '">' . $_ico_new . htmlspecialchars($_newLabel) . '</a>';
+	}
+
+	$_adminBarHtml .= '<div class="snk-ab-spacer"></div>';
+
+	if ($_showSettings) {
+		$_adminBarHtml .= '<a href="' . htmlspecialchars($_adminBase . '/index.php?action=settings') . '">' . $_ico_cog . htmlspecialchars($_adminLang['settings'] ?? 'Settings') . '</a>';
+	}
+
+	$_adminBarHtml .= '</div>';
+	$GLOBALS['_adminBarHtml'] = $_adminBarHtml;
+}
+
 // Pass all relevant data to the header template
 loadThemeTemplate('header', [
 	'settings' => $settings,
@@ -298,7 +407,12 @@ loadThemeTemplate('header', [
 	'headerScripts' => $headerScripts
 ]);
 
-// Content already processed above before header template — no duplicate call needed.
+// Emit admin top bar after the theme header for themes that do not call render_adminbar() directly.
+// Themes with backdrop-filter navs (nova, prism, etc.) should call render_adminbar() as the
+// first child of <body> in their header.php to avoid stacking context conflicts.
+if (!empty($_adminBarHtml) && empty($GLOBALS['_adminBarHtml_emitted'])) {
+	echo $_adminBarHtml;
+}
 
 // Display breadcrumbs if enabled in settings
 if (isset($settings['show_breadcrumbs']) && $settings['show_breadcrumbs']) {
@@ -345,50 +459,6 @@ else if (!empty($type) && !empty($slug) && in_array($type, $contentTypes)) {
 // Display the content
 echo $pageContent;
 
-// Check if the admin is logged in
-$isAdminLoggedIn = isset($_SESSION['admin']) && $_SESSION['admin'] === true;
-
-// Display edit link if admin is logged in and we're viewing content
-$isAdminLoggedIn = isset($_SESSION['admin']) && $_SESSION['admin'] === true;
-if ($isAdminLoggedIn) {
-	$_adminDir = rtrim($settings['admin_dir'] ?? 'admin', '/');
-	// For content lists (articles, pages, projects)
-	if (!empty($type) && empty($slug) && in_array(rtrim($type, 's'), $contentTypes)) {
-		echo '<div class="admin-edit-link">';
-		echo '<a class="button" href="' . getBaseUrl() . $_adminDir . '/index.php?type=' . rtrim($type, 's') . '">';
-		echo 'Manage ' . ucfirst($type);
-		echo '</a>';
-		echo '</div>';
-	}
-	// For individual content items
-	else if (!empty($type) && !empty($slug)) {
-		$singleType = in_array($type, $contentTypes) ? $type : rtrim($type, 's');
-
-		if (in_array($singleType, $contentTypes)) {
-			// Use sl_find_in_index to locate the item's position in the ordered index.
-			// This replaces the old foreach-with-$idx loop that relied on $data[$type]
-			// being the full sorted array — $data[$type] now contains only the single item.
-			$_indexFound = sl_find_in_index($singleType, $slug);
-			if ($_indexFound !== null) {
-				[, $contentIndex] = $_indexFound;
-				echo '<div class="admin-edit-link">';
-				echo '<a class="button" href="' . getBaseUrl() . $_adminDir . '/index.php?action=edit&type=' . $singleType . '&index=' . $contentIndex . '">';
-				echo 'Edit this ' . ucfirst($singleType);
-				echo '</a>';
-				echo '</div>';
-			}
-		}
-	}
-	// For homepage
-	else if (empty($type) && empty($slug)) {
-		echo '<div class="admin-edit-link">';
-		echo '<a class="button" href="' . getBaseUrl() . $_adminDir . '/index.php?action=settings">';
-		echo 'Manage Site Settings';
-		echo '</a>';
-		echo '</div>';
-	}
-}
-
 // Load footer template with all necessary parameters
 loadThemeTemplate('footer', [
 	'settings' => $settings,
@@ -401,4 +471,3 @@ loadThemeTemplate('footer', [
 if (!empty($_themePreviewBanner)) {
 	echo $_themePreviewBanner;
 }
-?>

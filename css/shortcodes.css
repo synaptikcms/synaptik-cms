@@ -1,13 +1,8 @@
 /* ==========================================================================
-   Shortcodes — theme/synaptik/css/shortcodes.css
-   Dark theme — variables calquées sur style.css de Synaptik.
-   Les cards articles/projets réutilisent directement .article-card /
-   .project-card du thème — aucun style redondant pour elles ici.
+   Shortcodes — SynaptikCMS
    ========================================================================== */
 
-
 /* ── [toc] ─────────────────────────────────────────────────────────────────── */
-
 .sc-toc {
   display: inline-block;
   min-width: 220px;
@@ -21,7 +16,7 @@
 }
 
 .sc-toc::before {
-  content: 'Sommaire';
+  content: attr(data-label);
   display: block;
   font-family: var(--font-headings, 'Saira Extra Condensed', sans-serif);
   font-size: 0.75rem;
@@ -34,7 +29,7 @@
 }
 
 .sc-toc ul {
-  list-style: none;
+  list-style: none !important;
   margin: 0;
   padding: 0;
   display: flex;
@@ -70,14 +65,11 @@
   font-size: 0.75rem;
   line-height: 1.6;
 }
-
 .sc-toc .sc-toc-sub a {
   font-size: 0.82rem;
 }
 
-
 /* ── [callout] ─────────────────────────────────────────────────────────────── */
-
 .sc-callout {
   display: flex;
   align-items: flex-start;
@@ -89,43 +81,39 @@
   font-size: 0.95rem;
   line-height: 1.6;
 }
-
 .sc-callout-icon {
   font-size: 1.15rem;
   flex-shrink: 0;
   line-height: 1.6;
 }
-
 .sc-callout-body {
   flex: 1;
   min-width: 0;
   color: var(--text-main, #666);
 }
-
 .sc-callout-body p:first-child { margin-top: 0; }
 .sc-callout-body p:last-child  { margin-bottom: 0; }
-
 .sc-callout-info    { background-color: rgba(79,138,167,.12); border-color: var(--color-secondary,  #4f8aa7); }
 .sc-callout-warning { background-color: rgba(192,86,86,.12);  border-color: var(--color-warning,    #c05656); }
 .sc-callout-tip     { background-color: rgba(79,167,92,.12);  border-color: var(--color-primary,    #4fa75c); }
 .sc-callout-danger  { background-color: rgba(192,86,86,.18);  border-color: #9b2020; }
 
 /* ── [quote] ───────────────────────────────────────────────────────────────── */
-
 .sc-quote {
   border-left: 4px solid var(--color-primary, #4fa75c);
   margin: var(--space-lg, 30px) 0;
-  padding: 4px 0 4px 20px;
+  padding: 20px;
   font-style: italic;
   font-size: 1.05rem;
   line-height: 1.7;
   color: var(--text-main, #777);
-  opacity: 0.9;
+  /* opacity: 0.9; */
+  background: #00000029;
+  max-width: 700px;
 }
 
 .sc-quote p:first-child { margin-top: 0; }
 .sc-quote p:last-child  { margin-bottom: 0; }
-
 .sc-quote footer {
   margin-top: 10px;
   font-style: normal;
@@ -136,9 +124,7 @@
   letter-spacing: 0.06em;
 }
 
-
 /* ── [button] ──────────────────────────────────────────────────────────────── */
-
 .sc-btn {
   display: inline-block;
   padding: var(--space-sm, 10px) var(--space-md, 20px);
@@ -154,29 +140,19 @@
 }
 
 .sc-btn:active { transform: scale(0.97); }
-
 .sc-btn-primary            { background-color: var(--color-primary, #4fa75c);   color: var(--text-main, #eee); border: none; }
 .sc-btn-primary:hover      { background-color: var(--color-primary-light, #61ce70); color: #fff; }
-
 .sc-btn-secondary          { background-color: var(--color-secondary, #4f8aa7); color: var(--text-main, #eee); border: none; }
 .sc-btn-secondary:hover    { background-color: #3a7090; color: #fff; }
-
 .sc-btn-outline            { background-color: transparent; color: var(--color-primary, #4fa75c); border: 2px solid var(--color-primary, #4fa75c); }
 .sc-btn-outline:hover      { background-color: var(--color-primary, #4fa75c); color: var(--text-main, #eee); }
 
-
 /* ── Grid wrappers ─────────────────────────────────────────────────────────── */
-/* .articles-grid / .projects-grid ont leurs styles dans style.css.           */
-/* Ces classes ajoutent uniquement un espacement contextuel.                  */
-
 .sc-articles-grid,
 .sc-projects-grid {
   margin: var(--space-md, 20px) 0;
 }
-
-
 /* ── Responsive ────────────────────────────────────────────────────────────── */
-
 @media (max-width: 768px) {
   .sc-toc { display: block; }
 }
