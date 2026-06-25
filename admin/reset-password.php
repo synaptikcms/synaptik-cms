@@ -14,7 +14,7 @@ if (admin_is_logged_in()) {
 }
 
 $adminCredFile = __DIR__ . '/admin-credentials.php';
-$tokenFile     = dirname(__DIR__) . '/bckps/reset_token.json';
+$tokenFile     = dirname(__DIR__) . '/private/reset_token.json';
 
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -33,7 +33,7 @@ function _reset_token_valid(string $rawToken, string $tokenFile): bool
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
-$rawToken   = trim($_GET['token'] ?? '');
+$rawToken   = trim($_GET['reset_token'] ?? '');
 $tokenValid = _reset_token_valid($rawToken, $tokenFile);
 $error      = '';
 $success    = false;
@@ -73,34 +73,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = __t('password_too_weak',
                 'Password must be at least 8 characters and include an uppercase letter, a number, and a special character.');
         } else {
-            // Load current credentials to preserve $admin_email
+            // Load current credentials to preserve all fields
             $admin_email    = '';
             $admin_password = '';
             if (file_exists($adminCredFile)) {
-                include $adminCredFile;
+            include $adminCredFile;
             }
-            // Also fall back to settings.json for pre-v2 installs
             if (empty($admin_email)) {
-                $settings    = admin_load_settings();
-                $admin_email = trim($settings['contact_email'] ?? '');
+             $settings    = admin_load_settings();
+            $admin_email = trim($settings['contact_email'] ?? '');
             }
 
-            $newHash     = password_hash($newPassword, PASSWORD_BCRYPT);
-            $emailLine   = ($admin_email !== '')
-                         ? "\$admin_email = '" . str_replace("'", "\\'", $admin_email) . "';\n"
-                         : '';
-            $credContent = "<?php\n"
-                         . "// Admin credentials — updated by SynaptikCMS password reset\n"
-                         . "\$admin_password = '" . str_replace("'", "\\'", $newHash) . "';\n"
-                         . $emailLine
-                         . "?>\n";
+			$ok = admin_save_credentials([
+             'password_hash' => password_hash($newPassword, PASSWORD_BCRYPT),
+             'email'         => $admin_email,
+            ]);
 
-            if (file_put_contents($adminCredFile, $credContent) !== false) {
-                @unlink($tokenFile); // consume token — one-time use
-                $success = true;
+            if ($ok) {
+            @unlink($tokenFile);
+            $success = true;
             } else {
-                $error = __t('password_update_failed',
-                    'Could not save the new password. Check file permissions on admin-credentials.php.');
+            $error = __t('password_update_failed',
+					'Could not save the new password. Check file permissions on admin-credentials.php.');
             }
         }
     }
@@ -130,21 +124,34 @@ $jsStrings = [
     $_adminCssUrl = $_scheme . '://' . $_SERVER['HTTP_HOST']
                   . str_replace(rtrim($_SERVER['DOCUMENT_ROOT'], '/'), '', rtrim(__DIR__, '/'));
     ?>
-    <link rel="stylesheet" href="<?php echo htmlspecialchars($_adminCssUrl); ?>/css/admin-base.css">
+    <script>
+    (function() {
+        try {
+            var t = localStorage.getItem('synaptik_theme');
+            if (t !== 'dark' && t !== 'light') {
+                t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {
+            document.documentElement.setAttribute('data-theme', 'light');
+        }
+    })();
+    </script>
+    <link rel="stylesheet" href="<?php echo htmlspecialchars($_adminCssUrl); ?>/assets/css/admin-base.css?v=<?php echo @filemtime(__DIR__ . '/assets/css/admin-base.css'); ?>">
     <style>
         .login-container { max-width: 420px; }
         .pw-rules { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
         .pw-rule {
-            font-size: .78rem; padding: 2px 9px; border-radius: 20px;
-            background: #e8eef2; color: #718096; border: 1px solid #dde2e8;
+            font-size: .78rem; padding: 2px 9px; border-radius: var(--radius-sm);
+            background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border);
             transition: all .2s;
         }
-        .pw-rule.valid { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
+        .pw-rule.valid { background: var(--primary-soft); color: var(--primary-text); border-color: var(--primary); }
         .back-link { display: block; text-align: center; margin-top: 16px; font-size: 0.875rem; }
         .message a { color: inherit; font-weight: 600; }
     </style>
 </head>
-<body>
+<body style="background-color: var(--surface2);">
 <div class="login-container">
     <div class="login-header">
         <h1><?php echo htmlspecialchars(__t('reset_new_pwd_heading', 'Set New Password')); ?></h1>
@@ -152,7 +159,7 @@ $jsStrings = [
 
     <?php if ($success): ?>
 
-        <div class="message success" style="text-align:center;">
+        <div class="blockquote success" style="text-align:center;">
             <strong><?php echo htmlspecialchars(__t('reset_success_title', 'Password updated.')); ?></strong><br>
             <?php echo htmlspecialchars(__t('reset_success_detail', 'You can now log in with your new password.')); ?>
         </div>
@@ -162,7 +169,7 @@ $jsStrings = [
 
     <?php elseif (!$tokenValid): ?>
 
-        <div class="message error"><?php echo $error; ?></div>
+        <div class="blockquote error"><?php echo $error; ?></div>
         <a class="back-link" href="<?php echo htmlspecialchars($_adminCssUrl); ?>/auth.php">
             <?php echo htmlspecialchars(__t('reset_back_to_login', '← Back to login')); ?>
         </a>
@@ -170,7 +177,7 @@ $jsStrings = [
     <?php else: ?>
 
         <?php if ($error): ?>
-            <div class="message error"><?php echo $error; ?></div>
+            <div class="blockquote error"><?php echo $error; ?></div>
         <?php endif; ?>
 
         <form class="login-form" method="POST"
@@ -192,7 +199,7 @@ $jsStrings = [
                    required autocomplete="new-password">
             <div class="pw-rules" id="pw-rules-match"></div>
 
-            <button type="submit" class="login-button" style="margin-top:20px;">
+            <button type="submit" class="btn btn-primary btn-lg btn-block login-button" style="margin-top:20px;">
                 <?php echo htmlspecialchars(__t('reset_submit_btn', 'Set new password')); ?>
             </button>
         </form>

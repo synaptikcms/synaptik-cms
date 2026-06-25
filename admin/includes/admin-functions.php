@@ -1,13 +1,13 @@
 <?php
 // Define constants
-define('INCLUDED', true);
+if (!defined('INCLUDED')) define('INCLUDED', true);
 
 /**
  * Admin wrapper for sanitizeSlug function
  * Ensures the function is available in admin context
  */
 if (!function_exists('sanitizeSlug')) {
-	function sanitizeSlug($string, $allowDashes = false) {
+	function sanitizeSlug($string) {
 		$string = trim($string);
 		// Transliterate accented characters to ASCII equivalents via explicit map
 		// iconv TRANSLIT is unreliable (inserts ', ? or other chars on some systems)
@@ -46,263 +46,81 @@ if (!function_exists('sanitizeSlug')) {
 }
 
 /**
- * Outputs canonical URL tag for the current page
- * @param array $pageData Current page data
- * @param bool $echo Whether to echo the tag (true) or return it (false)
- * @return string The canonical URL tag if $echo is false
- */
-if (!function_exists('output_canonical_url')) {
-function output_canonical_url($pageData = null, $echo = true) {
-	$canonicalTag = '';
-	
-	// If page data is provided and has a canonical URL set
-	if ($pageData && !empty($pageData['canonical_url'])) {
-		$canonicalTag = '<link rel="canonical" href="' . htmlspecialchars($pageData['canonical_url']) . '" />';
-	} else {
-		// Auto-generate canonical URL from the current URL
-		$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-		$host = $_SERVER['HTTP_HOST'];
-		$uri = $_SERVER['REQUEST_URI'];
-		// Remove query parameters if any
-		$uri = strtok($uri, '?');
-		
-		$canonicalTag = '<link rel="canonical" href="' . $protocol . '://' . $host . $uri . '" />';
-	}
-	
-	if ($echo) {
-		echo $canonicalTag;
-	}
-	
-	return $canonicalTag;
-}
-} // end if (!function_exists('output_canonical_url'))
-
-if (!function_exists('output_seo_tags')) {
-function output_seo_tags($pageData = null) {
-	// Output meta title
-	if (!empty($pageData['meta_title'])) {
-		echo '<title>' . htmlspecialchars($pageData['meta_title']) . '</title>';
-	}
-	
-	// Output meta description
-	if (!empty($pageData['meta_description'])) {
-		echo '<meta name="description" content="' . htmlspecialchars($pageData['meta_description']) . '" />';
-	}
-	
-	// Output meta keywords
-	if (!empty($pageData['meta_keywords'])) {
-		echo '<meta name="keywords" content="' . htmlspecialchars($pageData['meta_keywords']) . '" />';
-	}
-	
-	// Output Open Graph tags for social media
-	if (!empty($pageData['og_title'])) {
-		echo '<meta property="og:title" content="' . htmlspecialchars($pageData['og_title']) . '" />';
-	} else if (!empty($pageData['meta_title'])) {
-		echo '<meta property="og:title" content="' . htmlspecialchars($pageData['meta_title']) . '" />';
-	}
-	
-	if (!empty($pageData['og_description'])) {
-		echo '<meta property="og:description" content="' . htmlspecialchars($pageData['og_description']) . '" />';
-	} else if (!empty($pageData['meta_description'])) {
-		echo '<meta property="og:description" content="' . htmlspecialchars($pageData['meta_description']) . '" />';
-	}
-	
-	if (!empty($pageData['og_image'])) {
-		$imageUrl = getBaseUrl() . ltrim($pageData['og_image'], '/');
-		echo '<meta property="og:image" content="' . htmlspecialchars($imageUrl) . '" />';
-	} else if (!empty($pageData['image'])) {
-		$imageUrl = getBaseUrl() . ltrim($pageData['image'], '/');
-		echo '<meta property="og:image" content="' . htmlspecialchars($imageUrl) . '" />';
-	}
-	
-	echo '<meta property="og:type" content="website" />';
-	echo '<meta property="og:url" content="' . (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] . '" />';
-	
-	
-	// Output canonical URL
-	output_canonical_url($pageData);
-	
-	// Output schema.org markup if set
-	if (!empty($pageData['schema_type'])) {
-		echo '<script type="application/ld+json">';
-		echo json_encode([
-			"@context" => "https://schema.org",
-			"@type" => $pageData['schema_type'],
-			"name" => $pageData['title'],
-			"description" => !empty($pageData['meta_description']) ? $pageData['meta_description'] : substr(strip_tags($pageData['content']), 0, 160)
-		]);
-		echo '</script>';
-	}
-} // close output_seo_tags
-} // end if (!function_exists('output_seo_tags'))
-
-if (!function_exists('format_html_indentation')) {
-function format_html_indentation($html, $initialIndent = 0) {
-	// If empty, return as is
-	if (empty($html)) return $html;
-	
-	// Initialize variables
-	$result = '';
-	$indent = $initialIndent / 4; // Convert spaces to indent level (assuming 4 spaces per level)
-	$in_pre = false;
-	
-	// Split HTML into tags and text
-	$tokens = preg_split('/(<!--.*?-->|<\/?[^>]*>)/s', $html, -1, PREG_SPLIT_DELIM_CAPTURE);
-	
-	foreach ($tokens as $token) {
-		if (empty($token)) {
-			continue;
-		}
-		
-		// Check if we're inside a <pre> tag
-		if (preg_match('/<pre[^>]*>/i', $token)) {
-			$in_pre = true;
-		}
-		
-		if (preg_match('/<\/pre>/i', $token)) {
-			$in_pre = false;
-		}
-		
-		// Don't format content inside <pre> tags
-		if ($in_pre) {
-			$result .= $token;
-			continue;
-		}
-		
-		// Handle indentation based on tag type
-		if (preg_match('/^<\/([a-z0-9]+).*>/i', $token, $matches)) {
-			// Closing tag: decrease indent first, then add the tag
-			$indent--;
-			if ($indent < 0) $indent = 0; // Safety check
-			
-			$result .= "\n" . str_repeat('    ', $indent) . $token;
-		} elseif (preg_match('/^<([a-z0-9]+).*>/i', $token, $matches)) {
-			// Self-closing tag or void element
-			if (preg_match('/<(area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)([^>]*)>/i', $token) || preg_match('/\/>$/', $token)) {
-				// These don't need indent change, just add at current level
-				$result .= "\n" . str_repeat('    ', $indent) . $token;
-			} else {
-				// Opening tag: add at current indent, then increase
-				$result .= "\n" . str_repeat('    ', $indent) . $token;
-				$indent++;
-			}
-		} elseif (trim($token) != '') {
-			// Text content: add at current indent
-			$result .= "\n" . str_repeat('    ', $indent) . trim($token);
-		}
-	}
-	
-	// Clean up and return
-	return trim($result);
-}
-} // end if (!function_exists('format_html_indentation'))
-
-/**
  * Load settings from settings.json, merged with hardcoded defaults.
  * Unique source of truth pour tous les paramètres de l'application.
  * Utilisé dans tout l'admin via admin_load_settings().
  */
-function admin_load_settings() {
-	$defaultSettings = [
-		// Content display
-		'articles_per_page'          => 3,
-		'projects_per_page'          => 3,
-		'show_articles_on_homepage'  => true,
-		'show_projects_on_homepage'  => true,
-		'show_breadcrumbs'           => true,
+function admin_load_settings(): array {
+	$settings = loadDefaultSettings();
 
-		// Menu
-		'main_menu'                  => [],
-		'use_custom_menu'            => false,
-		'show_search_icon'           => true,
-
-		// Site metadata
-		'site_title'                 => 'Synaptik CMS',
-		'site_description'           => 'A fast, minimalist, user-friendly file-based portfolio CMS for creatives and artists.',
-		'default_meta_title'         => '{page_title} | {site_title}',
-		'default_meta_description'   => '{site_description}',
-		'enable_seo'                 => true,
-		'show_site_title_in_header'  => true,
-		'date_format'                => 'Y-m-d',
-
-		// Homepage
-		'homepage_type'              => 'default',
-		'homepage_page_id'           => '',
-
-		// Theme & language
-		'active_theme'               => 'default',
-		'available_themes'           => ['default'],
-		'active_language'            => 'en',
-
-		// Image optimization
-		'image_optimization_enabled' => true,
-		'max_width'                  => 1920,
-		'max_height'                 => 1080,
-		'image_quality'              => 85,
-		'create_thumbnails'          => true,
-		'thumb_width'                => 300,
-		'thumb_height'               => 300,
-		'convert_to_webp'            => false,
-
-		// Footer
-		'footer_text'                => 'Developed with ♥ by Dorian • &copy; {year}',
-		'footer_show_login'          => true,
-		'footer_show_social'         => false,
-		'footer_social_links'        => [
-			['platform' => 'instagram', 'url' => 'https://instagram.com/'],
-			['platform' => 'twitter',   'url' => 'https://twitter.com/']
-		],
-	];
-
-	$settingsFile = '../settings.json';
+	$settingsFile = dirname(dirname(__DIR__)) . '/settings.json';
 	if (file_exists($settingsFile)) {
-		$loadedSettings = json_decode(file_get_contents($settingsFile), true);
-		if (is_array($loadedSettings)) {
-			$merged = array_merge($defaultSettings, $loadedSettings);
-			// Apply timezone so all PHP date() calls in the admin use the correct zone.
-			// Falls back to server default if the setting is missing or invalid.
-			if (!empty($merged['timezone'])) {
-				@date_default_timezone_set($merged['timezone']);
+		$loaded = json_decode(file_get_contents($settingsFile), true);
+		if (is_array($loaded)) {
+			$settings = array_merge($settings, $loaded);
+			if (!empty($settings['timezone'])) {
+				@date_default_timezone_set($settings['timezone']);
 			}
-			return $merged;
 		}
 	}
 
-	return $defaultSettings;
+	// Always refresh the theme list from the filesystem
+	$settings['available_themes'] = function_exists('getAvailableThemes') ? getAvailableThemes() : ['default'];
+
+	return $settings;
 }
 
 /**
- * Format a date according to admin settings
- * @param string $date Date string (typically Y-m-d format)
- * @return string Formatted date
+ * Format a date according to admin settings.
+ * Handles both legacy 'YYYY-MM-DD' and datetime 'YYYY-MM-DD HH:MM' strings.
+ *
+ * @param string $date  Raw date string stored in JSON
+ * @return string       Formatted date (date part only)
  */
 function admin_format_date($date) {
 	if (empty($date)) return '';
-	
+
 	$appSettings = admin_load_settings();
-	$format = $appSettings['date_format'] ?? 'Y-m-d';
-	
+	$format      = $appSettings['date_format'] ?? 'Y-m-d';
+
 	$timestamp = strtotime($date);
 	if ($timestamp === false) return $date;
-	
+
 	return date($format, $timestamp);
 }
 
-if (!function_exists('format_date')) {
-function format_date($date) {
+/**
+ * Format the time portion of a stored date string.
+ * Returns an empty string for legacy items that have no time component.
+ *
+ * @param string $date  Raw date string (e.g. '2024-05-15 14:30' or '2024-05-15')
+ * @return string       Formatted time string, e.g. '14:30', or ''
+ */
+function admin_format_time($date) {
 	if (empty($date)) return '';
 
-	$settings = function_exists('loadSettings')
-		? loadSettings()
-		: admin_load_settings();
-
-	$format = $settings['date_format'] ?? 'Y-m-d';
+	// Only return a time when the stored value explicitly contains HH:MM
+	if (!preg_match('/\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/', $date)) return '';
 
 	$timestamp = strtotime($date);
-	if ($timestamp === false) return $date;
+	if ($timestamp === false) return '';
 
-	return date($format, $timestamp);
+	return date('H:i', $timestamp);
 }
+
+/**
+ * Extract the time part (HH:MM) from a stored date string for use in <input type="time">.
+ * Returns today's current time for new content, empty for legacy items without time.
+ *
+ * @param string|null $date  Stored date value
+ * @param bool        $defaultNow  Return current time when no time component is found
+ * @return string
+ */
+function admin_extract_time(string $date = '', bool $defaultNow = false): string {
+	if (!empty($date) && preg_match('/\d{4}-\d{2}-\d{2}[T ](?P<t>\d{2}:\d{2})/', $date, $m)) {
+		return $m['t'];
+	}
+	return $defaultNow ? date('H:i') : '';
 }
 
 function setAdminMessage($message, $type = 'success') {
@@ -320,6 +138,60 @@ function admin_require_core_functions() {
 	include_once '../core-functions.php';
 }
 admin_require_core_functions();
+
+/**
+ * Return the logged-in admin's username from session.
+ */
+function admin_get_username(): string {
+	return $_SESSION['admin_username'] ?? 'admin';
+}
+
+/**
+ * Return the logged-in admin's display name from session.
+ */
+function admin_get_display_name(): string {
+	return $_SESSION['admin_display_name'] ?? admin_get_username();
+}
+
+/**
+ * Persist updated credentials to admin-credentials.php.
+ * Preserves all existing fields; only overwrites the ones provided.
+ *
+ * @param array $fields  Associative array of fields to update.
+ *                       Accepted keys: password_hash, username, display_name, email.
+ * @return bool  True on success.
+ */
+function admin_save_credentials(array $fields): bool {
+	$credFile = __DIR__ . '/../admin-credentials.php';
+
+	// Load current values as baseline
+	$admin_username     = 'admin';
+	$admin_display_name = '';
+	$admin_password     = '';
+	$admin_email        = '';
+	if (file_exists($credFile)) {
+		include $credFile;
+	}
+
+	if (isset($fields['username']))     $admin_username     = $fields['username'];
+	if (isset($fields['display_name'])) $admin_display_name = $fields['display_name'];
+	if (isset($fields['password_hash'])) $admin_password    = $fields['password_hash'];
+	if (isset($fields['email']))        $admin_email        = $fields['email'];
+
+	$esc = fn(string $v): string => str_replace("'", "\\'", $v);
+
+	$content  = "<?php\n";
+	$content .= "// Admin credentials — do not edit this file manually\n";
+	$content .= "\$admin_username     = '" . $esc($admin_username)     . "';\n";
+	$content .= "\$admin_display_name = '" . $esc($admin_display_name) . "';\n";
+	$content .= "\$admin_password     = '" . $esc($admin_password)     . "';\n";
+	if ($admin_email !== '') {
+		$content .= "\$admin_email        = '" . $esc($admin_email) . "';\n";
+	}
+	$content .= "?>\n";
+
+	return file_put_contents($credFile, $content) !== false;
+}
 
 /**
  * Check if user is logged in as admin
@@ -482,11 +354,20 @@ function admin_format_file_size($bytes) {
 function admin_front_url_slug(string $type): string {
 	static $strings = null;
 	if ($strings === null) {
-		// _lang_cms_root() is defined in lang-cache.php, already loaded above
-		$locale   = lang_current();
-		$langFile = _lang_cms_root() . '/lang/' . $locale . '.json';
+		// Always use the FRONT-end locale here, even when called from admin.
+		// lang_current() now returns admin_language when LANG_CONTEXT === 'admin',
+		// which would break URL generation — so we read active_language directly.
+		$settingsFile = _lang_cms_root() . '/settings.json';
+		$locale = 'en';
+		if (file_exists($settingsFile)) {
+			$s = json_decode(file_get_contents($settingsFile), true);
+			if (is_array($s) && !empty($s['active_language'])) {
+				$locale = $s['active_language'];
+			}
+		}
+		$langFile = _lang_cms_root() . '/lang/front/' . $locale . '.json';
 		if (!file_exists($langFile)) {
-			$langFile = _lang_cms_root() . '/lang/en.json';
+			$langFile = _lang_cms_root() . '/lang/front/en.json';
 		}
 		$decoded  = json_decode(file_get_contents($langFile), true);
 		$strings  = is_array($decoded) ? $decoded : [];
@@ -539,28 +420,30 @@ function admin_content_url($contentType, $slug, $customSlug = '', $category = ''
 }
 
 function admin_get_themes() {
-	$themesDir = '../theme/';
-	$themes = [];
-	
-	if (is_dir($themesDir)) {
-		$directories = scandir($themesDir);
-		foreach ($directories as $dir) {
-			if ($dir !== '.' && $dir !== '..' && is_dir($themesDir . $dir)) {
-				// Check for actual theme files that exist in your structure
-				if (file_exists($themesDir . $dir . '/header.php') && 
-					file_exists($themesDir . $dir . '/footer.php') && 
-					file_exists($themesDir . $dir . '/home.php')) {
-					$themes[] = $dir;
-				}
-			}
-		}
+	$themesDir = dirname(dirname(__DIR__)) . '/theme/';
+	$themes    = [];
+
+	if (!is_dir($themesDir)) {
+		return ['default'];
 	}
-	
-	// Always ensure 'default' is available
-	if (!in_array('default', $themes) && is_dir($themesDir . 'default')) {
+
+	foreach (scandir($themesDir) as $item) {
+		if ($item === '.' || $item === '..' || $item[0] === '.') {
+			continue;
+		}
+		$themePath = $themesDir . $item;
+		if (!is_dir($themePath)) continue;
+		if (!file_exists($themePath . '/header.php'))    continue;
+		if (!file_exists($themePath . '/footer.php'))    continue;
+		if (!file_exists($themePath . '/home.php'))      continue;
+		if (!file_exists($themePath . '/css/style.css')) continue;
+		$themes[] = $item;
+	}
+
+	if (empty($themes)) {
 		$themes[] = 'default';
 	}
-	
+
 	return $themes;
 }
 
@@ -589,9 +472,10 @@ function admin_get_page_title() {
 		if ($action === 'settings')          return __t('settings');
 		if ($action === 'drafts')            return __t('drafts');
 		if ($action === 'manage_themes')     return __t('theme_manager_title');
+		if ($action === 'translations')      return __t('translations_title');
 		if ($action === 'backup')            return __t('backup_export');
 		if ($action === 'menu_builder')      return __t('menu_configuration');
-		if ($action === 'tools')             return __t('tools');
+		if ($action === 'account')           return __t('account');
 
 		if (empty($action) && in_array($type, ['article', 'page', 'project'])) {
 			return __t('type_' . $type . 's');
@@ -870,14 +754,111 @@ function getPageTemplates(): array {
 }
 
 /**
+ * Whitelist of file extensions editable via the Template Editor.
+ * Kept in one place so the scanner and the save/restore handlers always agree.
+ */
+function theme_editor_allowed_extensions(): array {
+	return ['php', 'css', 'js', 'json'];
+}
+
+/**
+ * Recursively scan a theme directory and return all editable files,
+ * grouped by their folder for display in a grouped <select>.
+ *
+ * Only whitelisted extensions are returned. Hidden files/folders (leading dot)
+ * and the screenshot are skipped.
+ *
+ * @param string $themeDir  Absolute path to the active theme directory.
+ * @return array  [ groupLabel => [ relativePath => relativePath, ... ], ... ]
+ *                Root-level files are grouped under the empty-string key ''.
+ */
+function theme_editor_scan_files(string $themeDir): array {
+	$allowed = theme_editor_allowed_extensions();
+	$groups  = [];
+
+	if (!is_dir($themeDir)) {
+		return $groups;
+	}
+
+	$iterator = new RecursiveIteratorIterator(
+		new RecursiveDirectoryIterator($themeDir, FilesystemIterator::SKIP_DOTS),
+		RecursiveIteratorIterator::SELF_FIRST
+	);
+
+	foreach ($iterator as $fileInfo) {
+		if ($fileInfo->isDir()) continue;
+
+		$filename = $fileInfo->getFilename();
+		if ($filename[0] === '.') continue; // skip hidden files (.DS_Store, etc.)
+
+		$ext = strtolower($fileInfo->getExtension());
+		if (!in_array($ext, $allowed, true)) continue;
+
+		$relativePath = substr($fileInfo->getPathname(), strlen($themeDir) + 1);
+		$relativePath = str_replace('\\', '/', $relativePath); // normalize on Windows dev setups
+
+		$folder = dirname($relativePath);
+		$group  = ($folder === '.') ? '' : $folder . '/';
+
+		$groups[$group][$relativePath] = $relativePath;
+	}
+
+	// Root files first, then subfolders alphabetically. Files sorted within each group.
+	$rootGroup = $groups[''] ?? [];
+	unset($groups['']);
+	ksort($groups, SORT_NATURAL);
+	foreach ($groups as &$files) {
+		ksort($files, SORT_NATURAL);
+	}
+	unset($files);
+	ksort($rootGroup, SORT_NATURAL);
+
+	return ($rootGroup ? ['' => $rootGroup] : []) + $groups;
+}
+
+/**
+ * Resolve a user-supplied relative file path against a theme directory and
+ * guarantee the result stays inside that directory (prevents path traversal
+ * via "../" segments or absolute paths smuggled into the request).
+ *
+ * @param string $themeDir       Absolute, trusted path to the active theme directory.
+ * @param string $requestedFile  Untrusted relative path supplied by the client.
+ * @return string|null  Absolute real path on success, or null if invalid/outside the theme.
+ */
+function theme_editor_resolve_path(string $themeDir, string $requestedFile): ?string {
+	if ($requestedFile === '') return null;
+
+	$ext = strtolower(pathinfo($requestedFile, PATHINFO_EXTENSION));
+	if (!in_array($ext, theme_editor_allowed_extensions(), true)) return null;
+
+	$themeReal = realpath($themeDir);
+	if ($themeReal === false) return null;
+
+	$candidate = $themeDir . '/' . $requestedFile;
+
+	// The target may not exist yet only in the "file not found" case we want to
+	// reject anyway — realpath() returning false there is the correct outcome.
+	$candidateReal = realpath($candidate);
+	if ($candidateReal === false) return null;
+
+	// Enforce that the resolved path is strictly inside the theme directory.
+	if (strpos($candidateReal, $themeReal . DIRECTORY_SEPARATOR) !== 0) return null;
+
+	return $candidateReal;
+}
+
+/**
   * Check for a newer CMS version against the public version endpoint.
   * Result is cached for 24 hours in admin/cache/ to avoid repeated remote calls.
   *
   * @return array|null  Remote version data, or null if up-to-date / unreachable.
   */
 function admin_check_for_update(): ?array {
-	 $localVersion = '0.9';
-	 $remoteUrl    = 'https://raw.githubusercontent.com/SynaptikCMS/synaptik-cms-updates/main/version.json';
+	// Read local version from version.json at the CMS root
+	 $_vFile = dirname(dirname(__DIR__)) . '/version.json';
+	 $_vData = file_exists($_vFile) ? json_decode(file_get_contents($_vFile), true) : null;
+	 $localVersion = (is_array($_vData) && !empty($_vData['version'])) ? $_vData['version'] : '1.0';
+	 $remoteUrl    = 'https://raw.githubusercontent.com/synaptikcms/synaptik-cms-updates/main/version.json';
 	 $cacheDir     = __DIR__ . '/../cache';
 	 $cacheFile    = $cacheDir . '/update-check.json';
 	 $cacheTtl     = 86400; // 24 hours
@@ -911,9 +892,6 @@ function admin_check_for_update(): ?array {
 	 if ($json === false) return null;
 	 
 	 $remote = json_decode($json, true);
-	 
-	 if (!is_array($remote) || empty($remote['version'])) return null; 
-	 $remote = json_decode($json, true);
 	 if (!is_array($remote) || empty($remote['version'])) return null;
  
 	 // Persist cache
@@ -934,7 +912,7 @@ function admin_check_for_update(): ?array {
  * @return array  Array of news items, each with 'date', 'type', 'message'.
  */
 function admin_fetch_news(): array {
-	$remoteUrl = 'https://raw.githubusercontent.com/SynaptikCMS/synaptik-cms-updates/main/news.json';
+	$remoteUrl = 'https://raw.githubusercontent.com/synaptikcms/synaptik-cms-updates/main/news.json';
 	$cacheDir  = __DIR__ . '/../cache';
 	$cacheFile = $cacheDir . '/news-cache.json';
 	$cacheTtl  = 86400;
@@ -999,3 +977,49 @@ if (!function_exists('adminCleanUrl'))     { function adminCleanUrl($contentType
 if (!function_exists('formatFileSize'))    { function formatFileSize($bytes) { return admin_format_file_size($bytes); } }
 if (!function_exists('getAvailableThemes')){ function getAvailableThemes() { return admin_get_themes(); } }
 if (!function_exists('decodeHtmlEntities')){ function decodeHtmlEntities($html) { return admin_decode_html($html); } }
+
+/**
+ * Return an inline Lucide SVG icon for use throughout the admin UI.
+ * All icons: Lucide 0.378 (MIT), 16×16, stroke currentColor.
+ *
+ * @param string $name  Icon key
+ * @param string $attrs Additional HTML attributes (e.g. 'style="..."')
+ */
+function admin_icon(string $name, string $attrs = ''): string {
+	$base = 'width="16" height="16" viewBox="0 0 24 24" fill="none" '
+		. 'stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" '
+		. 'aria-hidden="true" class="admin-icon"'
+		. ($attrs ? ' ' . $attrs : '');
+
+	$paths = [
+		// Settings tabs
+		'settings'       => '<line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="9" cy="18" r="2" fill="currentColor" stroke="none"/>',
+		'reading'        => '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+		'writing'        => '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>',
+		'seo'            => '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+		'images'         => '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>',
+		'contact'        => '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>',
+		'puzzle'         => '<path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/>',
+		// Actions
+		'upload'         => '<polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>',
+		'package'        => '<line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+		'image-off'      => '<line x1="2" y1="2" x2="22" y2="22"/><path d="M10.41 10.41a2 2 0 1 1-2.83-2.83"/><line x1="13.5" y1="6" x2="20" y2="6"/><polyline points="18 12 20 12 21 9"/><rect x="3" y="3" width="18" height="18" rx="2"/>',
+		'chart'          => '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+		'compress'       => '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+		'robot'          => '<rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/>',
+		'warning'        => '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+		'check-circle'   => '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+		'calendar'       => '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+		'clock'          => '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+		'home'           => '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+		'globe'          => '<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
+		'plus'           => '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+		'save'           => '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
+		'update'         => '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/>',
+		'ruler'          => '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>',
+	];
+
+	$inner = $paths[$name] ?? '';
+	if ($inner === '') return '';
+	return '<svg ' . $base . '>' . $inner . '</svg>';
+}

@@ -84,13 +84,17 @@ if (is_dir($themesDir)) {
 	foreach (scandir($themesDir) as $dir) {
 		if ($dir === '.' || $dir === '..') continue;
 		if (!is_dir($themesDir . $dir))    continue;
-		if (!file_exists($themesDir . $dir . '/header.php') ||
-			!file_exists($themesDir . $dir . '/footer.php')  ||
-			!file_exists($themesDir . $dir . '/home.php'))   continue;
+		if (!file_exists($themesDir . $dir . '/header.php')    ||
+			!file_exists($themesDir . $dir . '/footer.php')     ||
+			!file_exists($themesDir . $dir . '/home.php')       ||
+			!file_exists($themesDir . $dir . '/css/style.css')) continue;
 
-		$hasPreview = file_exists($themesDir . $dir . '/preview.jpg');
-		$themeMeta  = [];
-		$themeJson  = $themesDir . $dir . '/theme.json';
+		$previewFile = null;
+		foreach (['preview.jpg', 'preview.jpeg', 'preview.png', 'preview.webp'] as $_pf) {
+			if (file_exists($themesDir . $dir . '/' . $_pf)) { $previewFile = $_pf; break; }
+		}
+		$themeMeta = [];
+		$themeJson = $themesDir . $dir . '/theme.json';
 		if (file_exists($themeJson)) {
 			$decoded = json_decode(file_get_contents($themeJson), true);
 			if (is_array($decoded)) $themeMeta = $decoded;
@@ -99,8 +103,8 @@ if (is_dir($themesDir)) {
 		$themes[] = [
 			'name'        => $dir,
 			'active'      => ($dir === $activeTheme),
-			'has_preview' => $hasPreview,
-			'preview_url' => $hasPreview ? ($siteBase . '/theme/' . rawurlencode($dir) . '/preview.jpg') : '',
+			'has_preview' => $previewFile !== null,
+			'preview_url' => $previewFile !== null ? ($siteBase . '/theme/' . rawurlencode($dir) . '/' . $previewFile) : '',
 			'label'       => $themeMeta['name']        ?? ucfirst($dir),
 			'author'      => $themeMeta['author']      ?? '',
 			'version'     => $themeMeta['version']     ?? '',
@@ -115,16 +119,17 @@ usort($themes, fn($a, $b) => $b['active'] <=> $a['active']);
 
 <!-- Import thème -->
 <div class="site-settings-section" style="margin-bottom: 24px;">
-	<h3>📦 <?php _e('theme_import_title'); ?></h3>
+	<h3><?php echo admin_icon('package'); ?> <?php _e('theme_import_title'); ?></h3>
 	<div class="form-group">
 		<p class="help-text"><?php _e('theme_import_help'); ?></p>
 		<?php if (!class_exists('ZipArchive')): ?>
-			<p style="color:var(--color-danger,#c0392b);"><?php _e('theme_ziparchive_missing'); ?></p>
+			<p style="color:var(--danger-text);"><?php _e('theme_ziparchive_missing'); ?></p>
 		<?php else: ?>
 			<form method="POST" action="theme-upload.php" enctype="multipart/form-data" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+				<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
 				<input type="hidden" name="_redirect" value="index.php?action=manage_themes">
-				<input type="file" name="theme_zip" accept=".zip" required style="flex:1; min-width:180px;">
-				<button type="submit" class="button">⬆️ <?php _e('theme_import_btn'); ?></button>
+				<input type="file" name="theme_zip" accept=".zip" required style="flex:1; max-width:500px;">
+				<button type="submit" class="btn btn-outline"><?php echo admin_icon('upload'); ?> <?php _e('theme_import_btn'); ?></button>
 			</form>
 			<p class="help-text" style="margin-top:6px;"><?php _e('theme_import_limit'); ?></p>
 		<?php endif; ?>
@@ -147,7 +152,7 @@ usort($themes, fn($a, $b) => $b['active'] <=> $a['active']);
 			>
 		<?php else: ?>
 			<div class="theme-preview-placeholder">
-				🖼️ <?php _e('theme_manager_no_preview'); ?>
+				<?php echo admin_icon('image-off'); ?> <?php _e('theme_manager_no_preview'); ?>
 			</div>
 		<?php endif; ?>
 
@@ -180,18 +185,18 @@ usort($themes, fn($a, $b) => $b['active'] <=> $a['active']);
 				<?php if (!$theme['active']): ?>
 				<button
 					type="button"
-					class="button"
+					class="btn btn-primary btn-sm"
 					onclick="confirmActivateTheme('<?php echo htmlspecialchars($theme['name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($theme['label'], ENT_QUOTES); ?>')"><?php _e('theme_manager_activate_btn'); ?></button>
 				<button
 					type="button"
-					class="button danger"
+					class="btn btn-danger btn-sm"
 					onclick="confirmDeleteTheme('<?php echo htmlspecialchars($theme['name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($theme['label'], ENT_QUOTES); ?>')"><?php _e('delete'); ?></button>
 				<?php else: ?>
 				<span class="help-text"><?php _e('theme_manager_active_cannot_delete'); ?></span>
 				<?php endif; ?>
 				<button
 				type="button"
-				class="button info"
+				class="btn btn-outline"
 				title="<?php _e('theme_preview_hover'); ?>"
 				onclick="openThemePreview('<?php echo htmlspecialchars($theme['name'], ENT_QUOTES); ?>')"><?php _e('theme_preview_btn'); ?></button>
 			</div>
@@ -203,12 +208,14 @@ usort($themes, fn($a, $b) => $b['active'] <=> $a['active']);
 
 <!-- Hidden delete form — submitted programmatically -->
 <form id="delete-theme-form" method="POST" action="index.php?action=manage_themes" style="display:none;">
+	<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
 	<input type="hidden" name="delete_theme" value="1">
 	<input type="hidden" name="theme_name" id="delete-theme-name" value="">
 </form>
 
 <!-- Hidden activate form — submitted programmatically -->
 <form id="activate-theme-form" method="POST" action="index.php?action=manage_themes" style="display:none;">
+	<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
 	<input type="hidden" name="activate_theme" value="1">
 	<input type="hidden" name="theme_name" id="activate-theme-name" value="">
 </form>

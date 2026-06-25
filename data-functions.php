@@ -230,11 +230,14 @@ function getCategories($contentType, $data)
         return [];
     }
 
+    $catStore   = function_exists('sl_load_categories') ? sl_load_categories() : [];
     $categories = [];
     foreach ($data[$contentType] as $item) {
         if (isset($item['category']) && !empty($item['category'])) {
             $categorySlug = sanitizeSlug($item['category']);
-            $categories[$categorySlug] = $item['category'];
+            if (!isset($categories[$categorySlug])) {
+                $categories[$categorySlug] = $catStore[$categorySlug]['name'] ?? $item['category'];
+            }
         }
     }
 
@@ -253,12 +256,16 @@ function getTags($contentType, $data)
         return [];
     }
 
+    $tagStore = function_exists('sl_load_tags') ? sl_load_tags() : [];
     $tags = [];
     foreach ($data[$contentType] as $item) {
         if (isset($item['tags']) && is_array($item['tags'])) {
-            foreach ($item['tags'] as $tag) {
-                $tagSlug = sanitizeSlug($tag);
-                $tags[$tagSlug] = $tag;
+            foreach ($item['tags'] as $tagRaw) {
+                $tagSlug = sanitizeSlug($tagRaw);
+                if ($tagSlug === '') continue;
+                if (!isset($tags[$tagSlug])) {
+                    $tags[$tagSlug] = $tagStore[$tagSlug]['name'] ?? $tagRaw;
+                }
             }
         }
     }
@@ -279,6 +286,15 @@ function generateSEO($pageTitle, $type, $slug, $data, $settings)
 {
     $metaTitle = $settings["site_title"]; // Default
     $metaDescription = $settings["site_description"]; // Default
+
+    // Homepage SEO overrides (homepage_type === 'default' only;
+    // when a page is set as homepage it carries its own meta fields).
+    if (empty($type) && empty($slug)) {
+        if (!empty($settings['home_meta_title']))
+            $metaTitle = decodeHtmlEntities($settings['home_meta_title']);
+        if (!empty($settings['home_meta_description']))
+            $metaDescription = decodeHtmlEntities($settings['home_meta_description']);
+    }
 
     if (!empty($type) && !empty($slug)) {
         // Individual content page
@@ -330,17 +346,15 @@ function generateSEO($pageTitle, $type, $slug, $data, $settings)
  */
 function renderCategoryPage($category, $data)
 {
-    // Collect matching items before opening the output buffer
-    $categoryName = '';
-    $foundItems   = [];
+    // Resolve display name from the categories store; fall back to the slug itself
+    $catStore    = function_exists('sl_load_categories') ? sl_load_categories() : [];
+    $categoryName = $catStore[$category]['name'] ?? $category;
+    $foundItems  = [];
 
     foreach (['article', 'project'] as $contentType) {
         if (isset($data[$contentType])) {
             foreach ($data[$contentType] as $item) {
                 if (isset($item['category']) && sanitizeSlug($item['category']) === $category) {
-                    if (empty($categoryName)) {
-                        $categoryName = $item['category'];
-                    }
                     $item['_content_type'] = $contentType;
                     $foundItems[]          = $item;
                 }
@@ -413,8 +427,9 @@ function renderCategoryPage($category, $data)
  */
 function renderTagPage($tag, $data)
 {
-    // Collect matching items before opening the output buffer
-    $tagName    = '';
+    // Resolve display name from the tags store; fall back to the slug itself
+    $tagStore   = function_exists('sl_load_tags') ? sl_load_tags() : [];
+    $tagName    = $tagStore[$tag]['name'] ?? $tag;
     $foundItems = [];
 
     foreach (['article', 'project'] as $contentType) {
@@ -423,9 +438,6 @@ function renderTagPage($tag, $data)
                 if (isset($item['tags']) && is_array($item['tags'])) {
                     foreach ($item['tags'] as $itemTag) {
                         if (sanitizeSlug($itemTag) === $tag) {
-                            if (empty($tagName)) {
-                                $tagName = $itemTag;
-                            }
                             $item['_content_type'] = $contentType;
                             $foundItems[]          = $item;
                             break;

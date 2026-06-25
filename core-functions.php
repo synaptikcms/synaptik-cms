@@ -6,6 +6,47 @@
  */
 
 /**
+ * Resolve the admin directory name reliably.
+ *
+ * Resolution order:
+ *   1. settings.json → admin_dir key (fastest — normal runtime path)
+ *   2. Filesystem scan for a folder containing admin-credentials.php (fallback
+ *      for fresh installs or renamed folders not yet saved to settings)
+ *   3. Hard default 'admin'
+ *
+ * Result is cached in $GLOBALS for the lifetime of the request.
+ *
+ * @return string Admin folder name (no leading or trailing slash)
+ */
+function resolve_admin_dir(): string
+{
+    if (isset($GLOBALS['_resolved_admin_dir'])) {
+        return $GLOBALS['_resolved_admin_dir'];
+    }
+
+    // 1. settings.json
+    if (function_exists('loadSettings')) {
+        $s = loadSettings();
+        $fromSettings = rtrim($s['admin_dir'] ?? '', '/');
+        if ($fromSettings !== '' && is_dir(__DIR__ . '/' . $fromSettings)) {
+            $GLOBALS['_resolved_admin_dir'] = $fromSettings;
+            return $fromSettings;
+        }
+    }
+
+    // 2. Filesystem scan
+    foreach (glob(__DIR__ . '/*/admin-credentials.php') ?: [] as $f) {
+        $found = basename(dirname($f));
+        $GLOBALS['_resolved_admin_dir'] = $found;
+        return $found;
+    }
+
+    // 3. Default
+    $GLOBALS['_resolved_admin_dir'] = 'admin';
+    return 'admin';
+}
+
+/**
  * Generate breadcrumb navigation.
  *
  * Handles all page types:
@@ -98,36 +139,33 @@ function getBreadcrumbs($type, $slug = '', $title = '', $category = '')
 }
 
 /**
- * Retourne le HTML de la page 404 personnalisée.
- * Charge le template 404.php depuis le thème actif,
- * avec fallback sur un message minimaliste si le fichier est absent.
+ * Returns the HTML for the 404 page.
+ * Loads 404.php from the active theme with a minimal fallback if the file is absent.
  *
- * @return string HTML complet de la page 404
+ * @return string Full HTML for the 404 page.
  */
 function get404PageContent()
 {
     $base_url = getBaseUrl();
     $home_url = cleanUrl('home');
 
-    // Récupère le thème actif depuis settings.json (même logique que theme-api.php)
     $settings    = loadSettings();
     $activeTheme = isset($settings['active_theme']) ? $settings['active_theme'] : 'default';
 
-    // Chemin réel : theme/{nom_du_theme}/404.php  (dossier "theme", pas "themes")
     $templatePath = __DIR__ . '/theme/' . $activeTheme . '/404.php';
 
     if (file_exists($templatePath)) {
         ob_start();
-        include $templatePath; // $base_url et $home_url sont accessibles dans le template
+        include $templatePath; // $base_url and $home_url are available in the template
         return ob_get_clean();
     }
 
-    // Fallback minimaliste si 404.php est introuvable
+    // Minimal fallback when no 404.php is found in the active theme
     return '
     <div style="text-align:center;padding:4rem 2rem;font-family:Georgia,serif;">
-        <h1 style="font-size:5rem;color:#3a6228;">404</h1>
-        <p>Cette page a été compostée.</p>
-        <a href="' . htmlspecialchars($home_url) . '">&#8592; Retour</a>
+        <h1 style="font-size:5rem;">404</h1>
+        <p>' . htmlspecialchars(__t('page_not_found_desc')) . '</p>
+        <a href="' . htmlspecialchars($home_url) . '">' . htmlspecialchars(__t('back_to_home')) . '</a>
     </div>';
 }
 
@@ -144,7 +182,7 @@ function get404PageContent()
 function processContent($type, $slug, $data, $settings, $category = '', $tag = '')
 {
     // Initialize variables
-    $pageTitle = "Synaptik CMS";
+    $pageTitle = $settings['site_title'] ?? 'SynaptikCMS';
     $pageContent = "";
     $httpStatus = 200;
     $contentTypes = ["article", "page", "project"];
@@ -183,12 +221,12 @@ function processContent($type, $slug, $data, $settings, $category = '', $tag = '
             
             if (!$contentFound) {
                 $httpStatus = 404;
-                $pageTitle = '404 — Page introuvable';
+                $pageTitle = '404 — ' . __t('page_not_found');
                 $pageContent = get404PageContent();
             }
             } else {
                 $httpStatus = 404;
-                $pageTitle = '404 — Page introuvable';
+                $pageTitle = '404 — ' . __t('page_not_found');
                 $pageContent = get404PageContent();
             }
     }
@@ -256,12 +294,12 @@ function processContent($type, $slug, $data, $settings, $category = '', $tag = '
                 $pageContent = ob_get_clean();
             } else {
                 $httpStatus = 404;
-                $pageTitle = '404 — Page introuvable';
+                $pageTitle = '404 — ' . __t('page_not_found');
                 $pageContent = get404PageContent();
             }
         } else {
             $httpStatus = 404;
-            $pageTitle = '404 — Page introuvable';
+            $pageTitle = '404 — ' . __t('page_not_found');
             $pageContent = get404PageContent();
         }
     }

@@ -79,41 +79,14 @@ function decodeHtmlEntities($text) {
  * @return string Base URL
  */
 function getBaseUrl() {
-	$baseUrl = (isset($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] === "on" ? "https" : "http") . "://$_SERVER[HTTP_HOST]";
-	$baseDir = rtrim(dirname($_SERVER["SCRIPT_NAME"]), "/");
-	return $baseUrl . $baseDir . "/";
+	$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+	          || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+	          || (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on');
+	$baseUrl = ($isHttps ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'];
+	$baseDir = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
+	return $baseUrl . $baseDir . '/';
 }
 
-function format_date($date) {
-	if (empty($date)) return '';
-
-	$settings = function_exists('loadSettings')
-		? loadSettings()
-		: admin_load_settings();
-
-	$format = $settings['date_format'] ?? 'Y-m-d';
-
-	$timestamp = strtotime($date);
-	if ($timestamp === false) return $date;
-
-	return date($format, $timestamp);
-}
-
-/**
- * Return the localized URL prefix slug for a given internal content type key.
- * Reads url_slug_{type} from the active locale strings (front context).
- * Falls back to the raw type name if the key is absent — English works
- * with no new strings required.
- *
- * Examples (fr locale):
- *   url_slug('article')   → 'article'
- *   url_slug('articles')  → 'articles'
- *   url_slug('category')  → 'categorie'
- *   url_slug('tag')       → 'tag'
- *
- * @param string $type  Internal key: article|articles|project|projects|page|pages|category|tag
- * @return string       Slug-safe localized prefix
- */
 function url_slug(string $type): string {
 	// No static cache here: lang_load() already keeps strings in $GLOBALS['_LANG_STRINGS'],
 	// so this is a plain array lookup — fast enough without a second cache layer.
@@ -136,6 +109,13 @@ function cleanUrl($type, $slug = null, $page = null, $category = null) {
 
 	if ($type === "home") {
 		return $baseUrl;
+	}
+
+	// Accept plural type aliases — map them to the singular and force list mode
+	$pluralMap = ['articles' => 'article', 'projects' => 'project', 'pages' => 'page'];
+	if (isset($pluralMap[$type])) {
+		$type = $pluralMap[$type];
+		return $baseUrl . url_slug($type . 's') . "/";
 	}
 
 	// Category listing: use localized 'category' prefix
@@ -191,7 +171,10 @@ function cleanUrl($type, $slug = null, $page = null, $category = null) {
  * This function ensures compatibility with the cleanUrl function from functions.php
  */
 function adminCleanUrl($contentType, $slug, $customSlug = '', $category = '') {
-	$baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]";
+	$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+	          || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+	          || (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on');
+	$baseUrl = ($isHttps ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'];
 	$baseDir = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');
 
 	$finalSlug    = !empty($customSlug) ? $customSlug : $slug;
@@ -230,45 +213,34 @@ function adminCleanUrl($contentType, $slug, $customSlug = '', $category = '') {
 }
 
 /**
-* Outputs canonical URL tag
-* @param array $pageData Current page data
-* @return string The canonical URL tag
-*/
-function output_canonical_url($pageData = null) {
-if ($pageData && !empty($pageData['canonical_url'])) {
-	return '
-	<link rel="canonical" href="' . htmlspecialchars($pageData['canonical_url']) . '" />
-	';
-} else {
-	$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-	$host = $_SERVER['HTTP_HOST'];
-	$uri = $_SERVER['REQUEST_URI'];
-	$uri = strtok($uri, '?'); // Remove query parameters
-	return '
-	<link rel="canonical" href="' . $protocol . '://' . $host . $uri . '" />
-	';
-}
-}
- 
-/**
- * Load settings from settings.json
- * @return array Settings array
+ * Load settings from settings.json, with per-request GLOBALS cache.
+ *
+ * The file is read from disk only once per PHP request. Every subsequent
+ * call within the same request returns the cached array instantly.
+ * Call loadSettings_invalidate() after writing settings.json to force
+ * a fresh read on the next call within the same request.
+ *
+ * @return array Merged settings array (defaults + settings.json overrides)
  */
 function loadSettings() {
-	// Get default settings with auto-detected themes
+	// Per-request cache — avoids repeated file_get_contents / json_decode
+	// on the same settings.json within a single PHP request.
+	if (isset($GLOBALS['_settings_cache'])) {
+		return $GLOBALS['_settings_cache'];
+	}
+
 	$settings = loadDefaultSettings();
-	
-	if (file_exists("settings.json")) {
-		$loadedSettings = json_decode(file_get_contents("settings.json"), true);
+
+	if (file_exists(__DIR__ . '/settings.json')) {
+		$loadedSettings = json_decode(file_get_contents(__DIR__ . '/settings.json'), true);
 		if (is_array($loadedSettings)) {
-			// Always refresh the available_themes list from filesystem
-			// even if settings.json has its own list
-			$loadedSettings['available_themes'] = getAvailableThemes();
-			
 			$settings = array_merge($settings, $loadedSettings);
 		}
 	}
-	
+
+	// Always refresh the theme list from filesystem — runs even when settings.json is absent
+	$settings['available_themes'] = getAvailableThemes();
+
 	// Ensure theme setting always exists and is valid
 	if (!isset($settings['active_theme']) || !in_array($settings['active_theme'], $settings['available_themes'])) {
 		$settings['active_theme'] = 'default';
@@ -289,8 +261,10 @@ function loadSettings() {
 				$tpTheme = basename($tpTheme);
 				// Validate TTL (2 hours)
 				if (is_numeric($tpTs) && (time() - (int)$tpTs) < 7200) {
-					// Derive secret from admin password hash stored on disk
-					$credFile = dirname(__FILE__) . '/admin/admin-credentials.php';
+					// Read admin_dir directly from the already-parsed settings to avoid
+					// calling resolve_admin_dir() which would re-enter loadSettings() and loop.
+					$adminDir = rtrim($settings['admin_dir'] ?? 'admin', '/');
+					$credFile = dirname(__FILE__) . '/' . $adminDir . '/admin-credentials.php';
 					if (file_exists($credFile)) {
 						$admin_password = '';
 						require $credFile; // Sets $admin_password
@@ -313,44 +287,17 @@ function loadSettings() {
 		@date_default_timezone_set($settings['timezone']);
 	}
 
+	$GLOBALS['_settings_cache'] = $settings;
 	return $settings;
 }
 
 /**
- * Load default settings
- * @return array Default settings
+ * Invalidate the per-request settings cache.
+ * Call this immediately after writing settings.json so that subsequent
+ * loadSettings() calls within the same request see the updated values.
  */
-function loadDefaultSettings() {
-	// Get the available themes
-	$availableThemes = getAvailableThemes();
-	return [
-		"articles_per_page" => 5,
-		"projects_per_page" => 3,
-		"show_articles_on_homepage" => true,
-		"show_projects_on_homepage" => true,
-		"main_menu" => [],
-		"use_custom_menu" => false,
-		"site_title" => "Synaptik CMS",
-		"site_description" => "A fast, minimalist, user-friendly file-based portfolio CMS for creatives and artists.",
-		"default_meta_title" => "{page_title} | {site_title}",
-		"default_meta_description" => "{site_description}",
-		"enable_seo" => true,
-		"show_site_title_in_header" => true,
-		"homepage_type" => "default",
-		"homepage_page_id" => "",
-		"theme" => "default",
-		"active_theme" => "default",
-		"available_themes" => $availableThemes,
-		"show_search_icon" => true,
-		"footer_text" => "Developed with ♥ by Dorian • &copy; {year}",
-		"footer_show_login" => true,
-		"footer_show_social" => true,
-		"footer_social_links" => [
-			["platform" => "instagram", "url" => "https://instagram.com/"],
-			["platform" => "twitter", "url" => "https://twitter.com/"],
-			["platform" => "github", "url" => "https://github.com/"]
-		]
-	];
+function loadSettings_invalidate(): void {
+	unset($GLOBALS['_settings_cache']);
 }
 
 /**
@@ -405,11 +352,6 @@ function getAvailableThemes() {
 function loadThemeTemplate($template, $params = []) {
    $settings = loadSettings();
    $theme = $settings['active_theme'] ?? 'default';
-
-   // Make sure template functions are loaded
-   if (!function_exists('getThemeResourcePath')) {
-	   require_once dirname(__FILE__) . '/template-functions.php';
-   }
 
    // Extract parameters into variables
    extract($params);

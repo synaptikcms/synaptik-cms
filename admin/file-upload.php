@@ -32,7 +32,7 @@ function sanitizeFileName($filename) {
 // Expanded list of allowed file types
 $allowedTypes = [
 	// Images
-	'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'heic', 'heif', 'bmp', 'tiff', 'tif',
+	'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'bmp', 'tiff', 'tif',
 	// Documents
 	'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf', 'odt', 'ods', 'odp'
 ];
@@ -75,14 +75,8 @@ $quality = $appSettings['image_quality'] ?? 85;
 $createThumbnail = $appSettings['create_thumbnails'] ?? true;
 $thumbWidth = $appSettings['thumb_width'] ?? 300;
 $thumbHeight = $appSettings['thumb_height'] ?? 300;
-$convertToWebP = $appSettings['convert_to_webp'] ?? false;
-// $keepOriginalFormat = $appSettings['keep_original_format'] ?? false;
-
-// Always log settings for debugging
-error_log('File Upload Settings: ' . json_encode([
-	'convertToWebP' => $convertToWebP,
-	//'keepOriginalFormat' => $keepOriginalFormat
-]));
+$convertToWebP      = $appSettings['convert_to_webp']          ?? false;
+$keepOriginalFormat = $appSettings['keep_original_format'] ?? false;
 
 // Check if WebP is supported
 $webpSupported = function_exists('imagewebp');
@@ -123,21 +117,55 @@ if (isset($_FILES['upload']) && $_FILES['upload']['error'] === 0) {
 	$isImage = in_array($fileExtension, $imageTypes);
 	$shouldOptimize = $isImage && $imageOptimizationEnabled;
 	
+	// MIME type validation — strict for images, ban-list for everything else
+	if (extension_loaded('fileinfo')) {
+		$finfo    = new finfo(FILEINFO_MIME_TYPE);
+		$mimeType = $finfo->file($_FILES['upload']['tmp_name']);
+
+		// Strict allowed MIME types for image and PDF extensions
+		$strictMimes = [
+			'jpg'  => ['image/jpeg'],
+			'jpeg' => ['image/jpeg'],
+			'png'  => ['image/png'],
+			'gif'  => ['image/gif'],
+			'webp' => ['image/webp'],
+			'heic' => ['image/heic', 'image/heif'],
+			'heif' => ['image/heic', 'image/heif'],
+			'bmp'  => ['image/bmp', 'image/x-bmp', 'image/x-ms-bmp'],
+			'tiff' => ['image/tiff'],
+			'tif'  => ['image/tiff'],
+			'pdf'  => ['application/pdf'],
+			'txt'  => ['text/plain'],
+		];
+
+		// MIME types that are never acceptable regardless of extension
+		$bannedMimes = [
+			'text/html', 'application/x-php', 'application/php',
+			'text/x-php', 'application/x-httpd-php', 'application/x-httpd-php3',
+		];
+
+		if (in_array($mimeType, $bannedMimes, true)) {
+			header('HTTP/1.1 400 Bad Request');
+			echo json_encode(['error' => 'File type not allowed.']);
+			exit;
+		}
+
+		if (isset($strictMimes[$fileExtension]) && !in_array($mimeType, $strictMimes[$fileExtension], true)) {
+			header('HTTP/1.1 400 Bad Request');
+			echo json_encode(['error' => 'File content does not match declared extension.']);
+			exit;
+		}
+		// Office/ODF formats (docx, xlsx, odt…) are ZIP-based and return application/zip
+		// via finfo — extension whitelist above is sufficient for those.
+	}
+
 	// Determine if WebP conversion should be applied
-	$doWebPConversion = $isImage && $webpConversion && $webpSupported && $fileExtension !== 'webp';
+	$doWebPConversion = $isImage && $convertToWebP && $webpSupported && $fileExtension !== 'webp';
 	
 	// For WebP conversion, prepare both filenames
 	$originalFormatFile = $targetFile;
 	$webpFile = $targetDir . pathinfo($uniqueFileName, PATHINFO_FILENAME) . '.webp';
 	
-	// Log all relevant settings before optimization
-	error_log('File Upload WebP Settings: ' . json_encode([
-		'convert_to_webp' => $webpConversion,
-		'keep_original_format' => $keepOriginalFormat,
-		'is_image' => $isImage,
-		'file_extension' => $fileExtension,
-		'webp_supported' => $webpSupported
-	]));
 	// Check if a specific page is set as homepage
 	if ($shouldOptimize) {
 	  // Create thumbnail path
@@ -148,7 +176,6 @@ if (isset($_FILES['upload']) && $_FILES['upload']['error'] === 0) {
 	  if (move_uploaded_file($_FILES['upload']['tmp_name'], $tempFile)) {
 		// Log original file size for debugging
 		$originalSize = filesize($tempFile);
-		error_log("Original file size for {$uniqueFileName}: " . $originalSize . " bytes");
 		
 		try {
 		  // Define WebP file path for later (if needed)
@@ -182,36 +209,21 @@ if (isset($_FILES['upload']) && $_FILES['upload']['error'] === 0) {
 			$keepOriginalFormat              // Keep original format
 		  );
 		  
-		  // The destination file is what we'll return to CKEditor
-		  $resultFile = $primaryDestination;
+	  // Result file defaults to the optimized destination
+		  $resultFile     = $primaryDestination;
 		  $resultFilename = basename($resultFile);
-		  
-		  // If optimization was successful
-		  if ($optimizeResult) {
-			// Get new file size for logging
-			$newSize = 0;
-			if (file_exists($primaryDestination)) {
-			  $newSize += filesize($primaryDestination);
-			}
-			if ($doWebPConversion && $keepOriginalFormat && file_exists($webpFilePath)) {
-			  $newSize += filesize($webpFilePath);
-			}
-			
-			$reductionPercent = round(100 - (($newSize / $originalSize) * 100), 2);
-			error_log("Optimized file size for {$uniqueFileName}: " . $newSize . " bytes (reduced by {$reductionPercent}%)");
-		  } else {
-			error_log("Optimization failed, falling back to direct copy");
-			// If optimization fails, try a direct copy
+
+		  if (!$optimizeResult) {
+			// Optimization failed — fall back to a direct copy of the temp file
 			if (!copy($tempFile, $targetFile)) {
-			  header('HTTP/1.1 500 Internal Server Error');
-			  echo json_encode(['error' => 'Failed to process uploaded image']);
-			  exit;
+				header('HTTP/1.1 500 Internal Server Error');
+				echo json_encode(['error' => 'Failed to process uploaded image']);
+				exit;
 			}
-			$resultFile = $targetFile;
+			$resultFile     = $targetFile;
 			$resultFilename = $uniqueFileName;
 		  }
 		} catch (Exception $e) {
-		  error_log("Exception during image processing: " . $e->getMessage());
 		  // If there's an exception, fall back to direct copy
 		  if (!copy($tempFile, $targetFile)) {
 			header('HTTP/1.1 500 Internal Server Error');

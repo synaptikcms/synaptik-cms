@@ -36,7 +36,7 @@ function _lang_cms_root(): string {
  *   admin → lang/admin/
  */
 function _lang_json_dir(): string {
-	$sub = _lang_context() === 'admin' ? '/lang/admin/' : '/lang/';
+	$sub = _lang_context() === 'admin' ? '/lang/admin/' : '/lang/front/';
 	return _lang_cms_root() . $sub;
 }
 
@@ -160,13 +160,20 @@ function lang_load(): array {
 		return $_LANG_STRINGS;
 	}
 
-	// Read active locale from settings.json
+	// Read the active locale for the current context (admin vs front).
+	// settings.json may carry separate keys:
+	//   - active_language → public site
+	//   - admin_language  → admin panel (falls back to active_language if unset)
 	$settingsFile = _lang_cms_root() . '/settings.json';
 	$locale = 'en';
 	if (file_exists($settingsFile)) {
 		$s = json_decode(file_get_contents($settingsFile), true);
-		if (!empty($s['active_language'])) {
-			$locale = $s['active_language'];
+		if (is_array($s)) {
+			if (_lang_context() === 'admin') {
+				$locale = $s['admin_language'] ?? $s['active_language'] ?? 'en';
+			} else {
+				$locale = $s['active_language'] ?? 'en';
+			}
 		}
 	}
 
@@ -187,13 +194,19 @@ function lang_load(): array {
 
 if (!function_exists('lang_current')) {
 	/**
-	 * Returns the active locale string (e.g. 'fr', 'en').
+	 * Returns the active locale string for the current context
+	 * (admin → admin_language ?? active_language, front → active_language).
 	 */
 	function lang_current(): string {
 		$settingsFile = _lang_cms_root() . '/settings.json';
 		if (file_exists($settingsFile)) {
 			$s = json_decode(file_get_contents($settingsFile), true);
-			return $s['active_language'] ?? 'en';
+			if (is_array($s)) {
+				if (_lang_context() === 'admin') {
+					return $s['admin_language'] ?? $s['active_language'] ?? 'en';
+				}
+				return $s['active_language'] ?? 'en';
+			}
 		}
 		return 'en';
 	}
@@ -220,6 +233,31 @@ if (!function_exists('lang_available')) {
 	 */
 	function lang_available(): array {
 		$langDir   = _lang_json_dir();
+		$languages = [];
+		if (!is_dir($langDir)) return ['en' => 'English'];
+		foreach (glob($langDir . '*.json') as $file) {
+			$locale = basename($file, '.json');
+			$data   = json_decode(file_get_contents($file), true);
+			$label  = $data['_meta']['language'] ?? strtoupper($locale);
+			$languages[$locale] = $label;
+		}
+		ksort($languages);
+		return $languages;
+	}
+}
+
+if (!function_exists('lang_available_for_scope')) {
+	/**
+	 * Same as lang_available() but for an explicit scope, independent of
+	 * the current LANG_CONTEXT. Used by the admin settings page to list
+	 * both the front-end and the admin available locales side by side.
+	 *
+	 * @param string $scope  'front' or 'admin'
+	 * @return array         e.g. ['en' => 'English', 'fr' => 'Français']
+	 */
+	function lang_available_for_scope(string $scope): array {
+		$sub = $scope === 'admin' ? '/lang/admin/' : '/lang/front/';
+		$langDir = _lang_cms_root() . $sub;
 		$languages = [];
 		if (!is_dir($langDir)) return ['en' => 'English'];
 		foreach (glob($langDir . '*.json') as $file) {

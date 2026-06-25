@@ -26,7 +26,11 @@ $contentCounts = [
 ];
 
 // Get the protocol and domain
-$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+$isHttps  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+           || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+           || (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on')
+           || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443);
+$protocol = $isHttps ? 'https' : 'http';
 $domain   = $_SERVER['HTTP_HOST'];
 $baseDir  = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');
 $baseUrl  = $protocol . '://' . $domain . $baseDir;
@@ -79,7 +83,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_sitemap'])) 
             if (empty($slug) && empty($customSlug)) continue;
 
             $itemUrl = admin_content_url($ct, $slug, $customSlug, $category);
-            $lastmod = $item['last_modified'] ?? ($item['date'] ?? date('Y-m-d'));
+            $raw     = $item['last_modified'] ?? ($item['date'] ?? date('Y-m-d'));
+            $lastmod = substr($raw, 0, 10);
             $addUrl($itemUrl, $lastmod, $priorities[$ct] ?? '0.8');
         }
     }
@@ -111,10 +116,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_sitemap'])) 
         }
     }
 
-    // ── Content-type archive pages (localized plural slugs) ───────────────────
-    // admin_front_url_slug() reads the front-end lang JSON directly so
-    // 'articles', 'projets', 'pages' are locale-aware.
-    foreach (['article', 'project', 'page'] as $ct) {
+    // ── Content-type archive pages (articles and projects only) ────────────────
+    // Pages archive (/pages/) is intentionally excluded — it serves no purpose
+    // for visitors or search engines and no mainstream CMS indexes it.
+    foreach (['article', 'project'] as $ct) {
         if (!empty($data[$ct])) {
             $pluralSlug = admin_front_url_slug($ct . 's');
             $addUrl($baseUrl . '/' . $pluralSlug . '/', date('Y-m-d'), '0.5');
@@ -128,8 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_sitemap'])) 
 
         if (isset($_POST['ping_search_engines']) && $_POST['ping_search_engines'] == 1) {
             $sitemapUrl = urlencode($baseUrl . '/sitemap.xml');
-            @file_get_contents('https://www.google.com/ping?sitemap=' . $sitemapUrl);
-            @file_get_contents('https://www.bing.com/ping?sitemap='   . $sitemapUrl);
+            @file_get_contents('https://www.bing.com/ping?sitemap=' . $sitemapUrl);
             $message .= '<br>' . __t('sitemap_pinged');
         }
     } catch (Exception $e) {
@@ -146,61 +150,14 @@ function sm_format_filesize($bytes) {
     $bytes /= pow(1024, $pow);
     return round($bytes, 2) . ' ' . $units[$pow];
 }
+$pageTitle = __t('sitemap_generator');
+
+ob_start();
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SynaptikCMS Admin | <?php _e('sitemap_generator'); ?></title>
-    <link rel="stylesheet" href="css/admin-base.css">
-    <link rel="stylesheet" href="css/admin-components.css">
-    <link rel="stylesheet" href="css/admin-sidebar.css">
-    <!-- <link rel="stylesheet" href="css/editor-layout.css"> -->
-    <link rel="icon" type="image/x-icon" href="../files/favicon.ico">
-    <link rel="icon" type="image/png" sizes="32x32" href="../files/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="../files/apple-touch-icon.png">
-    <script>window.CMS_LANG = <?php echo lang_js_bridge(); ?>;</script>
-</head>
-<body>
-    <script>
-      // Apply sidebar state immediately to prevent flash
-      (function() {
-        try {
-          var saved = localStorage.getItem('synaptik_sidebar_state');
-          if (saved) {
-            var state = JSON.parse(saved);
-            if (state.isExpanded === false) {
-              document.body.classList.add('sidebar-collapsed');
-            } else {
-              document.body.classList.add('sidebar-expanded');
-            }
-          } else {
-            document.body.classList.add('sidebar-expanded');
-          }
-        } catch(e) {
-          document.body.classList.add('sidebar-expanded');
-        }
-      })();
-    </script>
-    <div class="admin-container">
-        <?php include_once 'includes/sidebar.php'; ?>
-        <main class="content">
-            <h1 class="main-heading"><?php _e('sitemap_generator'); ?></h1>
-            <?php if (!empty($message)): ?>
-            <div class="message success"><?php echo $message; ?></div>
-            <?php endif; ?>
-            
-            <?php if (!empty($error)): ?>
-            <div class="message error"><?php echo $error; ?></div>
-            <?php endif; ?>
-            <a href="<?php echo $baseUrl; ?>" target="_blank" class="view-website-btn">
-                <span class="icon">🌐</span> <?php _e('view_website'); ?>
-            </a>
             <div class="sitemap-content">
                 <div class="site-settings-section">
+                    <h3><?php _e('sitemap_how_to_use'); ?></h3>
                     <div class="form-group">
-                        <h3><?php _e('sitemap_how_to_use'); ?></h3>
                         <ol>
                             <li><?php _e('sitemap_step_1'); ?></li>
                             <li><?php _e('sitemap_step_2'); ?>
@@ -209,8 +166,9 @@ function sm_format_filesize($bytes) {
                             <li><?php _e('sitemap_step_3'); ?></li>
                         </ol>
                     </div>
+                    
+                    <h3><?php _e('sitemap_current_status'); ?></h3>
                     <div class="form-group" style="margin-top:30px;">
-                        <h3><?php _e('sitemap_current_status'); ?></h3>
                         <?php if (file_exists($sitemapPath)): ?>
                             <p><strong><?php _e('sitemap_location'); ?></strong> <a href="<?php echo $baseUrl . '/sitemap.xml'; ?>" target="_blank"><?php echo $baseUrl . '/sitemap.xml'; ?></a></p>
                             <p><strong><?php _e('sitemap_last_updated'); ?></strong> <?php echo date('F j, Y, g:i a', filemtime($sitemapPath)); ?></p>
@@ -226,28 +184,25 @@ function sm_format_filesize($bytes) {
                     <?php else: ?>
                         <h3><?php _e('generate_sitemap'); ?></h3>
                     <?php endif; ?>
-                    <p><?php _e('sitemap_desc'); ?></p>
-                    
-                    <form method="post" action="">
-                        <div class="form-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="ping_search_engines" value="1" checked>
-                                <?php _e('sitemap_ping_label'); ?>
-                            </label>
-                        </div>
-                        <?php if (file_exists($sitemapPath)): ?>
-                            <button type="submit" name="generate_sitemap" class="button"><?php _e('sitemap_update_btn'); ?></button>
-                        <?php else: ?>
-                            <button type="submit" name="generate_sitemap" class="button"><?php _e('generate_sitemap'); ?></button>
-                        <?php endif; ?>
-                    </form>
+                    <div class="form-group">
+                        <p><?php _e('sitemap_desc'); ?></p>
+                        <form method="post" action="">
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="ping_search_engines" value="1" checked>
+                                    <?php _e('sitemap_ping_label'); ?>
+                                </label>
+                            </div>
+                            <?php if (file_exists($sitemapPath)): ?>
+                                <button type="submit" name="generate_sitemap" class="btn btn-primary"><?php _e('sitemap_update_btn'); ?></button>
+                            <?php else: ?>
+                                <button type="submit" name="generate_sitemap" class="btn btn-primary"><?php _e('generate_sitemap'); ?></button>
+                            <?php endif; ?>
+                        </form>
+                    </div>
                 </div>
             </div>
-        </main>
-    </div>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="js/panel.js"></script>
-    <script src="js/common.js"></script>
-    <script src="js/admin-sidebar.js"></script>
-</body>
-</html>
+        
+<?php
+$pageContent = ob_get_clean();
+require_once 'includes/layout.php';
