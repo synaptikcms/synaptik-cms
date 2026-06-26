@@ -3,7 +3,7 @@
 All notable changes to SynaptikCMS are documented here.  
 
 
-## [1.2] — TBD
+## [1.2] — 2026-06-26
 
 ### Added
 - Added a built-in translation editor: edit any locale's strings directly from the admin panel, and create new locales by duplicating en.json with one click — accessible from Tools → Translations and from the Settings → General language selector.
