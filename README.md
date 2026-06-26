@@ -4,7 +4,7 @@
 
 **A flat-file PHP CMS. No database. No bloat. Just fast.**
 
-[![Version](https://img.shields.io/badge/version-1.0-6366f1?style=flat-square)](https://github.com/synaptikcms/synaptik-cms/releases)
+[![Version](https://img.shields.io/badge/version-1.2-6366f1?style=flat-square)](https://github.com/synaptikcms/synaptik-cms/releases)
 [![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4?style=flat-square&logo=php&logoColor=white)](https://www.php.net/)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](LICENSE.md)
 [![Size](https://img.shields.io/badge/footprint-2MB-f59e0b?style=flat-square)]()
