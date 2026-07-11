@@ -674,11 +674,11 @@ function handleContentAddition() {
 		foreach (explode(',', $_POST['tags']) as $tagInput) {
 			$displayName = trim($tagInput);
 			if ($displayName === '') continue;
-			$slug = sanitizeSlug($displayName);
-			if ($slug === '') continue;
-			$tags[] = $slug;
-			if (!isset($data['tags'][$slug])) {
-				$data['tags'][$slug] = ['name' => $displayName];
+			$tagSlug = sanitizeSlug($displayName);
+			if ($tagSlug === '') continue;
+			$tags[] = $tagSlug;
+			if (!isset($data['tags'][$tagSlug])) {
+				$data['tags'][$tagSlug] = ['name' => $displayName];
 			}
 		}
 	}
@@ -926,11 +926,11 @@ function handleContentEdit() {
 			foreach (explode(',', $_POST['tags']) as $tagInput) {
 				$displayName = trim($tagInput);
 				if ($displayName === '') continue;
-				$slug = sanitizeSlug($displayName);
-				if ($slug === '') continue;
-				$tags[] = $slug;
-				if (!isset($data['tags'][$slug])) {
-					$data['tags'][$slug] = ['name' => $displayName];
+				$tagSlug = sanitizeSlug($displayName);
+				if ($tagSlug === '') continue;
+				$tags[] = $tagSlug;
+				if (!isset($data['tags'][$tagSlug])) {
+					$data['tags'][$tagSlug] = ['name' => $displayName];
 				}
 			}
 		}

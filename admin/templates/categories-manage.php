@@ -7,7 +7,7 @@ if (!defined('INCLUDED')) {
 // ── Build categories index with count + linked items ──────────────────────────
 $categories = [];
 
-foreach (['article', 'project'] as $ct) {
+foreach (['article', 'project', 'page'] as $ct) {
 	if (!isset($data[$ct])) continue;
 	foreach ($data[$ct] as $idx => $item) {
 		if (empty($item['category'])) continue;
@@ -47,8 +47,10 @@ $orphanCount = count(array_filter($categories, fn($c) => $c['count'] === 0));
 function buildCategoryTree(array $categories, string $parentSlug = '', int $depth = 0): array {
 	if ($depth >= 3) return []; // Hard limit: 3 sub-levels maximum
 	$result = [];
-	foreach ($categories as $slug => $cat) {
-		if (($cat['parent'] ?? '') !== $parentSlug) continue;
+	// Sort siblings at this level alphabetically by name before walking them
+	$siblings = array_filter($categories, fn($cat) => ($cat['parent'] ?? '') === $parentSlug);
+	uasort($siblings, fn($a, $b) => strcasecmp($a['name'], $b['name']));
+	foreach ($siblings as $slug => $cat) {
 		$entry = array_merge($cat, ['slug' => $slug, 'depth' => $depth]);
 		$result[] = $entry;
 		// Recursively add children

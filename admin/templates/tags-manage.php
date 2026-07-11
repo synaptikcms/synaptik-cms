@@ -9,7 +9,7 @@ if (!defined('INCLUDED')) {
 $tags = [];
 $_tagStore = $data['tags'] ?? [];
 
-foreach (['article', 'project'] as $_tagCt) {
+foreach (['article', 'project', 'page'] as $_tagCt) {
 	if (!isset($data[$_tagCt])) continue;
 	foreach ($data[$_tagCt] as $idx => $item) {
 		if (!isset($item['tags']) || !is_array($item['tags'])) continue;
@@ -33,6 +33,10 @@ foreach ($_tagStore as $slug => $tagData) {
 }
 
 $orphanCount = count(array_filter($tags, fn($t) => $t['count'] === 0));
+
+// Alphabetically sorted copy for the merge dropdowns (table itself has its own sortable columns)
+$tagsAlpha = $tags;
+uasort($tagsAlpha, fn($a, $b) => strcasecmp($a['name'], $b['name']));
 ?>
 
 <div class="sitemap-content">
@@ -62,7 +66,7 @@ $orphanCount = count(array_filter($tags, fn($t) => $t['count'] === 0));
 						<label><?php _e('merge_source'); ?></label>
 						<select name="source_slug" style="width:100%;" required>
 							<option value=""><?php _e('select_tag'); ?></option>
-							<?php foreach ($tags as $slug => $tag): ?>
+							<?php foreach ($tagsAlpha as $slug => $tag): ?>
 							<option value="<?php echo $slug; ?>"><?php echo htmlspecialchars($tag['name']); ?> (<?php echo $tag['count']; ?>)</option>
 							<?php endforeach; ?>
 						</select>
@@ -72,7 +76,7 @@ $orphanCount = count(array_filter($tags, fn($t) => $t['count'] === 0));
 						<label><?php _e('merge_target'); ?></label>
 						<select name="target_slug" style="width:100%;" required>
 							<option value=""><?php _e('select_tag'); ?></option>
-							<?php foreach ($tags as $slug => $tag): ?>
+							<?php foreach ($tagsAlpha as $slug => $tag): ?>
 							<option value="<?php echo $slug; ?>"><?php echo htmlspecialchars($tag['name']); ?> (<?php echo $tag['count']; ?>)</option>
 							<?php endforeach; ?>
 						</select>

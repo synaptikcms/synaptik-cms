@@ -1,8 +1,9 @@
 {
     "name": "Mono",
     "folder": "default",
-    "version": "1.2",
+    "version": "1.0",
     "author": "Synaptik",
-    "description": "A light, minimalist theme to focus on writing and blogging for SynaptikCMS.",
-    "synaptik_theme": true
+    "description": "A sidebar-first minimalist theme, ideal for writers and bloggers. Fixed left navigation, warm off-white palette, and a title-list layout that keeps the focus on content over decoration.",
+    "synaptik_theme": true,
+    "demo_url": "theme-info/mono-theme/"
 }

@@ -289,8 +289,7 @@ function admin_purify_html($html) {
 	 );
 	 
 	 // Purify the rest
-	 //$allowedTags = '<p><br><b><i><strong><em><u><a><ul><ol><li><span><img><h1><h2><h3><h4><h5><h6><blockquote><pre><code><div><table><tr><td><th><thead><tbody>';
-	 $allowedTags = '<p><br><b><i><strong><em><u><s><strike><del><a><ul><ol><li><span><img><h1><h2><h3><h4><h5><h6><blockquote><pre><code><div><table><tr><td><th><thead><tbody><button>';
+	 $allowedTags = '<p><br><b><i><strong><em><u><s><strike><del><a><ul><ol><li><span><img><h1><h2><h3><h4><h5><h6><blockquote><pre><code><div><table><tr><td><th><thead><tbody><button><svg><path><polygon><polyline><circle><rect><line><g>';
 	 
 	 $html = strip_tags($html, $allowedTags);
 	 

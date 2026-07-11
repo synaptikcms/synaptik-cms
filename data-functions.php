@@ -27,6 +27,35 @@ function getCategoryPath(string $categorySlug, array $data): string {
 }
 
 /**
+ * Return every descendant slug (children, grandchildren, etc.) of a category.
+ * Used to make category pages inclusive of their sub-categories' content.
+ *
+ * @param string $categorySlug  The slug of the parent category
+ * @param array  $categories    The categories store (slug => {name, parent, description})
+ * @return array                Flat array of descendant slugs (does not include $categorySlug itself)
+ */
+function getCategoryDescendants(string $categorySlug, array $categories): array {
+    if (empty($categorySlug)) return [];
+
+    $descendants = [];
+    $queue       = [$categorySlug];
+    $visited     = [$categorySlug => true]; // Guard against circular references
+
+    while (!empty($queue)) {
+        $parentSlug = array_shift($queue);
+        foreach ($categories as $slug => $cat) {
+            if (($cat['parent'] ?? '') === $parentSlug && !isset($visited[$slug])) {
+                $visited[$slug]    = true;
+                $descendants[]     = $slug;
+                $queue[]           = $slug;
+            }
+        }
+    }
+
+    return $descendants;
+}
+
+/**
  * Data Functions
  *
  * Handle data loading, saving, and manipulation for the CMS.
@@ -351,10 +380,15 @@ function renderCategoryPage($category, $data)
     $categoryName = $catStore[$category]['name'] ?? $category;
     $foundItems  = [];
 
+    // A category page includes items from the category itself AND all of its
+    // sub-categories (any depth), so a parent category is never shown empty
+    // just because all its content lives under a child category.
+    $allowedSlugs = array_flip(array_merge([$category], getCategoryDescendants($category, $catStore)));
+
     foreach (['article', 'project'] as $contentType) {
         if (isset($data[$contentType])) {
             foreach ($data[$contentType] as $item) {
-                if (isset($item['category']) && sanitizeSlug($item['category']) === $category) {
+                if (isset($item['category']) && isset($allowedSlugs[sanitizeSlug($item['category'])])) {
                     $item['_content_type'] = $contentType;
                     $foundItems[]          = $item;
                 }

@@ -179,8 +179,12 @@ function render_article_card($article)
         <?php endif; ?>
         <?php if (!empty($article['tags']) && is_array($article['tags'])): ?>
         <div class="article-tags">
-            <?php foreach ($article['tags'] as $tag): ?>
-            <a href="<?php echo getBaseUrl() . url_slug('tag') . '/' . sanitizeSlug($tag) . '/'; ?>" class="tag-link"><?php echo htmlspecialchars($tag); ?></a>
+            <?php $__tagStore = sl_load_tags(); foreach ($article['tags'] as $tag):
+                $__tagSlug = sanitizeSlug($tag);
+                if ($__tagSlug === '') continue;
+                $__tagName = $__tagStore[$__tagSlug]['name'] ?? $tag;
+            ?>
+            <a href="<?php echo getBaseUrl() . url_slug('tag') . '/' . $__tagSlug . '/'; ?>" class="tag-link"><?php echo htmlspecialchars($__tagName); ?></a>
             <?php endforeach; ?>
         </div>
         <?php endif; ?>
@@ -258,8 +262,12 @@ function render_project_card($project)
             <?php endif; ?>
             <?php if (!empty($project['tags']) && is_array($project['tags'])): ?>
             <div class="project-tags">
-                <?php foreach ($project['tags'] as $tag): ?>
-                <a href="<?php echo getBaseUrl() . url_slug('tag') . '/' . sanitizeSlug($tag) . '/'; ?>" class="tag-link"><?php echo htmlspecialchars($tag); ?></a>
+                <?php $__tagStore = sl_load_tags(); foreach ($project['tags'] as $tag):
+                    $__tagSlug = sanitizeSlug($tag);
+                    if ($__tagSlug === '') continue;
+                    $__tagName = $__tagStore[$__tagSlug]['name'] ?? $tag;
+                ?>
+                <a href="<?php echo getBaseUrl() . url_slug('tag') . '/' . $__tagSlug . '/'; ?>" class="tag-link"><?php echo htmlspecialchars($__tagName); ?></a>
                 <?php endforeach; ?>
             </div>
             <?php endif; ?>

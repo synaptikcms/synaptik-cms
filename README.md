@@ -84,7 +84,7 @@ You can download more free themes for your Synaptik installation on the [Officia
 ### Admin Panel
 - **Media Manager** — upload, browse, rename, move with drag and drop, batch compression
 - **Menu Builder** — drag and drop custom navigation, nested items, external links
-- **Template Editor** — live-edit your theme files with automatic backup before each save
+- **Template Editor** — live-edit your active theme files with automatic backup before each save
 - **SEO Overview** — audit meta titles, descriptions and keywords across all content in one view
 - **Alt Text Assistant** — bulk-edit alt text and captions for gallery images
 - **Sitemap Generator** — one-click XML sitemap, submit URL shown inline

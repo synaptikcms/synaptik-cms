@@ -650,6 +650,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             JSON_PRETTY_PRINT
         ));
 
+        // Step 6 — Self-delete. install.lock is the real safeguard (checked above
+        // on every request), but removing this file closes the window entirely —
+        // no lock file to lose, no way to re-run the installer even if install.lock
+        // is ever deleted by accident. Best-effort: silently ignored if the
+        // filesystem permissions don't allow it (installer stays lock-protected).
+        @unlink(__FILE__);
+
         $success     = true;
         $redirectUrl = $adminDir . '/auth.php';
     }

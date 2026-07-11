@@ -2398,6 +2398,14 @@ document.addEventListener('DOMContentLoaded', function() {
 		formElement.addEventListener('submit', function () {
 			// Only sync when WYSIWYG is the active format
 			if (!window.CONTENT_FORMAT || window.CONTENT_FORMAT === 'html') updateContent();
+
+			// Prevent double-submission (double-click, double-tap, repeated Enter):
+			// a second submit before the page navigates away would create a duplicate
+			// item, since the server-side handler has no idempotency check of its own.
+			// #publish-btn lives outside this <form> (linked via form="content-form"),
+			// so it must be disabled explicitly rather than relying on the form's own state.
+			const publishBtn = document.getElementById('publish-btn');
+			if (publishBtn) publishBtn.disabled = true;
 		});
 	}
 

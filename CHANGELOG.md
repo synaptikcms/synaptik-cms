@@ -2,6 +2,22 @@
 
 All notable changes to SynaptikCMS are documented here.  
 
+## [1.2.1] — 2026-07-11
+
+### Changed
+- Category pages now include content from sub-categories (any depth), instead of only exact category matches
+- Tag and category merge dropdowns are now sorted alphabetically instead of following insertion order
+
+### Fixed
+- Fixed a critical bug where saving an article/page/project with tags could silently overwrite its own slug with the slug of the last tag entered, occasionally causing it to overwrite and delete an unrelated existing item that happened to share that slug
+- Fixed a bug where double-clicking or double-tapping the Publish button could submit the form twice, creating a duplicate article/page/project with an auto-incremented slug
+- Fixed category and tag orphan counts in the admin panel now account for pages, not just articles and projects, so the displayed orphan count matches what the purge action actually removes
+- Fixed Template Editor triggering a "leave page" browser warning when saving a file
+- Article and project cards now display resolved tag names instead of raw slugs 
+- Admin WYSIWYG editor's HTML sanitizer is no longer stripping inline <svg> icons on save
+- Axion theme: fixed display issues (`data-reveal` removed from grid containers whose size depend on number of items) and CSS fixes
+
+---
 
 ## [1.2] — 2026-06-26
 

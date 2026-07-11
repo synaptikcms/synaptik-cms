@@ -424,7 +424,7 @@ $extraFooterScripts = <<<HTML
         }
     });
 
-    form.addEventListener('submit', function () { editor.save(); });
+    form.addEventListener('submit', function () { editor.save(); isDirty = false; });
 
     function syncAndSubmit(cm) { cm.save(); form.submit(); }
 

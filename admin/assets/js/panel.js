@@ -657,10 +657,10 @@ function buildRow(item, meta, contentType, showCategory) {
 						<span class="ria-sep">|</span>
 						<a href="#" class="ria-link ria-duplicate" data-duplicate-url="${duplicateUrl}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>${_esc(meta.i18nDuplicate || 'Duplicate')}</a>
 						<span class="ria-sep">|</span>
-						<button type="button" class="ria-link ria-delete"
+						<span type="button" class="ria-link ria-delete"
 							data-type="${_esc(contentType)}"
 							data-index="${item.idx}"
-							data-title="${_esc(item.title)}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>${_esc(meta.i18nDelete)}</button>
+							data-title="${_esc(item.title)}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>${_esc(meta.i18nDelete)}</span>
 					</div>
 				</div>
 			</div>
