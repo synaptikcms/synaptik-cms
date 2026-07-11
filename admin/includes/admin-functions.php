@@ -882,7 +882,8 @@ function admin_check_for_update(): ?array {
 		 ]);
 		 $json = curl_exec($ch);
 		 if (curl_errno($ch)) $json = false;
-		 curl_close($ch);
+		 // No curl_close() call: deprecated since PHP 8.5 and a no-op since PHP 8.0 —
+		 // handles are freed automatically by garbage collection.
 	 }
 	 if ($json === false && ini_get('allow_url_fopen')) {
 		 $ctx  = stream_context_create(['http' => ['timeout' => 3]]);
@@ -941,7 +942,8 @@ function admin_fetch_news(): array {
 		]);
 		$json = curl_exec($ch);
 		if (curl_errno($ch)) $json = false;
-		curl_close($ch);
+		// No curl_close() call: deprecated since PHP 8.5 and a no-op since PHP 8.0 —
+		// handles are freed automatically by garbage collection.
 	}
 	if ($json === false && ini_get('allow_url_fopen')) {
 		$ctx  = stream_context_create(['http' => ['timeout' => 3]]);
