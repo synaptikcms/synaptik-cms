@@ -105,6 +105,15 @@ $contentTypes = ["article", "page", "project"];
 // Parse the URI to get routing parameters (reads $GLOBALS['data'] for slug resolution)
 $uriParams = parseRequestUri();
 
+// Plugin hook: manual redirects + optional 404→home fallback (Redirects
+// plugin, if active). Positioned here deliberately: after routing is
+// resolved (so we know whether this request is a genuine 404) but before
+// any HTTP header or HTML output. function_exists() guards this to a
+// no-op when the plugin isn't active.
+if (function_exists('rd_maybe_redirect')) {
+	rd_maybe_redirect($uriParams['type'] === '404');
+}
+
 // Override GET parameters if clean URL was used and parsed
 if (!empty($uriParams["type"])) {
 	$_GET["type"] = $uriParams["type"];

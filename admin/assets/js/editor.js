@@ -1263,10 +1263,10 @@ document.addEventListener('DOMContentLoaded', function() {
 			const colorAttr = useColor ? ` data-color="${color}"` : '';
 	
 			const html =
-				`<div class="c-col open" data-level="${level}"${colorAttr}${colorStyle}>` +
-				`<div class="c-head" contenteditable="false">${iconHtml}<span class="c-title" contenteditable="true">${safeTitle}</span><span class="c-chevron">▼</span></div>` +
-				`<div class="c-body"><p>Section content…</p></div>` +
-				`</div><p><br></p>`;
+			`<div class="c-col open" data-level="${level}"${colorAttr}${colorStyle}>` +
+			`<div class="c-head" contenteditable="false">${iconHtml}<span class="c-title" contenteditable="true">${safeTitle}</span><span class="c-chevron">▼</span><button type="button" class="c-del-btn" contenteditable="false" title="${t('editor_col_delete', 'Delete this section')}">✕</button></div>` +
+			`<div class="c-body"><p>Section content…</p></div>` +
+			`</div><p><br></p>`;
 	
 			editorContent.focus();
 			restoreSelection();
@@ -1349,6 +1349,7 @@ document.addEventListener('DOMContentLoaded', function() {
 					`<div class="c-head" contenteditable="false">` +
 					`<span class="c-title" contenteditable="true">Tab ${i + 1}</span>` +
 					`<span class="c-chevron">▼</span>` +
+					`<button type="button" class="c-del-btn" contenteditable="false" title="${t('editor_col_delete', 'Delete this section')}">✕</button>` +
 					`</div>` +
 					`<div class="c-body"><p>Tab content... ${i + 1}…</p></div>` +
 					`</div>`;
@@ -2315,6 +2316,7 @@ document.addEventListener('DOMContentLoaded', function() {
 		} else {
 			// Do not overwrite contentHidden when Markdown editor is active — it owns the field.
 			if (window.CONTENT_FORMAT === 'markdown') return;
+			ensureCollapsibleDeleteButtons();
 			const rawHtml = editorContent.innerHTML;  // ← pas de formatHTML ici
 			contentTextarea.value = rawHtml;
 			contentHidden.value   = rawHtml;
@@ -2365,6 +2367,107 @@ document.addEventListener('DOMContentLoaded', function() {
 
 		// Clean up content after paste
 		setTimeout(cleanupContent, 0);
+		updateContent();
+	});
+
+	/**
+	 * Ensure every .c-col in the editor has a color-picker button and a delete
+	 * button in its .c-head. Needed because .c-col markup can come from three
+	 * sources: freshly inserted (already has both buttons), loaded from existing
+	 * saved content (predates this feature or was pasted/typed manually), or
+	 * restored via source-view toggle. Idempotent — skips heads that already have them.
+	 */
+	function ensureCollapsibleDeleteButtons() {
+		editorContent.querySelectorAll('.c-col > .c-head').forEach(head => {
+			if (!head.querySelector(':scope > .c-color-btn')) {
+				const colorBtn = document.createElement('button');
+				colorBtn.type = 'button';
+				colorBtn.className = 'c-color-btn';
+				colorBtn.setAttribute('contenteditable', 'false');
+				colorBtn.title = t('editor_col_recolor', 'Change section colour');
+				colorBtn.textContent = '🎨';
+				head.appendChild(colorBtn);
+			}
+			if (!head.querySelector(':scope > .c-del-btn')) {
+				const delBtn = document.createElement('button');
+				delBtn.type = 'button';
+				delBtn.className = 'c-del-btn';
+				delBtn.setAttribute('contenteditable', 'false');
+				delBtn.title = t('editor_col_delete', 'Delete this section');
+				delBtn.textContent = '✕';
+				head.appendChild(delBtn);
+			}
+		});
+	}
+
+	/**
+	 * Hidden native color input reused for every .c-col recolor click, rather than
+	 * creating one per section — keeps the editor DOM light on articles with many
+	 * collapsibles. Positioned off-screen; only ever opened programmatically.
+	 */
+	const colColorInput = document.createElement('input');
+	colColorInput.type = 'color';
+	// Kept inside the viewport (opacity:0 + 0x0, not off-screen coordinates) —
+	// some browsers refuse to open the native colour picker on click() when the
+	// triggering element sits outside the visible viewport.
+	colColorInput.style.cssText = 'position:absolute;top:0;left:0;width:0;height:0;padding:0;border:none;opacity:0;pointer-events:none;';
+	editorContainer.appendChild(colColorInput);
+	let colColorTarget = null; // the .c-col currently being recolored
+
+	colColorInput.addEventListener('input', function() {
+		if (!colColorTarget) return;
+		const color = this.value;
+		colColorTarget.style.setProperty('--c-color', color);
+		colColorTarget.style.setProperty('--c-bg', color + '1A');
+		colColorTarget.dataset.color = color;
+	});
+	colColorInput.addEventListener('change', function() {
+		colColorTarget = null;
+		updateContent();
+	});
+
+	/**
+	 * Delete a collapsible section (any level, including tab-group tabs) in one click.
+	 * Event delegation on editorContent so it also covers collapsibles inserted
+	 * dynamically after page load. closest('.c-del-btn') targets the button itself,
+	 * then closest('.c-col') from the button's parent (.c-head) walks up to the
+	 * nearest wrapping section — never a parent of a nested child by mistake,
+	 * since .c-head is always a direct child of its own .c-col.
+	 */
+	editorContent.addEventListener('click', function(e) {
+		// — Recolor button —
+		const colorBtn = e.target.closest('.c-color-btn');
+		if (colorBtn) {
+			e.preventDefault();
+			e.stopPropagation();
+			const col = colorBtn.closest('.c-col');
+			if (!col) return;
+			colColorTarget = col;
+			// Pre-fill the picker with the section's current colour so it opens
+			// on the right hue instead of defaulting to black.
+			colColorInput.value = col.dataset.color || '#60a5fa';
+			colColorInput.click();
+			return;
+		}
+
+		// — Delete button —
+		const delBtn = e.target.closest('.c-del-btn');
+		if (!delBtn) return;
+
+		e.preventDefault();
+		e.stopPropagation();
+
+		const col = delBtn.closest('.c-col');
+		if (!col) return;
+
+		// If this was the only tab left in a tab-group, remove the whole group too
+		const tabGroup = col.parentElement?.classList.contains('tab-group') ? col.parentElement : null;
+		col.remove();
+		if (tabGroup && !tabGroup.querySelector('.c-col')) {
+			tabGroup.remove();
+		}
+
+		cleanupContent();
 		updateContent();
 	});
 
@@ -2492,6 +2595,47 @@ document.addEventListener('DOMContentLoaded', function() {
 	}
 	.editor-content .c-col > .c-head .c-chevron::before{
 	  display:none; /* masque le triangle CSS : on garde le caractère ▼ */
+	}
+	.editor-content .c-col > .c-head .c-color-btn{
+	  display:flex;
+	  align-items:center;
+	  justify-content:center;
+	  width:20px;
+	  height:20px;
+	  padding:0;
+	  margin-left:4px;
+	  border:none;
+	  border-radius:4px;
+	  background:transparent;
+	  font-size:12px;
+	  line-height:1;
+	  cursor:pointer;
+	  opacity:.55;
+	}
+	.editor-content .c-col > .c-head .c-color-btn:hover{
+	  opacity:1;
+	  background:rgba(0,0,0,.06);
+	}
+	.editor-content .c-col > .c-head .c-del-btn{
+	  display:flex;
+	  align-items:center;
+	  justify-content:center;
+	  width:20px;
+	  height:20px;
+	  padding:0;
+	  margin-left:4px;
+	  border:none;
+	  border-radius:4px;
+	  background:transparent;
+	  color:#c0392b;
+	  font-size:12px;
+	  line-height:1;
+	  cursor:pointer;
+	  opacity:.55;
+	}
+	.editor-content .c-col > .c-head .c-del-btn:hover{
+	  opacity:1;
+	  background:rgba(192,57,43,.12);
 	}
 	.editor-content .c-col > .c-body{
 	  display:block !important;      /* toujours visible en édition */

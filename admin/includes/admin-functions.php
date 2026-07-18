@@ -475,6 +475,7 @@ function admin_get_page_title() {
 		if ($action === 'backup')            return __t('backup_export');
 		if ($action === 'menu_builder')      return __t('menu_configuration');
 		if ($action === 'account')           return __t('account');
+		if ($action === 'plugins')           return __t('extensions_title', 'Extensions');
 
 		if (empty($action) && in_array($type, ['article', 'page', 'project'])) {
 			return __t('type_' . $type . 's');

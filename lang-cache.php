@@ -82,6 +82,17 @@ function _lang_cache_is_valid(string $cachePath, string $jsonPath): bool {
 }
 
 /**
+ * Safely calls opcache_invalidate(), swallowing the warning some hosts throw
+ * when opcache.restrict_api blocks the OPcache control API for this script's
+ * path. The cache file itself is already written correctly either way — this
+ * only affects how fast a stale in-memory bytecode copy gets refreshed.
+ */
+function _lang_opcache_invalidate(string $path): void {
+	if (!function_exists('opcache_invalidate')) return;
+	@opcache_invalidate($path, true);
+}
+
+/**
  * Builds (or rebuilds) the PHP cache file for a given locale.
  *
  * The generated file looks like:
@@ -129,10 +140,11 @@ function _lang_build_cache(string $locale, string $jsonPath, string $cachePath):
 	if (file_put_contents($tmpPath, $content, LOCK_EX) !== false) {
 		rename($tmpPath, $cachePath);
 
-		// Invalidate OPcache entry so stale bytecode is not served until next restart
-		if (function_exists('opcache_invalidate')) {
-			opcache_invalidate($cachePath, true);
-		}
+		// Invalidate OPcache entry so stale bytecode is not served until next restart.
+		// Some hosts restrict the OPcache control API (opcache.restrict_api) even
+		// though the function exists — guard with _lang_opcache_invalidate() so a
+		// blocked call degrades silently instead of throwing a warning.
+		_lang_opcache_invalidate($cachePath);
 	} else {
 		// Write failed (permissions) — log and continue without breaking the site
 		error_log("SynaptikCMS lang-cache: cannot write {$cachePath}");
@@ -310,9 +322,7 @@ function lang_cache_purge_all(): void {
 	if (!is_dir($cacheDir)) return;
 	foreach (glob($cacheDir . '*/*.php') as $file) {
 		unlink($file);
-		if (function_exists('opcache_invalidate')) {
-			opcache_invalidate($file, true);
-		}
+		_lang_opcache_invalidate($file);
 	}
 }
 
@@ -324,8 +334,6 @@ function lang_cache_purge(string $locale): void {
 	$cachePath = _lang_cache_path($locale);
 	if (file_exists($cachePath)) {
 		unlink($cachePath);
-		if (function_exists('opcache_invalidate')) {
-			opcache_invalidate($cachePath, true);
-		}
+		_lang_opcache_invalidate($cachePath);
 	}
 }

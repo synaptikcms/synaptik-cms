@@ -10,6 +10,7 @@ require_once dirname(__FILE__) . '/core-functions.php';
 require_once dirname(__FILE__) . '/data-functions.php';
 require_once dirname(__FILE__) . '/theme-api.php';
 require_once dirname(__FILE__) . '/data-layer.php';
+require_once dirname(__FILE__) . '/plugin-api.php';
 
 /**
  * Sanitize a string to create a valid slug
@@ -390,3 +391,11 @@ require_once __DIR__ . '/lang-cache.php';
 		require_once $__path;
 	}
 })();
+
+// ─── Plugin autoload ───────────────────────────────────────────────────────────
+// Loads every plugin marked active in plugins.json (managed from Admin →
+// Extensions). See plugin-api.php for the registry, activation, and hook
+// points a plugin can use. A plugin is a self-contained folder at the CMS
+// root — it owns its own routing, data storage, and admin; this is the only
+// core file a plugin system needs to hook into.
+pl_load_active_plugins();

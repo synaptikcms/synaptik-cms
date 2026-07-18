@@ -4,7 +4,7 @@
 
 **A flat-file PHP CMS. No database. No bloat. Just fast.**
 
-[![Version](https://img.shields.io/badge/version-1.2-6366f1?style=flat-square)](https://github.com/synaptikcms/synaptik-cms/releases)
+[![Version](https://img.shields.io/badge/version-1.3-6366f1?style=flat-square)](https://github.com/synaptikcms/synaptik-cms/releases)
 [![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4?style=flat-square&logo=php&logoColor=white)](https://www.php.net/)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](LICENSE.md)
 [![Size](https://img.shields.io/badge/footprint-2MB-f59e0b?style=flat-square)]()
@@ -42,6 +42,7 @@ It was built for developers, designers, artists or creative professionals, or an
 | Admin panel included | ✓ | ✓ | Plugin | ✓ |
 | WYSIWYG + Markdown | ✓ | ✓ | ✗ | ✓ |
 | Theme system | ✓ hooks/filters | ✓ | ✓ | ✓ |
+| Plugin system | ✓ | ✓ | ✓ | ✓ |
 | Built-in i18n | ✓ EN/FR/ES | Plugin | ✓ | ✓ |
 | Image optimization | ✓ built-in | Plugin | Plugin | Plugin |
 | License | MIT free | GPL free | MIT free | Paid |
@@ -100,6 +101,13 @@ You can download more free themes for your Synaptik installation on the [Officia
 - Theme manager with activate and delete
 - Ships with default theme: `Mono`. More themes can be downloaded at [https://synaptikcms.com/themes/](https://synaptikcms.com/themes/).
 
+### Plugins
+- Self-contained extensions under `/plugins/` — own routing, data storage, and admin screens, with zero core file edits required
+- Plugin pages render inside the real admin panel (sidebar entry, standard layout) once activated
+- Install by uploading a `.zip` from **Admin → Tools → Extensions**, activate and deactivate with one click
+- Activation state tracked separately from installation — deactivating a plugin preserves its data
+- Full plugin developer documentation at [https://synaptikcms.com/docs/plugin-system/](https://synaptikcms.com/docs/plugin-system/)
+
 ### SEO and Performance
 - Meta title, description, keywords per content item
 - Open Graph and Twitter Card tags
@@ -153,7 +161,7 @@ You can download more free themes for your Synaptik installation on the [Officia
 | Extension | Used for |
 |---|---|
 | GD + WebP | WebP conversion — gracefully disabled if absent |
-| `ZipArchive` | Theme upload and automatic updates |
+| `ZipArchive` | Theme and plugin upload, and automatic updates |
 
 ### Apache
 
@@ -191,6 +199,7 @@ The following paths must be writable by the PHP process:
 | `/bckps/` | Backups, CSRF secret |
 | `/admin/` | Credentials, draft autosave |
 | `/theme/` | Theme ZIP upload |
+| `/plugins/` | Plugin ZIP upload and each plugin's own data storage |
 
 Recommended: `755` for directories, `644` for files.
 
@@ -212,9 +221,9 @@ Internet Explorer is not supported.
 [ ] PHP 7.4+ (8.0+ recommended)
 [ ] Extensions: json, mbstring, hash, session, pcre, filter, fileinfo
 [ ] GD with JPEG and PNG support
-[ ] ZipArchive recommended (theme upload, auto-updates)
+[ ] ZipArchive recommended (theme/plugin upload, auto-updates)
 [ ] Root .htaccess in place
-[ ] Write permissions on: /, /data/, /files/, /bckps/, /admin/, /theme/
+[ ] Write permissions on: /, /data/, /files/, /bckps/, /admin/, /theme/, /plugins/
 ```
 
 ---
@@ -236,6 +245,21 @@ theme/
 Optional overrides: `content-articles.php`, `content-pages.php`, `content-projects.php`, `content-list.php`, `404.php`, `functions.php`, `page-templates/`, `partials/`.
 
 The Theme API exposes hooks (`add_action`), filters (`add_filter`), and helpers (`render_site_logo`, `render_header_scripts`, `render_navigation`, etc.). See the documentation for the full reference.
+
+---
+
+## Plugins
+
+Plugins live in `/plugins/{plugin-name}/`. A minimal plugin requires:
+
+```
+plugins/
+└── my-plugin/
+    ├── plugin.json
+    └── my-plugin-init.php
+```
+
+Unlike themes, plugins are not tied to the active theme — once activated from **Admin → Tools → Extensions**, a plugin runs regardless of which theme is in use, and can register its own admin sidebar entry and full admin page rendered inside the standard admin layout. See the [plugin system documentation](https://synaptikcms.com/docs/plugin-system/) for the full developer reference: the plugin API, admin page rendering, front-end shortcode integration, session reuse, CSRF, i18n, and how to package a plugin for distribution.
 
 ---
 

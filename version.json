@@ -1,5 +1,5 @@
 {
-    "version": "1.2.1",
-    "released": "2026-07-11",
-    "notes": "Bug fixes and improvements."
+    "version": "1.3",
+    "released": "2026-07-18",
+    "notes": "Implementation of a plugin system. You can now download existing pluging or develop your own to use or distribute."
 }

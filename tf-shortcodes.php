@@ -11,7 +11,7 @@
  *
  * Pipeline order:
  *  1. Markdown → HTML (when content_format === 'markdown')
- *  2. Strip c-col open class and contenteditable attributes
+ *  2. Strip c-col open class, contenteditable attributes, and admin-only editor buttons
  *  3. [gallery id="X"]
  *  4. [toc]
  *  5. [callout type="..."]...[/callout]
@@ -49,6 +49,11 @@ function render_content_html($html, $item = null)
     // Strip contenteditable attributes
     $html = preg_replace('/\s*contenteditable\s*=\s*"(?:true|false)"/i', '', $html);
     $html = preg_replace("/\s*contenteditable\s*=\s*'(?:true|false)'/i", '', $html);
+
+    // Strip admin-only editor buttons injected by the WYSIWYG editor
+    // (editor.js .c-del-btn, .c-color-btn) — these controls have no purpose
+    // and must never reach visitors.
+    $html = preg_replace('/<button[^>]*\bclass\s*=\s*"[^"]*\b(?:c-del-btn|c-color-btn)\b[^"]*"[^>]*>.*?<\/button>/is', '', $html);
 
     // ── [gallery id="X"] ──────────────────────────────────────────────────────
     if ($item !== null && !empty($item['galleries']) && is_array($item['galleries'])) {

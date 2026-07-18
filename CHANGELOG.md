@@ -2,6 +2,25 @@
 
 All notable changes to SynaptikCMS are documented here.  
 
+## [1.3] — 2026-07-17
+
+### Added
+- **Plugin system** — SynaptikCMS now supports standalone plugins: self-contained folders in `/plugins` (each with a `plugin.json` manifest) that extend the site without modifying core files. Plugins hook into the existing theme API (`add_theme_action`, `apply_theme_filters`) for front-end behaviour, and into a new lightweight hook system for admin integration.
+- **Extensions page** (Tools → Extensions) — lists every plugin detected at the CMS root, with one-click activate/deactivate. Activation state is stored in `plugins.json`.
+- Active plugins can register their own entry in the admin sidebar, and render a full page inside the standard admin layout (sidebar, top bar, footer) via a new generic plugin page router — no plugin needs to reimplement the admin chrome.
+- First plugin built on this system: **Booking**, a standalone appointment-booking module (separate download, not bundled with core) — public calendar with weekly recurring availability and date exceptions, per-type appointment durations, admin approval workflow (pending/confirmed/refused/cancelled), and automatic email notifications with `.ics` calendar attachments for both the client and the site admin, including optional phone-callback reminders.
+
+### Changed
+- Admin WYSIWYG editor: added a delete button to collapsible sections and tab-group tabs (hover the section header), retroactively applied to existing content on load
+- Admin WYSIWYG editor: added a colour-picker button next to the delete button on collapsible sections and tab-group tabs, letting you change a section's accent colour instantly without reopening the source view
+
+### New Plugins
+- **Booking** - Standalone appointment booking module with calendar availability, admin approval workflow, and ICS calendar invites.
+- **Newsletter** - Email newsletter signup with double opt-in and a manual article digest sender.
+- **Redirects** - Manual 301/302 URL redirects, plus an optional 404-to-home fallback.
+
+---
+
 ## [1.2.1] — 2026-07-11
 
 ### Changed

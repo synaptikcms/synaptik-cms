@@ -47,6 +47,8 @@ $_sb_appearance_active = in_array($_sb_action, ['appearance', 'manage_themes', '
 $_sb_settings_active   = in_array($_sb_action, ['settings']);
 $_sb_tools_active      = $_sb_action === 'backup'
 	|| $_sb_action === 'translations'
+	|| $_sb_action === 'plugins'
+	|| $_sb_action === 'plugin_page'
 	|| in_array($_sb_file, ['batch-optimize.php', 'alt-text-assistant.php', 'sitemap-generator.php', 'seo-overview.php']);
 $_sb_account_active    = $_sb_action === 'account';
 $_sb_settings_tab      = $_GET['tab'] ?? '';
@@ -235,6 +237,8 @@ function sb_icon(string $name, string $class = ''): string {
 			<li><a href="seo-overview.php" class="sidebar-subitem <?php echo $_sb_file === 'seo-overview.php' ? 'active' : ''; ?>"><?php _e('seo_overview'); ?></a></li>
 			<li><a href="sitemap-generator.php" class="sidebar-subitem <?php echo $_sb_file === 'sitemap-generator.php' ? 'active' : ''; ?>"><?php _e('sitemap_generator'); ?></a></li>
 			<li><a href="index.php?action=translations" class="sidebar-subitem <?php echo $_sb_action === 'translations' ? 'active' : ''; ?>"><?php _e('translations_title'); ?></a></li>
+			<li class="sidebar-subitem-sep"></li>
+			<li><a href="index.php?action=plugins" class="sidebar-subitem <?php echo $_sb_action === 'plugins' ? 'active' : ''; ?>"><?php _e('extensions_title'); ?></a></li>
 		</ul>
 		<div class="sidebar-flyout-panel" data-flyout-panel="tools" role="menu" aria-hidden="true">
 			<div class="sidebar-flyout-label"><?php _e('tools'); ?></div>
@@ -244,10 +248,42 @@ function sb_icon(string $name, string $class = ''): string {
 			<a href="seo-overview.php" class="sidebar-flyout-link <?php echo $_sb_file === 'seo-overview.php' ? 'active' : ''; ?>" role="menuitem"><?php _e('seo_overview'); ?></a>
 			<a href="sitemap-generator.php" class="sidebar-flyout-link <?php echo $_sb_file === 'sitemap-generator.php' ? 'active' : ''; ?>" role="menuitem"><?php _e('sitemap_generator'); ?></a>
 			<a href="index.php?action=translations" class="sidebar-flyout-link <?php echo $_sb_action === 'translations' ? 'active' : ''; ?>" role="menuitem"><?php _e('translations_title'); ?></a>
+			<div class="sidebar-flyout-sep"></div>
+			<a href="index.php?action=plugins" class="sidebar-flyout-link <?php echo $_sb_action === 'plugins' ? 'active' : ''; ?>" role="menuitem"><?php _e('extensions_title'); ?></a>
 		</div>
 	</div>
 
 	<div class="sidebar-divider"></div>
+
+	<?php
+	/* ── Active plugins (registered via the 'admin_menu' hook, see plugin-api.php) ──
+	 * Each active plugin can call pl_register_admin_menu() to add itself here.
+	 * Rendered as simple top-level links, same visual pattern as Dashboard/Media.
+	 * plugin-api.php is guaranteed loaded here rather than assumed — most admin
+	 * pages only load includes/admin-functions.php, which does not pull it in. */
+	if (!function_exists('pl_get_admin_menu_items')) {
+		require_once dirname(dirname(__DIR__)) . '/plugin-api.php';
+	}
+	$_sb_plugin_items = pl_get_admin_menu_items();
+	if (!empty($_sb_plugin_items)):
+	?>
+	<div class="sidebar-section">
+		<ul>
+			<?php foreach ($_sb_plugin_items as $_sb_pi): ?>
+			<li>
+				<a href="<?php echo htmlspecialchars($_sb_pi['url']); ?>" class="sidebar-simple-link" data-label="<?php echo htmlspecialchars($_sb_pi['label']); ?>">
+					<?php if (!empty($_sb_pi['icon'])): ?>
+					<svg class="sb-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><?php echo $_sb_pi['icon']; ?></svg>
+					<?php endif; ?>
+					<?php echo htmlspecialchars($_sb_pi['label']); ?>
+				</a>
+			</li>
+			<?php endforeach; ?>
+		</ul>
+	</div>
+
+	<div class="sidebar-divider"></div>
+	<?php endif; ?>
 
 	<?php /* ── Account ──────────────────────────────────────── */ ?>
 	<div class="sidebar-section sidebar-theme-section">

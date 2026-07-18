@@ -146,6 +146,54 @@ $data = admin_load_data();
 $action = $_GET['action'] ?? '';
 $type   = $_GET['type']   ?? '';
 
+// Plugin page router — renders a plugin's admin page inside the standard
+// admin layout (sidebar, topbar, footer). A plugin exposes
+// "{slug}_render_admin_page(string $view): array" (see plugin-api.php and
+// the Booking plugin's admin/admin-page.php for the reference contract).
+// Handled separately from the ob_start() block below because $pageTitle
+// and $extraHead come from the plugin's own return value, not from
+// admin_get_page_title() / a static <head> block.
+if ($action === 'plugin_page') {
+	require_once dirname(__DIR__) . '/plugin-api.php';
+
+	$_pluginSlug = preg_replace('/[^a-z0-9_-]/', '', $_GET['slug'] ?? '');
+	$_pluginView = preg_replace('/[^a-z0-9_-]/', '', $_GET['view'] ?? '');
+
+	if ($_pluginSlug === '' || !pl_is_active($_pluginSlug)) {
+		http_response_code(404);
+		$pageTitle   = __t('extensions_title', 'Extensions');
+		$pageContent = '<div class="site-settings-section"><p>' . htmlspecialchars(__t('extensions_no_plugins', 'Plugin not found or not active.')) . '</p></div>';
+		require_once 'includes/layout.php';
+		exit;
+	}
+
+	// Ensure the plugin's entry file is loaded — this admin-only request
+	// doesn't go through functions.php's front-end pl_load_active_plugins().
+	$_pluginDiscovered = pl_discover_plugins();
+	if (isset($_pluginDiscovered[$_pluginSlug])) {
+		pl_load_plugin($_pluginSlug, $_pluginDiscovered[$_pluginSlug]);
+	}
+
+	$_pluginRenderFn = preg_replace('/[^a-z0-9_]/', '_', $_pluginSlug) . '_render_admin_page';
+
+	if (!function_exists($_pluginRenderFn)) {
+		http_response_code(500);
+		$pageTitle   = __t('extensions_title', 'Extensions');
+		$pageContent = '<div class="site-settings-section"><p>Plugin "' . htmlspecialchars($_pluginSlug) . '" does not expose an admin page renderer.</p></div>';
+		require_once 'includes/layout.php';
+		exit;
+	}
+
+	$_pluginResult = $_pluginRenderFn($_pluginView);
+
+	$pageTitle   = $_pluginResult['title']      ?? $_pluginSlug;
+	$pageContent = $_pluginResult['html']       ?? '';
+	$extraHead   = $_pluginResult['extra_head'] ?? '';
+
+	require_once 'includes/layout.php';
+	exit;
+}
+
 ob_start();
 if ($action === 'add' || $action === 'edit' || $action === 'delete' || $action === 'drafts' || $action === 'manage_categories' || $action === 'manage_tags' || $action === 'manage_themes') {
 	include_once 'content.php';
@@ -163,6 +211,8 @@ if ($action === 'add' || $action === 'edit' || $action === 'delete' || $action =
 	include 'templates/update.php';
 } elseif ($action === 'drafts') {
 	include 'templates/drafts.php';
+} elseif ($action === 'plugins') {
+	include 'templates/plugins-manager.php';
 } elseif ($type === 'article' || $type === 'page' || $type === 'project') {
 	include_once 'content.php';
 } else {
