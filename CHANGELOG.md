@@ -2,7 +2,7 @@
 
 All notable changes to SynaptikCMS are documented here.  
 
-## [1.3] — 2026-07-17
+## [1.3] — 2026-07-18
 
 ### Added
 - **Plugin system** — SynaptikCMS now supports standalone plugins: self-contained folders in `/plugins` (each with a `plugin.json` manifest) that extend the site without modifying core files. Plugins hook into the existing theme API (`add_theme_action`, `apply_theme_filters`) for front-end behaviour, and into a new lightweight hook system for admin integration.
