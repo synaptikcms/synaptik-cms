@@ -16,6 +16,7 @@
  * Token: stored in private/reset_token.json (protected by .htaccess)
  * TTL  : 15 minutes
  */
+require_once __DIR__ . '/includes/session-config.php';
 session_start();
 require_once 'includes/admin-functions.php';
 

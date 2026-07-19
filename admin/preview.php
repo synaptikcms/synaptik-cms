@@ -3,6 +3,7 @@
  * preview.php — SynaptikCMS Live preview of unpublished content 
  */
 
+require_once __DIR__ . '/includes/session-config.php';
 session_start();
 
 // ── Auth ──────────────────────────────────────────────────────────────────────

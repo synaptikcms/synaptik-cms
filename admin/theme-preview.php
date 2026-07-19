@@ -14,6 +14,7 @@
  * TTL: 2 hours. Secret: sha256(adminPasswordHash + salt).
  */
 
+require_once __DIR__ . '/includes/session-config.php';
 session_start();
 
 // ── Auth ──────────────────────────────────────────────────────────────────────

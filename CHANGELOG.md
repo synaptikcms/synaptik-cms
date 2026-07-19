@@ -2,6 +2,26 @@
 
 All notable changes to SynaptikCMS are documented here.  
 
+## [1.3.1] — 2026-07-19
+
+### Added
+- **Booking plugin**: new "History" tab listing all past appointments (any status), separate from Requests, which now only shows upcoming ones.
+- **New Maintenance plugin**: puts up a maintenance page for visitors (HTTP 503, custom message) while a logged-in admin keeps browsing the site normally.
+
+### Changed
+- **Plugin system**: replaced the core-file-specific hooks used by the Maintenance and Redirects plugins (`index.php` calling `mt_maybe_block()` / `rd_maybe_redirect()` by name) with two generic hook points any plugin can use without ever touching a core file: `early_request` (fired right after `functions.php` loads, before routing or output — for blocking/intercepting the whole request) and `after_routing` (fired once the route is resolved, with whether the request is a genuine 404 — for redirect-style logic). `index.php` no longer references any plugin by name. See the updated Plugin System documentation for details.
+- Confirmation messages in the Maintenance, Booking, Newsletter, and Redirects plugin admin pages now use the same auto-dismissing message style as the rest of the admin panel, instead of a plugin-specific banner that stayed on screen until the page was reloaded.
+[Download Plugins](https://synaptikcms.com/plugins/)
+
+### Fixed
+- Fixed admin sessions being shared between separate SynaptikCMS installs living under the same domain (e.g. a demo site in a sub-folder) — each install's admin login now uses its own uniquely-named session cookie, so logging into one no longer silently logs you into another with the wrong account name displayed.
+- Fixed active plugins' own admin pages incorrectly highlighting the "Tools" sidebar section instead of the plugin's own top-level sidebar entry.
+- Fixed active plugins' sidebar links reordering themselves depending on which plugin's admin page was currently open, instead of keeping a stable order.
+- **Redirects plugin**: fixed the admin sidebar link and post-save redirects pointing to a broken URL (e.g. `/plugins/admin/index.php?...` or a doubled `/admin/admin/...`) on any install not living at the domain root — admin-side URL building now resolves the CMS root from the plugin's filesystem path instead of the request-dependent `getBaseUrl()`.
+- **Redirects plugin**: fixed redirect destinations entered as a relative path (e.g. `/nouvel-article/`) sending visitors to the domain root instead of the CMS's own sub-directory — the stored destination is now resolved against the site's base URL before being sent in the `Location` header. Full external URLs (`https://...`) are unaffected.
+
+---
+
 ## [1.3] — 2026-07-17
 
 ### Added
@@ -18,6 +38,7 @@ All notable changes to SynaptikCMS are documented here.
 - **Booking** - Standalone appointment booking module with calendar availability, admin approval workflow, and ICS calendar invites.
 - **Newsletter** - Email newsletter signup with double opt-in and a manual article digest sender.
 - **Redirects** - Manual 301/302 URL redirects, plus an optional 404-to-home fallback.
+[Plugins downloadable here](https://synaptikcms.com/plugins/)
 
 ---
 
@@ -33,7 +54,7 @@ All notable changes to SynaptikCMS are documented here.
 - Fixed category and tag orphan counts in the admin panel now account for pages, not just articles and projects, so the displayed orphan count matches what the purge action actually removes
 - Fixed Template Editor triggering a "leave page" browser warning when saving a file
 - Article and project cards now display resolved tag names instead of raw slugs 
-- Admin WYSIWYG editor's HTML sanitizer is no longer stripping inline <svg> icons on save
+- Admin WYSIWYG editor's HTML sanitizer is no longer stripping inline `<svg>` icons on save
 - Axion theme: fixed display issues (`data-reveal` removed from grid containers whose size depend on number of items) and CSS fixes
 
 ---

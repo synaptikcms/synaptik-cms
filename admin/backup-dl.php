@@ -15,6 +15,7 @@
  *   - Extension whitelist: only .zip and .json files are served
  */
 
+require_once __DIR__ . '/includes/session-config.php';
 session_start();
 require_once __DIR__ . '/includes/admin-functions.php';
 

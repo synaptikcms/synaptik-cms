@@ -6,6 +6,7 @@
 
 // Pas de session_start() ici : appelé directement depuis le navigateur,
 // la session n'est PAS encore démarrée (contrairement à index.php).
+require_once __DIR__ . '/includes/session-config.php';
 session_start();
 
 define('INCLUDED', true);

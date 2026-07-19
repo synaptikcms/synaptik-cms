@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/includes/session-config.php';
 session_start();
 if (!isset($_SESSION['admin'])) {
 	if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {

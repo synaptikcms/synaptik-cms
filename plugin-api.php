@@ -21,11 +21,28 @@
  *                                   sidebar entries via pl_register_admin_menu()
  *   - 'plugin_activate_{slug}'    (pl_do_hook) — fired once on activation
  *   - 'plugin_deactivate_{slug}'  (pl_do_hook) — fired once on deactivation
+ *   - 'early_request'             (pl_do_hook, no args) — fired from index.php
+ *                                   immediately after functions.php loads,
+ *                                   before the data layer, routing, or any
+ *                                   output. For a plugin that needs to
+ *                                   intercept/block the entire request
+ *                                   before the site does any work (e.g. a
+ *                                   maintenance-mode page).
+ *   - 'after_routing'             (pl_do_hook, bool $isGenuine404) — fired
+ *                                   from index.php right after
+ *                                   parseRequestUri() resolves the route,
+ *                                   before any HTTP header or HTML output.
+ *                                   For a plugin that needs to know whether
+ *                                   the current request is a genuine 404
+ *                                   before deciding to redirect or otherwise
+ *                                   intervene (e.g. custom redirects).
  *
- * Front-end plugin hooks (before_content, footer_scripts, etc.) still go
- * through theme-api.php's add_theme_action() as before — that system is
- * unaffected by this file and remains the right tool for anything rendered
- * as part of a front-end page.
+ * Front-end plugin hooks that fire *during* template rendering
+ * (before_content, footer_scripts, etc.) still go through theme-api.php's
+ * add_theme_action() as before — that system is unaffected by this file
+ * and remains the right tool for anything rendered as part of a front-end
+ * page. 'early_request' and 'after_routing' above cover the two points
+ * upstream of rendering that add_theme_action() has no access to.
  */
 
 if (defined('PLUGIN_API_LOADED')) return;
@@ -48,11 +65,11 @@ function pl_add_hook(string $hook, callable $callback): void
     $GLOBALS['_pl_hooks'][$hook][] = $callback;
 }
 
-function pl_do_hook(string $hook): void
+function pl_do_hook(string $hook, mixed $arg = null): void
 {
     if (empty($GLOBALS['_pl_hooks'][$hook])) return;
     foreach ($GLOBALS['_pl_hooks'][$hook] as $callback) {
-        call_user_func($callback);
+        call_user_func($callback, $arg);
     }
 }
 

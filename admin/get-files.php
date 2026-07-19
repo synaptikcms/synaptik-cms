@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/includes/session-config.php';
 session_start();
 // Generate CSRF token if it doesn't exist
 if (empty($_SESSION['csrf_token'])) {

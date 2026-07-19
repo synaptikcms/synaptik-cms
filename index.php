@@ -3,6 +3,15 @@ ini_set('memory_limit', '256M');
 session_start();
 // Include the functions file
 require_once 'functions.php';
+
+// Generic plugin hook: fired as early as possible in the request —
+// right after functions.php (so pl_load_active_plugins() has run) and
+// before the data layer, routing, or any output. A plugin that needs to
+// intercept/block the entire request before the site does any work (e.g.
+// a maintenance-mode page) registers here via pl_add_hook('early_request', ...)
+// from its own init file — index.php itself never names a specific plugin.
+pl_do_hook('early_request');
+
 // Load the new split-file data layer
 require_once 'data-layer.php';
 
@@ -105,14 +114,13 @@ $contentTypes = ["article", "page", "project"];
 // Parse the URI to get routing parameters (reads $GLOBALS['data'] for slug resolution)
 $uriParams = parseRequestUri();
 
-// Plugin hook: manual redirects + optional 404→home fallback (Redirects
-// plugin, if active). Positioned here deliberately: after routing is
-// resolved (so we know whether this request is a genuine 404) but before
-// any HTTP header or HTML output. function_exists() guards this to a
-// no-op when the plugin isn't active.
-if (function_exists('rd_maybe_redirect')) {
-	rd_maybe_redirect($uriParams['type'] === '404');
-}
+// Generic plugin hook: fired right after parseRequestUri() resolves the
+// route, before any HTTP header or HTML output. Passes whether this
+// request is a genuine 404 so a plugin can act on it (e.g. custom
+// redirects, or a 404→home fallback). A plugin registers here via
+// pl_add_hook('after_routing', ...) from its own init file — index.php
+// itself never names a specific plugin.
+pl_do_hook('after_routing', $uriParams['type'] === '404');
 
 // Override GET parameters if clean URL was used and parsed
 if (!empty($uriParams["type"])) {

@@ -19,6 +19,7 @@
  * affected locale is purged after every successful save/create.
  */
 
+require_once __DIR__ . '/includes/session-config.php';
 session_start();
 require_once __DIR__ . '/includes/admin-functions.php';
 

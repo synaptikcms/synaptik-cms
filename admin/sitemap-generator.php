@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/includes/session-config.php';
 session_start();
 if (!isset($_SESSION['admin'])) {
     header('Location: auth.php');

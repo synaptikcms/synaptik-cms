@@ -5,6 +5,7 @@
  * Validates the one-time token from the URL, then lets the admin set a new
  * password. On success, consumes the token (unlinks it) and redirects to login.
  */
+require_once __DIR__ . '/includes/session-config.php';
 session_start();
 require_once __DIR__ . '/includes/admin-functions.php';
 

@@ -7,6 +7,7 @@
  * for plugin.json instead of theme.json and /plugins/ instead of /theme/.
  */
 
+require_once __DIR__ . '/includes/session-config.php';
 session_start();
 
 define('INCLUDED', true);

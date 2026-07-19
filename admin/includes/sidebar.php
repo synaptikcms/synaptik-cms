@@ -48,8 +48,12 @@ $_sb_settings_active   = in_array($_sb_action, ['settings']);
 $_sb_tools_active      = $_sb_action === 'backup'
 	|| $_sb_action === 'translations'
 	|| $_sb_action === 'plugins'
-	|| $_sb_action === 'plugin_page'
 	|| in_array($_sb_file, ['batch-optimize.php', 'alt-text-assistant.php', 'sitemap-generator.php', 'seo-overview.php']);
+
+// An active plugin's own admin page (action=plugin_page&slug=...) must
+// highlight that plugin's top-level sidebar link instead of "Tools" —
+// only the Extensions list itself (action=plugins) belongs under Tools.
+$_sb_plugin_slug        = ($_sb_action === 'plugin_page') ? ($_GET['slug'] ?? '') : '';
 $_sb_account_active    = $_sb_action === 'account';
 $_sb_settings_tab      = $_GET['tab'] ?? '';
 
@@ -270,8 +274,9 @@ function sb_icon(string $name, string $class = ''): string {
 	<div class="sidebar-section">
 		<ul>
 			<?php foreach ($_sb_plugin_items as $_sb_pi): ?>
+			<?php $_sb_pi_active = ($_sb_plugin_slug !== '' && $_sb_plugin_slug === $_sb_pi['slug']); ?>
 			<li>
-				<a href="<?php echo htmlspecialchars($_sb_pi['url']); ?>" class="sidebar-simple-link" data-label="<?php echo htmlspecialchars($_sb_pi['label']); ?>">
+				<a href="<?php echo htmlspecialchars($_sb_pi['url']); ?>" class="sidebar-simple-link <?php echo $_sb_pi_active ? 'active' : ''; ?>" data-label="<?php echo htmlspecialchars($_sb_pi['label']); ?>">
 					<?php if (!empty($_sb_pi['icon'])): ?>
 					<svg class="sb-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><?php echo $_sb_pi['icon']; ?></svg>
 					<?php endif; ?>

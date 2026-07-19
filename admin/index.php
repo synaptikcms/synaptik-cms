@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/includes/session-config.php';
 session_start();
 if (empty($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -167,12 +168,14 @@ if ($action === 'plugin_page') {
 		exit;
 	}
 
-	// Ensure the plugin's entry file is loaded — this admin-only request
-	// doesn't go through functions.php's front-end pl_load_active_plugins().
-	$_pluginDiscovered = pl_discover_plugins();
-	if (isset($_pluginDiscovered[$_pluginSlug])) {
-		pl_load_plugin($_pluginSlug, $_pluginDiscovered[$_pluginSlug]);
-	}
+	// Load every active plugin, in registry order — not just the one being
+	// viewed. Loading only $_pluginSlug here would make its admin_menu hook
+	// register before pl_get_admin_menu_items() (called later by the
+	// sidebar) loads the others, so whichever plugin page was open would
+	// always jump to the top of the sidebar's plugin list. Loading them all
+	// up front, in the same order the sidebar itself uses, keeps that list
+	// stable regardless of which plugin page is currently active.
+	pl_load_active_plugins();
 
 	$_pluginRenderFn = preg_replace('/[^a-z0-9_]/', '_', $_pluginSlug) . '_render_admin_page';
 

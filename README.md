@@ -9,7 +9,7 @@
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](LICENSE.md)
 [![Size](https://img.shields.io/badge/footprint-2MB-f59e0b?style=flat-square)]()
 
-[Live Demo](https://synaptikcms.com/synaptik-demo/) · [Download Themes](https://synaptikcms.com/themes/) · [Documentation](https://synaptikcms.com/docs/) · [Changelog](CHANGELOG.md) · [Report a Bug](https://github.com/synaptikcms/synaptik-cms/issues)
+[Live Demo](https://synaptikcms.com/synaptik-demo/) · [Download Themes](https://synaptikcms.com/themes/) · [Download Plugins](https://synaptikcms.com/plugins/) · [Documentation](https://synaptikcms.com/docs/) · [Changelog](CHANGELOG.md) · [Report a Bug](https://github.com/synaptikcms/synaptik-cms/issues)
 
 ![Dashboard](.github/assets/dashboard-light.png)
 ![Dashboard Dark](.github/assets/dashboard-dark.png)
