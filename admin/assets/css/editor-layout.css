@@ -139,7 +139,7 @@
 .checkbox-group { display: flex; flex-direction: column; gap: 6px; }
 .sidebar-panel .checkbox-label { display: flex !important; align-items: center; gap: 10px; position: relative; margin: 0 10px 0 0 !important; padding: 8px; border-radius: var(--radius-sm); font-size: .9em !important; font-weight: normal !important; cursor: pointer; transition: background .2s ease; }
 .checkbox-label:hover { background: var(--primary-soft); }
-.sidebar-panel .checkbox-label input[type="checkbox"] { width: auto !important; margin: 0 !important; cursor: pointer; }
+.sidebar-panel .checkbox-label input[type="checkbox"] { cursor: pointer; }
 .suggestions-box { display: none; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; max-height: 150px; overflow-y: auto; padding: 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); opacity: 0; transform: translateY(-10px); transition: all .3s cubic-bezier(0.4, 0, 0.2, 1); }
 .suggestions-box.show { opacity: 1; transform: translateY(0); }
 
