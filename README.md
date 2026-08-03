@@ -107,6 +107,7 @@ You can download more free themes for your Synaptik installation on the [Officia
 - Install by uploading a `.zip` from **Admin → Tools → Extensions**, activate and deactivate with one click
 - Activation state tracked separately from installation — deactivating a plugin preserves its data
 - Full plugin developer documentation at [https://synaptikcms.com/docs/plugin-system/](https://synaptikcms.com/docs/plugin-system/)
+- Official plugins can be downloaded at [https://synaptikcms.com/plugins/](https://synaptikcms.com/plugins/).
 
 ### SEO and Performance
 - Meta title, description, keywords per content item
