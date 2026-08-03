@@ -27,6 +27,35 @@ function getCategoryPath(string $categorySlug, array $data): string {
 }
 
 /**
+ * Return every descendant slug (children, grandchildren, etc.) of a category.
+ * Used to make category pages inclusive of their sub-categories' content.
+ *
+ * @param string $categorySlug  The slug of the parent category
+ * @param array  $categories    The categories store (slug => {name, parent, description})
+ * @return array                Flat array of descendant slugs (does not include $categorySlug itself)
+ */
+function getCategoryDescendants(string $categorySlug, array $categories): array {
+    if (empty($categorySlug)) return [];
+
+    $descendants = [];
+    $queue       = [$categorySlug];
+    $visited     = [$categorySlug => true]; // Guard against circular references
+
+    while (!empty($queue)) {
+        $parentSlug = array_shift($queue);
+        foreach ($categories as $slug => $cat) {
+            if (($cat['parent'] ?? '') === $parentSlug && !isset($visited[$slug])) {
+                $visited[$slug]    = true;
+                $descendants[]     = $slug;
+                $queue[]           = $slug;
+            }
+        }
+    }
+
+    return $descendants;
+}
+
+/**
  * Data Functions
  *
  * Handle data loading, saving, and manipulation for the CMS.
@@ -230,11 +259,14 @@ function getCategories($contentType, $data)
         return [];
     }
 
+    $catStore   = function_exists('sl_load_categories') ? sl_load_categories() : [];
     $categories = [];
     foreach ($data[$contentType] as $item) {
         if (isset($item['category']) && !empty($item['category'])) {
             $categorySlug = sanitizeSlug($item['category']);
-            $categories[$categorySlug] = $item['category'];
+            if (!isset($categories[$categorySlug])) {
+                $categories[$categorySlug] = $catStore[$categorySlug]['name'] ?? $item['category'];
+            }
         }
     }
 
@@ -253,12 +285,16 @@ function getTags($contentType, $data)
         return [];
     }
 
+    $tagStore = function_exists('sl_load_tags') ? sl_load_tags() : [];
     $tags = [];
     foreach ($data[$contentType] as $item) {
         if (isset($item['tags']) && is_array($item['tags'])) {
-            foreach ($item['tags'] as $tag) {
-                $tagSlug = sanitizeSlug($tag);
-                $tags[$tagSlug] = $tag;
+            foreach ($item['tags'] as $tagRaw) {
+                $tagSlug = sanitizeSlug($tagRaw);
+                if ($tagSlug === '') continue;
+                if (!isset($tags[$tagSlug])) {
+                    $tags[$tagSlug] = $tagStore[$tagSlug]['name'] ?? $tagRaw;
+                }
             }
         }
     }
@@ -279,6 +315,15 @@ function generateSEO($pageTitle, $type, $slug, $data, $settings)
 {
     $metaTitle = $settings["site_title"]; // Default
     $metaDescription = $settings["site_description"]; // Default
+
+    // Homepage SEO overrides (homepage_type === 'default' only;
+    // when a page is set as homepage it carries its own meta fields).
+    if (empty($type) && empty($slug)) {
+        if (!empty($settings['home_meta_title']))
+            $metaTitle = decodeHtmlEntities($settings['home_meta_title']);
+        if (!empty($settings['home_meta_description']))
+            $metaDescription = decodeHtmlEntities($settings['home_meta_description']);
+    }
 
     if (!empty($type) && !empty($slug)) {
         // Individual content page
@@ -330,17 +375,20 @@ function generateSEO($pageTitle, $type, $slug, $data, $settings)
  */
 function renderCategoryPage($category, $data)
 {
-    // Collect matching items before opening the output buffer
-    $categoryName = '';
-    $foundItems   = [];
+    // Resolve display name from the categories store; fall back to the slug itself
+    $catStore    = function_exists('sl_load_categories') ? sl_load_categories() : [];
+    $categoryName = $catStore[$category]['name'] ?? $category;
+    $foundItems  = [];
+
+    // A category page includes items from the category itself AND all of its
+    // sub-categories (any depth), so a parent category is never shown empty
+    // just because all its content lives under a child category.
+    $allowedSlugs = array_flip(array_merge([$category], getCategoryDescendants($category, $catStore)));
 
     foreach (['article', 'project'] as $contentType) {
         if (isset($data[$contentType])) {
             foreach ($data[$contentType] as $item) {
-                if (isset($item['category']) && sanitizeSlug($item['category']) === $category) {
-                    if (empty($categoryName)) {
-                        $categoryName = $item['category'];
-                    }
+                if (isset($item['category']) && isset($allowedSlugs[sanitizeSlug($item['category'])])) {
                     $item['_content_type'] = $contentType;
                     $foundItems[]          = $item;
                 }
@@ -413,8 +461,9 @@ function renderCategoryPage($category, $data)
  */
 function renderTagPage($tag, $data)
 {
-    // Collect matching items before opening the output buffer
-    $tagName    = '';
+    // Resolve display name from the tags store; fall back to the slug itself
+    $tagStore   = function_exists('sl_load_tags') ? sl_load_tags() : [];
+    $tagName    = $tagStore[$tag]['name'] ?? $tag;
     $foundItems = [];
 
     foreach (['article', 'project'] as $contentType) {
@@ -423,9 +472,6 @@ function renderTagPage($tag, $data)
                 if (isset($item['tags']) && is_array($item['tags'])) {
                     foreach ($item['tags'] as $itemTag) {
                         if (sanitizeSlug($itemTag) === $tag) {
-                            if (empty($tagName)) {
-                                $tagName = $itemTag;
-                            }
                             $item['_content_type'] = $contentType;
                             $foundItems[]          = $item;
                             break;

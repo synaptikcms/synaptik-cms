@@ -4,8 +4,28 @@
     Deny from all
 </Files>
 
+# Session security directives — works with both mod_php and PHP-FPM
+<IfModule mod_php.c>
+    php_value session.cookie_httponly  1
+    php_value session.cookie_samesite  Lax
+    php_value session.cookie_secure    1
+    php_value session.use_strict_mode  1
+</IfModule>
+<IfModule mod_php7.c>
+    php_value session.cookie_httponly  1
+    php_value session.cookie_samesite  Lax
+    php_value session.cookie_secure    1
+    php_value session.use_strict_mode  1
+</IfModule>
+<IfModule mod_php8.c>
+    php_value session.cookie_httponly  1
+    php_value session.cookie_samesite  Lax
+    php_value session.cookie_secure    1
+    php_value session.use_strict_mode  1
+</IfModule>
+
 # -----------------------------------------------
-# Security Headers — Admin /deevious/
+# Security Headers — Admin
 # -----------------------------------------------
 <IfModule mod_headers.c>
     # Clickjacking : l'admin ne doit jamais s'afficher dans une iframe, même du même domaine
@@ -25,4 +45,34 @@
     # style-src   : self + CodeMirror (cdnjs) + Google Fonts CSS (fonts.googleapis.com)
     # font-src    : self + CodeMirror (cdnjs) + Google Fonts fichiers (fonts.gstatic.com)
     Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://code.jquery.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'none';"
+</IfModule>
+
+# ── Browser caching ────────────────────────────────────────────
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/html                 "access plus 1 hour"
+    ExpiresByType text/css                  "access plus 1 year"
+    ExpiresByType application/javascript    "access plus 1 year"
+    ExpiresByType text/javascript           "access plus 1 year"
+    ExpiresByType image/jpeg                "access plus 1 year"
+    ExpiresByType image/webp                "access plus 1 year"
+    ExpiresByType image/svg+xml             "access plus 1 year"
+    ExpiresByType font/woff2                "access plus 1 year"
+    ExpiresByType application/json          "access plus 0 seconds"
+    ExpiresByType application/xml           "access plus 0 seconds"
+</IfModule>
+
+# ── Compression gzip ───────────────────────────────────────────
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE text/shtml
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/x-javascript
 </IfModule>

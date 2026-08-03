@@ -1,6 +1,5 @@
 {
-    "version": "0.9",
-    "released": "2026-05-23",
-    "notes": "Beta public version",
-    "download_url": "https://github.com/SynaptikCMS/synaptik-cms"
+    "version": "1.3.2",
+    "released": "2026-08-03",
+    "notes": "Various improvements and bug fixes, new plugins."
 }

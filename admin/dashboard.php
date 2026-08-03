@@ -5,7 +5,7 @@ if (!defined('INCLUDED')) {
 }
 
 // ── Media stats — read from cache, rebuild only when stale ───────────────────
-$_sb_mediaCache  = dirname(__DIR__) . '/private/media-stats.json';
+$_sb_mediaCache  = dirname(__DIR__) . '/cache/media-stats.json';
 $_sb_filesDir    = dirname(__DIR__) . '/files';
 $_sb_fileCount   = 0;
 $_sb_fileSize    = 0;
@@ -30,7 +30,7 @@ if ($_sb_cacheValid) {
 			$_sb_fileSize += $_sb_f->getSize();
 		}
 	}
-	// Persist cache only if bckps/ is writable
+	// Persist cache only if cache/ is writable
 	if (is_writable(dirname($_sb_mediaCache))) {
 		file_put_contents(
 			$_sb_mediaCache,
@@ -97,45 +97,54 @@ function dash_icon(string $name): string {
 		'settings'   => '<line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="9" cy="18" r="2" fill="currentColor" stroke="none"/>',
 		'article'    => '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
 		'page'       => '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
-		'project'    => '<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>',
+		'project'    => '<path d="M2 7.5V5c0-1.1.9-2 2-2h4l2 2h8a2 2 0 0 1 2 2v1"/><path d="M2 7.5h20l-1.5 9a2 2 0 0 1-2 1.5H5.5a2 2 0 0 1-2-1.5z"/>',
 	];
 
 	$inner = $paths[$name] ?? '';
 	if ($inner === '') return '';
 	return '<svg class="task-svg-icon" aria-hidden="true" ' . $base . '>' . $inner . '</svg>';
 }
+
+/**
+ * Returns true if OPcache is enabled and actually running for the current request.
+ * Tries opcache_get_status() first (reflects real runtime state, e.g. catches
+ * a module that failed to initialize despite opcache.enable=1). Falls back to
+ * the opcache.enable ini directive if the status function is unavailable —
+ * some shared hosts (e.g. OVH) block opcache_* functions via disable_functions
+ * or opcache.restrict_api_key while OPcache itself runs normally.
+ */
+function dash_opcache_enabled(): bool {
+	if (!extension_loaded('Zend OPcache')) return false;
+
+	if (function_exists('opcache_get_status')) {
+		$status = @opcache_get_status(false);
+		if (is_array($status)) {
+			return !empty($status['opcache_enabled']);
+		}
+		// Function exists but call failed/blocked at runtime — fall through to ini check.
+	}
+
+	return filter_var(ini_get('opcache.enable'), FILTER_VALIDATE_BOOLEAN);
+}
 ?>
 
 <div class="dashboard-container">
-
-	<?php /* ── Header ─────────────────────────────────────────── */ ?>
 	<div class="dashboard-header">
-		<h2><?php _e('dashboard_greeting'); ?></h2>
+		<h2><?php _e('dashboard_greeting'); ?>, <span><?php echo htmlspecialchars(admin_get_display_name()); ?>!</span></h2>
 		<div class="quick-actions">
-			<div class="dropdown">
-				<button class="button dropdown-toggle">
-					<?php _e('quick_add'); ?> <span class="caret">▼</span>
-				</button>
-				<ul class="dropdown-menu">
-					<li><a href="index.php?action=add&type=article"><?php _e('new_article'); ?></a></li>
-					<li><a href="index.php?action=add&type=page"><?php _e('new_page'); ?></a></li>
-					<li><a href="index.php?action=add&type=project"><?php _e('new_project'); ?></a></li>
-				</ul>
-			</div>
 		</div>
 	</div>
 <?php if (!empty($_sb_update)): ?>
 	<div class="update-notice">
-		<strong>⬆ <?php _e('update_available'); ?></strong>
+		<strong><?php echo admin_icon('update'); ?> <?php _e('update_available'); ?></strong>
 		<?php echo __t('update_version'); ?> <b><?php echo htmlspecialchars($_sb_update['version']); ?></b>
 		<?php if (!empty($_sb_update['notes'])): ?>
 			— <?php echo htmlspecialchars($_sb_update['notes']); ?>
 		<?php endif; ?>
-		<?php if (!empty($_sb_update['download_url'])): ?>
-			<a href="<?php echo htmlspecialchars($_sb_update['download_url']); ?>" target="_blank" rel="noopener">
-				<?php _e('download'); ?>
-			</a>
+		<?php if (!empty($_sb_update['changelog_url'])): ?>
+			<a href="<?php echo htmlspecialchars($_sb_update['changelog_url']); ?>" target="_blank" rel="noopener"><?php _e('update_changelog_link'); ?></a>
 		<?php endif; ?>
+		<a href="index.php?action=update"><?php _e('update_apply_btn'); ?> →</a>
 	</div>
 	<?php endif; ?>
 	
@@ -146,7 +155,7 @@ function dash_icon(string $name): string {
 		<div class="news-item news-item--<?php echo htmlspecialchars($_n['type'] ?? 'info'); ?>">
 			<span class="news-date"><?php echo htmlspecialchars($_n['date'] ?? ''); ?></span>
 			<span class="news-message">
-				<?php echo htmlspecialchars($_n['message'] ?? ''); ?>
+				<?php echo nl2br(htmlspecialchars($_n['message'] ?? '')); ?>
 				<?php if (!empty($_n['url'])): ?>
 					<a href="<?php echo htmlspecialchars($_n['url']); ?>" target="_blank" rel="noopener">
 						<?php echo htmlspecialchars($_n['url_label'] ?? 'Learn more'); ?>
@@ -196,7 +205,7 @@ function dash_icon(string $name): string {
 
 		<div class="stat-card<?php echo $contentStats['project'] === 0 ? ' stat-card--empty' : ''; ?>">
 			<div class="stat-icon">
-				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7.5V5c0-1.1.9-2 2-2h4l2 2h8a2 2 0 0 1 2 2v1"/><path d="M2 7.5h20l-1.5 9a2 2 0 0 1-2 1.5H5.5a2 2 0 0 1-2-1.5z"/></svg>
 			</div>
 			<div class="stat-content">
 				<div class="stat-value"><?php echo $contentStats['project']; ?></div>
@@ -247,7 +256,7 @@ function dash_icon(string $name): string {
 		<?php /* ── Left column : recent content ─────────────── */ ?>
 		<div class="dashboard-column">
 			<div class="dashboard-panel">
-				<h3><?php _e('recent_activity'); ?></h3>
+				<h3><?php _e('recent_posts'); ?></h3>
 				<div class="activity-list">
 					<?php if (empty($recentItems)): ?>
 
@@ -255,8 +264,8 @@ function dash_icon(string $name): string {
 						<div class="dashboard-empty-state">
 							<p><?php _e('no_recent_activity'); ?></p>
 							<div class="dashboard-empty-cta">
-								<a href="index.php?action=add&type=article" class="button"><?php _e('new_article'); ?></a>
-								<a href="index.php?action=add&type=page" class="button button--secondary"><?php _e('new_page'); ?></a>
+								<a href="index.php?action=add&type=article" class="btn btn-primary"><?php _e('new_article'); ?></a>
+								<a href="index.php?action=add&type=page" class="btn btn-outline"><?php _e('new_page'); ?></a>
 							</div>
 						</div>
 
@@ -271,7 +280,15 @@ function dash_icon(string $name): string {
 								     loading="lazy">
 							</div>
 							<?php else: ?>
-							<div class="activity-icon <?php echo $item['type']; ?>-icon"></div>
+							<div class="activity-icon">
+						<?php if ($item['type'] === 'article'): ?>
+							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+						<?php elseif ($item['type'] === 'page'): ?>
+							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+						<?php else: ?>
+							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7.5V5c0-1.1.9-2 2-2h4l2 2h8a2 2 0 0 1 2 2v1"/><path d="M2 7.5h20l-1.5 9a2 2 0 0 1-2 1.5H5.5a2 2 0 0 1-2-1.5z"/></svg>
+						<?php endif; ?>
+					</div>
 							<?php endif; ?>
 
 							<div class="activity-content">
@@ -313,9 +330,9 @@ function dash_icon(string $name): string {
 						<?php echo dash_icon('compress'); ?>
 						<div class="task-label"><?php _e('optimize_images'); ?></div>
 					</a>
-					<a href="css-editor.php" class="task-button">
+					<a href="template-editor.php" class="task-button">
 						<?php echo dash_icon('css'); ?>
-						<div class="task-label"><?php _e('css_theme_editor'); ?></div>
+						<div class="task-label"><?php _e('template_editor_title'); ?></div>
 					</a>
 					<a href="index.php?action=menu_builder" class="task-button">
 						<?php echo dash_icon('menu'); ?>
@@ -335,12 +352,28 @@ function dash_icon(string $name): string {
 					<div class="info-value"><?php echo phpversion(); ?></div>
 				</div>
 				<div class="info-item">
+					<div class="info-label"><strong><?php _e('opcache_support'); ?>:</strong></div>
+					<div class="info-value"><?php echo dash_opcache_enabled() ? __t('enabled') : __t('disabled'); ?></div>
+				</div>
+				<div class="info-item">
+					<div class="info-label"><strong><?php _e('apcu_support'); ?>:</strong></div>
+					<div class="info-value"><?php echo function_exists('apcu_fetch') ? __t('enabled') : __t('disabled'); ?></div>
+				</div>
+				<div class="info-item">
 					<div class="info-label"><strong><?php _e('gd_library'); ?>:</strong></div>
 					<div class="info-value"><?php echo function_exists('gd_info') ? __t('enabled') : __t('disabled'); ?></div>
 				</div>
 				<div class="info-item">
 					<div class="info-label"><strong><?php _e('webp_support'); ?>:</strong></div>
 					<div class="info-value"><?php echo function_exists('imagewebp') ? __t('enabled') : __t('disabled'); ?></div>
+				</div>
+				<div class="info-item">
+					<div class="info-label"><strong><?php _e('zip_support'); ?>:</strong></div>
+					<div class="info-value"><?php echo class_exists('ZipArchive') ? __t('enabled') : __t('disabled'); ?></div>
+				</div>
+				<div class="info-item">
+					<div class="info-label"><strong><?php _e('mbstring_support'); ?>:</strong></div>
+					<div class="info-value"><?php echo extension_loaded('mbstring') ? __t('enabled') : __t('disabled'); ?></div>
 				</div>
 				<div class="info-item">
 					<div class="info-label"><strong><?php _e('active_theme'); ?>:</strong></div>

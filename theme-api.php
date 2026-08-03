@@ -1,13 +1,16 @@
 <?php
 /**
  * Theme API — SynaptikCMS
- * Loaded automatically via functions.php → theme-api.php → template-functions.php.
+ * Loaded automatically via functions.php → theme-api.php.
+ * Includes the five tf-*.php template modules, then defines hooks, filters,
+ * theme options, asset helpers, page detection, and pagination.
  */
 
-// Include template functions if not already included
-if (!function_exists('render_site_title')) {
-    require_once dirname(__FILE__) . '/template-functions.php';
-}
+require_once __DIR__ . '/tf-markdown.php';
+require_once __DIR__ . '/tf-shortcodes.php';
+require_once __DIR__ . '/tf-cards.php';
+require_once __DIR__ . '/tf-navigation.php';
+require_once __DIR__ . '/tf-page.php';
 
 // ─── Hooks storage ────────────────────────────────────────────────────────────
 

@@ -1,7 +1,0 @@
-Order Allow,Deny 
-Deny from all 
-
-<FilesMatch "\.(jpg|gif|png|php|webp|ico|svg|css|js|ttf|woff|woff2|otf|eot)$">
-Order Deny,Allow
-   Allow from all
-</FilesMatch>

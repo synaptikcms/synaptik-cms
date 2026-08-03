@@ -6,6 +6,7 @@
 
 // Pas de session_start() ici : appelé directement depuis le navigateur,
 // la session n'est PAS encore démarrée (contrairement à index.php).
+require_once __DIR__ . '/includes/session-config.php';
 session_start();
 
 define('INCLUDED', true);
@@ -13,14 +14,21 @@ require_once __DIR__ . '/includes/admin-functions.php';
 
 $redirect = 'index.php?action=settings&tab=general';
 
+// Method check — must come first so non-POST requests are handled cleanly
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+	header('Location: ' . $redirect); exit;
+}
+
 // Auth
 if (!admin_is_logged_in()) {
 	header('Location: auth.php'); exit;
 }
 
-// POST uniquement
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-	header('Location: ' . $redirect); exit;
+// CSRF
+if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', $_POST['csrf_token'])) {
+	$_SESSION['error'] = 'CSRF validation failed.';
+	header('Location: ' . $redirect);
+	exit;
 }
 
 // Redirect cible : paramètre optionnel envoyé par le form appelant

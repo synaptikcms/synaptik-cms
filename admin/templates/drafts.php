@@ -5,11 +5,13 @@ if (!defined('INCLUDED')) {
 	exit(__t('direct_access_denied'));
 }
 ?>
-<p><?php _e('drafts_auto_delete_note'); ?></p>
+<p class="help-text"><?php _e('drafts_auto_delete_note'); ?></p>
 
 <?php if (empty($drafts)): ?>
 	<div class="empty-content">
-		<div class="empty-icon">📄</div>
+		<div class="empty-icon">
+			<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+		</div>
 		<p><?php _e('no_drafts_found'); ?></p>
 	</div>
 <?php else: ?>
@@ -17,17 +19,18 @@ if (!defined('INCLUDED')) {
 
 <div class="content-list-header">
 	<div class="list-actions">
-		<button id="enable-batch" class="button"><?php _e('batch_select'); ?></button>
+		<button id="enable-batch" class="btn-cl btn-cl--muted"><?php _e('batch_select'); ?></button>
 		<div class="batch-actions" id="batch-actions" style="display: none;">
-			<button id="batch-delete-btn" class="button danger"><?php _e('delete_selected'); ?> (<span id="selected-count">0</span>)</button>
-			<button id="cancel-batch" class="button"><?php _e('cancel'); ?></button>
+			<button id="batch-delete-btn" class="btn-cl btn-cl--danger"><?php _e('delete_selected'); ?> (<span id="selected-count">0</span>)</button>
+			<button id="cancel-batch" class="btn-cl btn-cl--muted"><?php _e('cancel'); ?></button>
 		</div>
-		<button id="purge-all-btn" class="button danger"><?php _e('purge_all_drafts'); ?></button>
+		<button id="purge-all-btn" class="btn-cl btn-cl--danger"><?php _e('purge_all_drafts'); ?></button>
 	</div>
 </div>
 
 <div class="drafts-list">
-	<table>
+	<div class="table-wrap">
+		<table>
 		<thead>
 			<tr>
 				<th class="batch-checkbox-cell" style="display: none;"><?php _e('select'); ?></th>
@@ -58,10 +61,10 @@ if (!defined('INCLUDED')) {
 				<td><?php echo ucfirst(htmlspecialchars($draft['type'] ?: __t('type_unknown'))); ?></td>
 				<td><?php echo date('Y-m-d H:i:s', $draft['timestamp']); ?></td>
 				<td>
-					<a href="index.php?action=drafts&draft_action=restore&id=<?php echo urlencode($draft['id']); ?>" class="small table-btn edit-btn">
+					<a href="index.php?action=drafts&draft_action=restore&id=<?php echo urlencode($draft['id']); ?>" class="table-btn edit-btn">
 						<?php _e('restore'); ?>
 					</a>
-					<button type="button" class="button small delete-draft-btn"
+					<button type="button" class="table-btn delete-btn delete-draft-btn"
 					   data-id="<?php echo htmlspecialchars($draft['id']); ?>"
 					   data-title="<?php echo htmlspecialchars($draft['title'] ?: __t('untitled_draft')); ?>">
 						<?php _e('delete'); ?>
@@ -71,6 +74,7 @@ if (!defined('INCLUDED')) {
 			<?php endforeach; ?>
 		</tbody>
 	</table>
+	</div>
 </div>
 <?php endif; ?>
 

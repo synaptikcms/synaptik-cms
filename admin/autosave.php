@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/includes/session-config.php';
 session_start();
 require_once 'includes/admin-functions.php';
 
@@ -108,7 +109,12 @@ $draft = [
 	'og_image' => $_POST['og_image'] ?? '',
 	
 	// Date
-	'date' => $_POST['date'] ?? date('Y-m-d')
+	'date' => $_POST['date'] ?? date('Y-m-d'),
+
+	// Custom fields
+	'custom_fields' => isset($_POST['custom_fields']) && is_array($_POST['custom_fields'])
+		? $_POST['custom_fields']
+		: [],
 ];
 
 // Save the draft to a file

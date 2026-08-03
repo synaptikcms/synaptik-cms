@@ -1,147 +1,98 @@
 <?php
-// Security check
 if (!defined('INCLUDED')) {
 	header('HTTP/1.1 403 Forbidden');
 	exit('Direct access to this file is not allowed');
 }
 
-// ── POST handlers — doivent s'exécuter avant tout output ─────────────────────
+// ── Shared: build a full ZIP backup of the current site state ─────────────────
+// Used both by the download handler and the safety backup before restore.
+function _backup_build_zip(string $root, string $zipPath): bool
+{
+	if (!class_exists('ZipArchive')) return false;
 
-if (isset($_POST['create_backup'])) {
-	$data     = admin_load_data();
-	$settings = admin_load_settings();
-	$backup   = [
-		'timestamp' => date('Y-m-d H:i:s'),
-		'version'   => '1.0',
-		'data'      => $data,
-		'settings'  => $settings
-	];
-	$filename    = 'synaptik-backup-' . date('Y-m-d-His') . '.json';
-	$jsonContent = json_encode($backup, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-	header('Content-Type: application/json');
-	header('Content-Disposition: attachment; filename="' . $filename . '"');
-	header('Content-Length: ' . strlen($jsonContent));
-	header('Cache-Control: no-cache, no-store, must-revalidate');
-	header('Pragma: no-cache');
-	header('Expires: 0');
-	echo $jsonContent;
-	exit;
+	$zip = new ZipArchive();
+	if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) return false;
+
+	$settingsFile = $root . '/settings.json';
+	if (file_exists($settingsFile)) $zip->addFile($settingsFile, 'settings.json');
+
+	$versionFile = $root . '/version.json';
+	if (file_exists($versionFile)) $zip->addFile($versionFile, 'version.json');
+
+	$addDir = function(string $absDir, string $zipPrefix) use ($zip): void {
+		if (!is_dir($absDir)) return;
+		$dirIter = new RecursiveDirectoryIterator($absDir, RecursiveDirectoryIterator::SKIP_DOTS);
+		$items   = new RecursiveIteratorIterator($dirIter, RecursiveIteratorIterator::SELF_FIRST);
+		foreach ($items as $item) {
+			$rel = $zipPrefix . '/' . str_replace('\\', '/', $items->getSubPathname());
+			$item->isDir() ? $zip->addEmptyDir($rel) : $zip->addFile($item->getRealPath(), $rel);
+		}
+	};
+
+	$addDir($root . '/data',  'data');
+	$addDir($root . '/files', 'files');
+	$zip->close();
+
+	return file_exists($zipPath) && filesize($zipPath) > 0;
 }
 
-if (isset($_POST['save_backup_to_server'])) {
-	$data     = admin_load_data();
-	$settings = admin_load_settings();
-	$backup   = [
-		'timestamp' => date('Y-m-d H:i:s'),
-		'version'   => '1.0',
-		'data'      => $data,
-		'settings'  => $settings
-	];
-	$filename  = 'synaptik-backup-' . date('Y-m-d-His') . '.json';
-	$backupDir = '../bckps/';
-	if (!is_dir($backupDir)) mkdir($backupDir, 0755, true);
-	$result = file_put_contents(
-		$backupDir . $filename,
-		json_encode($backup, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+// ── Shared: recursively delete directory contents, preserving .htaccess ───────
+function _backup_clear_dir(string $dir): void
+{
+	if (!is_dir($dir)) return;
+	$iter = new RecursiveIteratorIterator(
+		new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS),
+		RecursiveIteratorIterator::CHILD_FIRST
 	);
-	if ($result !== false) {
-		$_SESSION['message'] = __t('backup_saved_to_server') . ': ' . $filename;
-	} else {
-		$_SESSION['error'] = __t('backup_save_failed');
+	foreach ($iter as $item) {
+		if (basename($item->getPathname()) === '.htaccess') continue;
+		$item->isDir() ? @rmdir($item->getRealPath()) : @unlink($item->getRealPath());
 	}
-	header('Location: index.php?action=backup');
-	exit;
 }
 
-if (isset($_POST['restore_backup']) && isset($_FILES['backup_file'])) {
-	if ($_FILES['backup_file']['error'] === UPLOAD_ERR_OK) {
-		$fileName      = $_FILES['backup_file']['name'];
-		$fileExtension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+// ── Shared: recursively delete a directory and all its contents, including .htaccess ──
+// Unlike _backup_clear_dir(), this removes everything (used for tmp-restore-* dirs,
+// which must be fully wiped, not just cleared like /data or /files).
+function _backup_remove_dir(string $dir): void
+{
+	if (!is_dir($dir)) return;
+	$iter = new RecursiveIteratorIterator(
+		new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS),
+		RecursiveIteratorIterator::CHILD_FIRST
+	);
+	foreach ($iter as $item) {
+		$item->isDir() ? @rmdir($item->getRealPath()) : @unlink($item->getRealPath());
+	}
+	@rmdir($dir);
+}
 
-		if ($fileExtension !== 'json') {
-			$_SESSION['error'] = __t('backup_invalid_json_type');
-			header('Location: index.php?action=backup'); exit;
-		}
-
-		$backupContent = file_get_contents($_FILES['backup_file']['tmp_name']);
-		if ($backupContent === false || empty($backupContent)) {
-			$_SESSION['error'] = __t('backup_read_failed');
-			header('Location: index.php?action=backup'); exit;
-		}
-
-		$backup = json_decode($backupContent, true);
-
-		if (json_last_error() !== JSON_ERROR_NONE) {
-			$_SESSION['error'] = __t('backup_invalid_json') . ': ' . json_last_error_msg();
-			header('Location: index.php?action=backup'); exit;
-		}
-
-		if (!isset($backup['data']) || !is_array($backup['data']) || !isset($backup['settings']) || !is_array($backup['settings'])) {
-			$_SESSION['error'] = __t('backup_invalid_structure');
-			header('Location: index.php?action=backup'); exit;
-		}
-
-		$requiredSettingsKeys = ['site_title', 'active_theme'];
-		foreach ($requiredSettingsKeys as $key) {
-			if (!isset($backup['settings'][$key])) {
-				$_SESSION['error'] = __t('backup_missing_key') . ': "' . $key . '"';
-				header('Location: index.php?action=backup'); exit;
-			}
-		}
-
-		// Safety backup avant restauration
-		$safetyBackup = [
-			'timestamp' => date('Y-m-d H:i:s'),
-			'version'   => '1.0',
-			'data'      => admin_load_data(),
-			'settings'  => admin_load_settings()
-		];
-		$backupDir = '../bckps/';
-		if (!is_dir($backupDir)) mkdir($backupDir, 0755, true);
-
-		$safetyResult = file_put_contents(
-			$backupDir . 'pre-restore-backup-' . date('Y-m-d-His') . '.json',
-			json_encode($safetyBackup, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
-		);
-
-		if ($safetyResult === false) {
-			$_SESSION['error'] = __t('backup_safety_failed');
-			header('Location: index.php?action=backup'); exit;
-		}
-
-		$dataResult     = admin_save_data($backup['data']);
-		$settingsResult = file_put_contents(
-			'../settings.json',
-			json_encode($backup['settings'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
-		);
-
-		if ($dataResult === false || $settingsResult === false) {
-			$_SESSION['error'] = __t('restore_failed');
+// ── Shared: recursively copy a directory ──────────────────────────────────────
+function _backup_copy_dir(string $src, string $dst): bool
+{
+	if (!is_dir($src)) return true; // nothing to copy is not an error
+	if (!is_dir($dst)) mkdir($dst, 0755, true);
+	$iter = new RecursiveIteratorIterator(
+		new RecursiveDirectoryIterator($src, RecursiveDirectoryIterator::SKIP_DOTS),
+		RecursiveIteratorIterator::SELF_FIRST
+	);
+	foreach ($iter as $item) {
+		$target = $dst . DIRECTORY_SEPARATOR . $iter->getSubPathname();
+		if ($item->isDir()) {
+			if (!is_dir($target)) mkdir($target, 0755, true);
 		} else {
-			$_SESSION['message'] = __t('restore_success');
+			if (!copy($item->getRealPath(), $target)) return false;
 		}
-	} else {
-		$errorMessages = [
-			UPLOAD_ERR_INI_SIZE   => __t('upload_err_ini_size'),
-			UPLOAD_ERR_FORM_SIZE  => __t('upload_err_form_size'),
-			UPLOAD_ERR_PARTIAL    => __t('upload_err_partial'),
-			UPLOAD_ERR_NO_FILE    => __t('upload_err_no_file'),
-			UPLOAD_ERR_NO_TMP_DIR => __t('upload_err_no_tmp'),
-			UPLOAD_ERR_CANT_WRITE => __t('upload_err_cant_write'),
-			UPLOAD_ERR_EXTENSION  => __t('upload_err_extension'),
-		];
-		$errorCode    = $_FILES['backup_file']['error'];
-		$errorMessage = $errorMessages[$errorCode] ?? __t('upload_err_unknown') . ' (code: ' . $errorCode . ')';
-		$_SESSION['error'] = __t('backup_upload_error') . ': ' . $errorMessage;
 	}
-	header('Location: index.php?action=backup');
-	exit;
+	return true;
 }
 
+// ── Delete a server-side backup ─────────────────────────────────────────────
 if (isset($_POST['delete_backup'])) {
-	$backupDir = '../bckps/';
-	$filepath  = $backupDir . basename($_POST['backup_file']);
-	if (file_exists($filepath) && strpos(realpath($filepath), realpath($backupDir)) === 0) {
+	$root      = dirname(dirname(__DIR__));
+	$backupDir = realpath($root . '/bckps');
+	$filepath  = $backupDir ? realpath($backupDir . DIRECTORY_SEPARATOR . basename($_POST['backup_file'] ?? '')) : false;
+
+	if ($filepath && strpos($filepath, $backupDir) === 0 && is_file($filepath)) {
 		unlink($filepath);
 		$_SESSION['message'] = __t('backup_deleted');
 	} else {
@@ -151,136 +102,285 @@ if (isset($_POST['delete_backup'])) {
 	exit;
 }
 
-// ── Lecture des backups existants ─────────────────────────────────────────────
+// ── Download full ZIP backup ───────────────────────────────────────────────────
+if (isset($_POST['create_full_zip_backup'])) {
+	if (!class_exists('ZipArchive')) {
+		$_SESSION['error'] = __t('backup_zip_unavailable');
+		header('Location: index.php?action=backup');
+		exit;
+	}
 
-$backupDir = '../bckps/';
-$backups   = [];
-if (is_dir($backupDir)) {
-	foreach (scandir($backupDir) as $file) {
-		if (pathinfo($file, PATHINFO_EXTENSION) === 'json') {
-			$backups[] = [
-				'name' => $file,
-				'size' => filesize($backupDir . $file),
-				'date' => filemtime($backupDir . $file)
-			];
+	$root     = dirname(dirname(__DIR__));
+	$filename = 'synaptik-full-backup-' . date('Y-m-d-His') . '.zip';
+	$zipPath  = $root . '/bckps/' . $filename;
+
+	if (!is_dir($root . '/bckps')) mkdir($root . '/bckps', 0755, true);
+
+	if (!_backup_build_zip($root, $zipPath)) {
+		$_SESSION['error'] = __t('backup_zip_open_failed');
+		header('Location: index.php?action=backup');
+		exit;
+	}
+
+	$filesize = filesize($zipPath);
+	header('Content-Type: application/zip');
+	header('Content-Disposition: attachment; filename="' . $filename . '"');
+	header('Content-Length: ' . $filesize);
+	header('Cache-Control: no-cache, no-store, must-revalidate');
+	header('Pragma: no-cache');
+	header('Expires: 0');
+	if (ob_get_level()) ob_end_clean();
+	readfile($zipPath);
+	@unlink($zipPath);
+	exit;
+}
+
+// ── Restore from ZIP backup ────────────────────────────────────────────────────
+if (isset($_POST['restore_zip_backup']) && isset($_FILES['backup_zip_file'])) {
+
+	$root = dirname(dirname(__DIR__));
+
+	// ── Upload validation ──────────────────────────────────────────────────────
+	$uploadErr = $_FILES['backup_zip_file']['error'] ?? UPLOAD_ERR_NO_FILE;
+	if ($uploadErr !== UPLOAD_ERR_OK) {
+		$uploadErrMap = [
+			UPLOAD_ERR_INI_SIZE   => __t('upload_err_ini_size'),
+			UPLOAD_ERR_FORM_SIZE  => __t('upload_err_form_size'),
+			UPLOAD_ERR_PARTIAL    => __t('upload_err_partial'),
+			UPLOAD_ERR_NO_FILE    => __t('upload_err_no_file'),
+			UPLOAD_ERR_NO_TMP_DIR => __t('upload_err_no_tmp'),
+			UPLOAD_ERR_CANT_WRITE => __t('upload_err_cant_write'),
+			UPLOAD_ERR_EXTENSION  => __t('upload_err_extension'),
+		];
+		$_SESSION['error'] = __t('restore_zip_upload_error') . ': ' . ($uploadErrMap[$uploadErr] ?? __t('upload_err_unknown'));
+		header('Location: index.php?action=backup');
+		exit;
+	}
+
+	if (!class_exists('ZipArchive')) {
+		$_SESSION['error'] = __t('backup_zip_unavailable');
+		header('Location: index.php?action=backup');
+		exit;
+	}
+
+	$uploadedName = $_FILES['backup_zip_file']['name'];
+	if (strtolower(pathinfo($uploadedName, PATHINFO_EXTENSION)) !== 'zip') {
+		$_SESSION['error'] = __t('restore_zip_invalid_type');
+		header('Location: index.php?action=backup');
+		exit;
+	}
+
+	// ── Open and validate ZIP structure ───────────────────────────────────────
+	$zip = new ZipArchive();
+	if ($zip->open($_FILES['backup_zip_file']['tmp_name']) !== true) {
+		$_SESSION['error'] = __t('restore_zip_invalid');
+		header('Location: index.php?action=backup');
+		exit;
+	}
+
+	// Must contain settings.json and at least one file under data/
+	$hasSettings = ($zip->locateName('settings.json') !== false);
+	$hasData     = false;
+	for ($i = 0; $i < $zip->numFiles; $i++) {
+		if (strpos($zip->getNameIndex($i), 'data/') === 0) { $hasData = true; break; }
+	}
+
+	if (!$hasSettings || !$hasData) {
+		$zip->close();
+		$_SESSION['error'] = __t('restore_zip_invalid');
+		header('Location: index.php?action=backup');
+		exit;
+	}
+
+	// ── Safety backup of current state ────────────────────────────────────────
+	$bckpsDir      = $root . '/bckps';
+	if (!is_dir($bckpsDir)) mkdir($bckpsDir, 0755, true);
+	$safetyZipPath = $bckpsDir . '/pre-restore-backup-' . date('Y-m-d-His') . '.zip';
+
+	if (!_backup_build_zip($root, $safetyZipPath)) {
+		$zip->close();
+		$_SESSION['error'] = __t('restore_zip_safety_failed');
+		header('Location: index.php?action=backup');
+		exit;
+	}
+
+	// ── Extract to temp directory ─────────────────────────────────────────────
+	$tmpDir = $bckpsDir . '/tmp-restore-' . uniqid();
+	if (!mkdir($tmpDir, 0755, true)) {
+		$zip->close();
+		$_SESSION['error'] = __t('restore_zip_extract_failed');
+		header('Location: index.php?action=backup');
+		exit;
+	}
+
+	// Guarantee tmpDir is removed even if the script dies mid-restore
+	// (PHP timeout, fatal error, memory limit on large /files/ copies).
+	// Without this, a crash leaves tmp-restore-* directories on disk forever.
+	register_shutdown_function(function () use ($tmpDir) {
+		if (is_dir($tmpDir)) {
+			_backup_remove_dir($tmpDir);
+		}
+	});
+
+	if (!$zip->extractTo($tmpDir)) {
+		$zip->close();
+		_backup_remove_dir($tmpDir);
+		$_SESSION['error'] = __t('restore_zip_extract_failed');
+		header('Location: index.php?action=backup');
+		exit;
+	}
+	$zip->close();
+
+	// ── Apply restore ─────────────────────────────────────────────────────────
+	$ok = true;
+
+	// settings.json
+	$tmpSettings = $tmpDir . '/settings.json';
+	if (file_exists($tmpSettings)) {
+		$ok = $ok && (copy($tmpSettings, $root . '/settings.json') !== false);
+		if (function_exists('loadSettings_invalidate')) loadSettings_invalidate();
+	}
+
+	// /data/ — clear existing JSON content, then copy from ZIP
+	_backup_clear_dir($root . '/data');
+	$ok = $ok && _backup_copy_dir($tmpDir . '/data', $root . '/data');
+
+	// /files/ — clear existing media, then copy from ZIP (only if ZIP contains files/)
+	if (is_dir($tmpDir . '/files')) {
+		_backup_clear_dir($root . '/files');
+		$ok = $ok && _backup_copy_dir($tmpDir . '/files', $root . '/files');
+	}
+
+	// ── Cleanup temp ──────────────────────────────────────────────────────────
+	_backup_remove_dir($tmpDir);
+
+	if ($ok) {
+		$_SESSION['message'] = __t('restore_zip_success');
+	} else {
+		$_SESSION['error'] = __t('restore_zip_failed');
+	}
+	header('Location: index.php?action=backup');
+	exit;
+}
+// ── Scan /bckps/ for existing backups ───────────────────────────────────────
+$_bckpsDir = dirname(dirname(__DIR__)) . '/bckps';
+
+// Purge orphaned tmp-restore-* directories left over from interrupted/failed
+// restores (e.g. extractTo() failure, PHP timeout mid-restore). These never
+// persist past a single request normally, so any found here are stale.
+if (is_dir($_bckpsDir)) {
+	foreach (scandir($_bckpsDir) as $_d) {
+		if (strpos($_d, 'tmp-restore-') === 0 && is_dir($_bckpsDir . '/' . $_d)) {
+			_backup_remove_dir($_bckpsDir . '/' . $_d);
 		}
 	}
-	usort($backups, function($a, $b) { return $b['date'] - $a['date']; });
+}
+
+$_backups  = [];
+if (is_dir($_bckpsDir)) {
+	foreach (scandir($_bckpsDir) as $_f) {
+		$_ext = strtolower(pathinfo($_f, PATHINFO_EXTENSION));
+		if ($_ext !== 'zip' && $_ext !== 'json') continue;
+		if (strpos($_f, 'tmp-') === 0) continue;
+		$_backups[] = [
+			'name' => $_f,
+			'size' => filesize($_bckpsDir . '/' . $_f),
+			'date' => filemtime($_bckpsDir . '/' . $_f),
+		];
+	}
+	usort($_backups, fn($a, $b) => $b['date'] - $a['date']);
 }
 ?>
 
-		<p><?php _e('backup_page_desc'); ?></p>
+	<p class="help-text"><?php _e('backup_page_desc'); ?></p>
 
-		<div class="sitemap-content">
-			<div class="tab-content">
+	<div class="backup-content">
+		<div class="tab-content">
 
-			<!-- ── Sauvegarder sur le serveur ──────────────────────────────── -->
+			<!-- ── Full ZIP backup ──────────────────────────────────────── -->
 			<div class="site-settings-section">
-				<h3>💾 <?php _e('save_backup_to_server'); ?></h3>
-				<p><?php _e('backup_server_desc'); ?></p>
-				<form method="POST" action="index.php?action=backup" style="margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap;">
-					<button type="submit" name="save_backup_to_server" class="button" style="background-color: #27ae60;">
-						💾 <?php _e('save_backup_to_server'); ?>
-					</button>
-				</form>
-				<p class="help-text" style="margin-top: 10px;"><?php _e('backup_server_help'); ?></p>
-			</div>
-
-			<!-- ── Restaurer ────────────────────────────────────────────────── -->
-			<div class="site-settings-section">
-				<h3>🔄 <?php _e('restore_from_backup'); ?></h3>
-				<div class="warning-box" style="background: rgba(231,76,60,0.08); border-left: 4px solid var(--color-danger, #e74c3c); padding: 15px; margin-bottom: 20px; border-radius: 0 4px 4px 0;">
-					<strong>⚠️ <?php _e('warning'); ?> :</strong> <?php _e('restore_backup_warning'); ?>
+				<h3><?php _e('backup_full_zip_title'); ?></h3>
+				<div class="form-group">
+					<p><?php _e('backup_full_zip_desc'); ?></p>
+					<?php if (!class_exists('ZipArchive')): ?>
+						<div class="message warning"><?php _e('backup_zip_unavailable'); ?></div>
+					<?php else: ?>
+						<form method="POST" action="index.php?action=backup" style="margin-top:16px;">
+							<button type="submit" name="create_full_zip_backup" class="btn btn-primary">
+								<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:5px;vertical-align:-1px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><?php _e('backup_full_zip_btn'); ?>
+							</button>
+						</form>
+						<p class="help-text" style="margin-top:10px;"><?php _e('backup_full_zip_help'); ?></p>
+					<?php endif; ?>
 				</div>
-				<form method="POST" action="index.php?action=backup" enctype="multipart/form-data" id="restore-backup-form">
-					<div class="form-group">
-						<label for="backup_file"><?php _e('select_backup_file'); ?> :</label>
-						<input type="file" name="backup_file" id="backup_file" accept=".json" required style="padding: 10px; width: 100%; max-width: 450px;">
-					</div>
-					<button type="button" class="button" style="background-color: #f39c12;" onclick="validateAndConfirmRestore(this);">
-						🔄 <?php _e('restore_backup_btn'); ?>
-					</button>
-				</form>
 			</div>
 
-			<!-- ── Backups sur le serveur ───────────────────────────────────── -->
+			<!-- ── Restore from ZIP ─────────────────────────────────────── -->
 			<div class="site-settings-section">
-				<h3>💾 <?php _e('server_backups'); ?></h3>
-				<p><?php _e('server_backups_desc'); ?></p>
-
-				<?php if (empty($backups)): ?>
-					<div class="message info" style="margin-top: 20px;"><?php _e('no_backups'); ?></div>
-				<?php else: ?>
-					<table style="width: 100%; margin-top: 20px; border-collapse: collapse; border-radius: 4px; overflow: hidden;">
-						<thead>
-							<tr style="background: var(--bg-secondary, #f8f9fa); border-bottom: 2px solid var(--border-color, #dee2e6);">
-								<th style="text-align: left; padding: 12px; font-weight: 600;"><?php _e('filename'); ?></th>
-								<th style="text-align: left; padding: 12px; font-weight: 600;"><?php _e('date_created'); ?></th>
-								<th style="text-align: left; padding: 12px; font-weight: 600;"><?php _e('size'); ?></th>
-								<th style="text-align: center; padding: 12px; font-weight: 600;"><?php _e('actions'); ?></th>
-							</tr>
-						</thead>
-						<tbody>
-							<?php foreach ($backups as $backup): ?>
-							<tr style="border-bottom: 1px solid var(--border-color, #dee2e6);">
-								<td style="padding: 12px; font-family: monospace; font-size: 0.9em;"><?php echo htmlspecialchars($backup['name']); ?></td>
-								<td style="padding: 12px;"><?php echo date('Y-m-d H:i:s', $backup['date']); ?></td>
-								<td style="padding: 12px;"><?php echo admin_format_file_size($backup['size']); ?></td>
-								<td style="padding: 12px; text-align: center;">
-									<a href="backup-dl.php?file=<?php echo urlencode($backup['name']); ?>" class="button" style="display: inline-block; padding: 6px 12px; margin-right: 5px; font-size: 0.9em;">
-										⬇️ <?php _e('download'); ?>
-									</a>
-									<button type="button" class="button danger" style="padding: 6px 12px; font-size: 0.9em;" onclick="deleteBackupFile('<?php echo htmlspecialchars($backup['name'], ENT_QUOTES); ?>');">
-										🗑️ <?php _e('delete'); ?>
-									</button>
-								</td>
-							</tr>
-							<?php endforeach; ?>
-						</tbody>
-					</table>
-				<?php endif; ?>
-
-				<p class="help-text" style="margin-top: 15px;">
-					<strong>💡 <?php _e('tip'); ?> :</strong> <?php _e('backup_tip'); ?>
-				</p>
+				<h3><?php _e('restore_zip_title'); ?></h3>
+				<div class="form-group">
+					<div class="blockquote warning"><strong><?php _e('warning'); ?> :</strong> <?php _e('restore_zip_warning'); ?></div>
+					<?php if (!class_exists('ZipArchive')): ?>
+						<div class="blockquote warning" style="margin-top:10px;"><?php _e('backup_zip_unavailable'); ?></div>
+					<?php else: ?>
+						<form method="POST" action="index.php?action=backup" enctype="multipart/form-data" id="restore-zip-form" style="margin-top:16px;">
+							<div class="form-group">
+								<label for="backup_zip_file"><?php _e('restore_zip_select'); ?> :</label>
+								<input type="file" style="width:auto;" name="backup_zip_file" id="backup_zip_file" accept=".zip" required>
+							</div>
+							<button type="button" class="btn btn-warning" onclick="confirmRestoreZip(this);">
+								<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:5px;vertical-align:-1px"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.54"/></svg><?php _e('restore_zip_btn'); ?>
+							</button>
+						</form>
+						<p class="help-text" style="margin-top:10px;"><?php _e('restore_zip_desc'); ?></p>
+					<?php endif; ?>
+				</div>
 			</div>
 
-		</div><!-- .tab-content -->
-		</div><!-- .sitemap-content -->
+			<!-- ── Server backups table ──────────────────────────────────── -->
+			<div class="site-settings-section">
+				<h3><?php _e('server_backups'); ?></h3>
+				<div class="form-group">
+					<p><?php _e('server_backups_desc'); ?></p>
+					<?php if (empty($_backups)): ?>
+						<p class="help-text" style="margin-top:12px;"><?php _e('no_backups'); ?></p>
+					<?php else: ?>
+						<table style="margin-top:16px;">
+							<thead>
+								<tr>
+									<th><?php _e('filename'); ?></th>
+									<th><?php _e('date_created'); ?></th>
+									<th><?php _e('size'); ?></th>
+									<th><?php _e('actions'); ?></th>
+								</tr>
+							</thead>
+							<tbody>
+								<?php foreach ($_backups as $_b): ?>
+								<tr>
+									<td style="font-family:monospace;font-size:.82em;"><?php echo htmlspecialchars($_b['name']); ?></td>
+									<td><?php echo date('Y-m-d H:i', $_b['date']); ?></td>
+									<td><?php echo admin_format_file_size($_b['size']); ?></td>
+									<td>
+										<a href="backup-dl.php?file=<?php echo urlencode($_b['name']); ?>" class="table-btn view-btn">
+											<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><?php _e('download'); ?>
+										</a>
+										<button type="button" class="table-btn delete-btn" onclick="deleteBackup('<?php echo htmlspecialchars($_b['name'], ENT_QUOTES); ?>');">
+											<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg><?php _e('delete'); ?>
+										</button>
+									</td>
+								</tr>
+								<?php endforeach; ?>
+							</tbody>
+						</table>
+					<?php endif; ?>
+				</div>
+			</div>
+
+		</div>
+	</div>
 
 	<script>
-	function validateAndConfirmRestore(button) {
-		const fileInput = document.getElementById('backup_file');
-		if (!fileInput.files || fileInput.files.length === 0) {
-			showModal(t('backup_no_file_selected'), t('backup_no_file_title'), { confirmText: 'OK', danger: false });
-			return;
-		}
-		if (!fileInput.files[0].name.toLowerCase().endsWith('.json')) {
-			showModal(t('backup_invalid_file'), t('backup_invalid_file_title'), { confirmText: 'OK', danger: true });
-			return;
-		}
-		const form = button.closest('form');
-		showModal(
-			t('backup_restore_confirm'),
-			t('backup_restore_confirm_title'),
-			{
-				showCancel:  true,
-				confirmText: t('restore_backup_btn'),
-				cancelText:  t('cancel'),
-				danger:      true,
-				onConfirm: function() {
-					const input   = document.createElement('input');
-					input.type    = 'hidden';
-					input.name    = 'restore_backup';
-					input.value   = '1';
-					form.appendChild(input);
-					form.submit();
-				}
-			}
-		);
-	}
-
-	function deleteBackupFile(filename) {
+	function deleteBackup(filename) {
 		showModal(
 			t('backup_delete_confirm'),
 			t('backup_delete_confirm_title'),
@@ -290,20 +390,51 @@ if (is_dir($backupDir)) {
 				cancelText:  t('cancel'),
 				danger:      true,
 				onConfirm: function() {
-					const form        = document.createElement('form');
-					form.method       = 'POST';
-					form.action       = 'index.php?action=backup';
-					const fileInput   = document.createElement('input');
-					fileInput.type    = 'hidden';
-					fileInput.name    = 'backup_file';
-					fileInput.value   = filename;
-					form.appendChild(fileInput);
-					const deleteInput = document.createElement('input');
-					deleteInput.type  = 'hidden';
-					deleteInput.name  = 'delete_backup';
-					deleteInput.value = '1';
-					form.appendChild(deleteInput);
+					const form       = document.createElement('form');
+					form.method      = 'POST';
+					form.action      = 'index.php?action=backup';
+					const fFile      = document.createElement('input');
+					fFile.type       = 'hidden';
+					fFile.name       = 'backup_file';
+					fFile.value      = filename;
+					const fAction    = document.createElement('input');
+					fAction.type     = 'hidden';
+					fAction.name     = 'delete_backup';
+					fAction.value    = '1';
+					form.appendChild(fFile);
+					form.appendChild(fAction);
 					document.body.appendChild(form);
+					form.submit();
+				}
+			}
+		);
+	}
+
+	function confirmRestoreZip(button) {
+		const fileInput = document.getElementById('backup_zip_file');
+		if (!fileInput.files || fileInput.files.length === 0) {
+			showModal(t('restore_zip_no_file'), t('restore_zip_no_file_title'), { confirmText: 'OK', danger: false });
+			return;
+		}
+		if (!fileInput.files[0].name.toLowerCase().endsWith('.zip')) {
+			showModal(t('restore_zip_invalid_type_msg'), t('restore_zip_invalid_type_title'), { confirmText: 'OK', danger: true });
+			return;
+		}
+		const form = button.closest('form');
+		showModal(
+			t('restore_zip_confirm'),
+			t('restore_zip_confirm_title'),
+			{
+				showCancel:  true,
+				confirmText: t('restore_zip_btn'),
+				cancelText:  t('cancel'),
+				danger:      true,
+				onConfirm: function() {
+					const input  = document.createElement('input');
+					input.type   = 'hidden';
+					input.name   = 'restore_zip_backup';
+					input.value  = '1';
+					form.appendChild(input);
 					form.submit();
 				}
 			}

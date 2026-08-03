@@ -1,8 +1,0 @@
-{
-    "name": "Mono Theme",
-    "folder": "mono",
-    "version": "1.0",
-    "author": "Dorian Fichot",
-    "description": "A clear, minimalist theme for SynaptikCMS",
-    "synaptik_theme": true
-}

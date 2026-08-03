@@ -11,12 +11,12 @@
  * Index fields stored per type:
  *
  *   All types:   _file, slug, custom_slug, title, date, category, tags,
- *                image, show_in_menu, menu_order
+ *                image, show_in_menu, menu_order, show_date
  *   Articles:    + summary, show_on_homepage
  *   Projects:    + description, show_on_homepage
  *   Pages:       + page_template
  *
- * Everything else (content body, meta/OG fields, gallery data, display
+ * Everything else (content body, meta/OG fields, gallery data, other display
  * toggles) lives exclusively in the individual item files.
  */
 
@@ -59,7 +59,7 @@ function sl_admin_index_fields(string $type): array
         'slug', 'custom_slug', 'title', 'date',
         'category', 'tags', 'image',
         'show_in_menu', 'menu_order',
-        'status', 'publish_at',
+        'status', 'publish_at', 'show_date',
     ];
 
     $specific = [
@@ -320,7 +320,7 @@ function sl_admin_save_categories(array $categories): bool
 {
     $path    = sl_data_dir() . '/categories.json';
     $success = _sl_write_json($path, $categories);
-    if ($success) _sl_cache_del('categories');
+    if ($success) sl_invalidate_taxonomy_cache('categories');
     return $success;
 }
 
@@ -334,7 +334,7 @@ function sl_admin_save_tags(array $tags): bool
 {
     $path    = sl_data_dir() . '/tags.json';
     $success = _sl_write_json($path, $tags);
-    if ($success) _sl_cache_del('tags');
+    if ($success) sl_invalidate_taxonomy_cache('tags');
     return $success;
 }
 
