@@ -3,7 +3,9 @@
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
-// Load CMS functions (url_slug, cleanUrl, getCategoryPath, getBaseUrl, sanitizeSlug)
+// Load CMS functions (url_slug, cleanUrl, getCategoryPath, getBaseUrl, sanitizeSlug,
+// sl_build_data_array). functions.php already requires data-layer.php internally —
+// no separate include needed here.
 require_once __DIR__ . '/core/functions.php';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -85,9 +87,7 @@ if (mb_strlen($query, 'UTF-8') < 2) {
 // Search requires full item content (body search enabled), so we load all items
 // for each requested type. sl_load_all_items() reads individual .json files in
 // index order — only the types actually searched are loaded.
- 
-require_once __DIR__ . '/data-layer.php';
- 
+
 $data = sl_build_data_array(['article', 'page', 'project'], true); // true = full items
  
 if (empty($data)) {
