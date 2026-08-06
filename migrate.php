@@ -57,7 +57,28 @@ foreach ($__mLegacyFiles as $__mFile) {
 // ── 2. Rename settings.json → config.json ────────────────────────────────────
 $__mNewConfig = $__mRoot . '/config.json';
 if (!file_exists($__mNewConfig)) {
+    // Normal path: config.json doesn't exist yet — plain filesystem rename,
+    // byte-for-byte, no JSON parsing involved. All site settings (including
+    // the custom menu) are preserved exactly as they were.
     rename($__mOldConfig, $__mNewConfig);
+} else {
+    // config.json already exists (e.g. a prior partial migration, or a stray
+    // file left by a previous install attempt). A silent no-op here would
+    // strand settings.json on disk, unread by loadConfig(), which looks like
+    // a full settings reset (custom menu, theme, everything) even though
+    // nothing was actually deleted. Merge instead: settings.json holds the
+    // real, actively-used site configuration, so its values take priority
+    // over whatever is already in config.json.
+    $__mOldData = json_decode(file_get_contents($__mOldConfig), true);
+    $__mNewData = json_decode(file_get_contents($__mNewConfig), true);
+    if (is_array($__mOldData)) {
+        $__mMerged = is_array($__mNewData) ? array_merge($__mNewData, $__mOldData) : $__mOldData;
+        file_put_contents(
+            $__mNewConfig,
+            json_encode($__mMerged, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        );
+    }
+    @unlink($__mOldConfig);
 }
 
 // ── 3. Move plugins.json into /plugins/ ──────────────────────────────────────
@@ -81,4 +102,5 @@ if (file_exists($__mOldRegistry)) {
 @unlink($__mLockFile);
 
 unset($__mRoot, $__mLegacyFiles, $__mFile, $__mPath, $__mLockFile,
-      $__mOldConfig, $__mNewConfig, $__mOldRegistry, $__mNewRegistry);
+      $__mOldConfig, $__mNewConfig, $__mOldData, $__mNewData, $__mMerged,
+      $__mOldRegistry, $__mNewRegistry);
