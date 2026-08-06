@@ -12,7 +12,7 @@ session_start();
 
 define('INCLUDED', true);
 require_once __DIR__ . '/includes/admin-functions.php';
-require_once dirname(__DIR__) . '/plugin-api.php';
+require_once dirname(__DIR__) . '/core/plugin-api.php';
 
 $redirect = 'index.php?action=plugins';
 

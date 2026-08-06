@@ -5,7 +5,7 @@ if (!defined('INCLUDED')) {
 	exit('Direct access to this file is not allowed');
 }
 
-$appSettings = admin_load_settings();
+$appSettings = admin_load_config();
 $activeTheme = $appSettings['active_theme'] ?? 'default';
 $themesDir   = '../theme/';
 
@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['activate_theme'])) {
 		$_SESSION['error'] = __t('theme_manager_not_found');
 	} else {
 		$appSettings['active_theme'] = $themeName;
-		$result = file_put_contents('../settings.json', json_encode($appSettings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+		$result = file_put_contents(dirname(dirname(__DIR__)) . '/config.json', json_encode($appSettings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 		if ($result !== false) {
 			$_SESSION['message'] = sprintf(__t('theme_manager_activated'), htmlspecialchars($themeName));
 		} else {

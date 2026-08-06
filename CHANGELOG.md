@@ -2,6 +2,26 @@
 
 All notable changes to SynaptikCMS are documented here.  
 
+## [1.3.3] — 2026-08-06
+
+### Added
+- **New Cookie Consent Plugin** - GDPR-friendly cookie consent banner with per-category opt-in (analytics, marketing), stateless customizable UI, and a public JS API so themes and other plugins can defer their tracking scripts until consent is given. [Download it here](https://synaptikcms.com/files/plugins/cookie-consent-synaptikcms.zip)
+
+### Changed
+- **Cleaner project structure** — core PHP files (data layer, rendering engine, plugin API, i18n cache) have been moved out of the root into a dedicated `/core/` directory, and template rendering modules into `/core/render/`. The plugin registry now lives at `/plugins/plugins.json` instead of the root, and `settings.json` has been renamed to `config.json` for clarity. The result is a much tidier root directory with only the actual entry points (`index.php`, `search.php`, `feed.php`, `install.php`) remaining. A one-time migration script runs automatically on the first page load after update to clean up legacy files — no manual action required.
+- **All default themes now use Bunny Fonts instead of Google Fonts** — GDPR-friendly out of the box, no personal data or logs collected, no configuration required. Bunny Fonts is a privacy-first drop-in replacement for Google Fonts, so all font families and weights are visually identical. Themes migrated: Mono (default), Axion, Blueish, Darkish, Folio, Myelin, Natura, Nihonium, Nova, Portfolio, Prism, SynaptikDocs, and Vanta. Thanks to [Erik (@akvariefisk)](https://github.com/akvariefisk) for the suggestion.
+- **SEO** — archive pages (tag pages, and content-type list pages like `/articles/`, `/projects/`, `/pages/`) are now excluded from search engine indexing. Only real content (individual articles, pages, and projects) appears in Google, keeping the search index focused on what actually matters and avoiding thin, duplicate archive pages diluting results. Category pages remain indexed since they often carry unique intro text.
+- **Sitemap generator** — no longer includes content-type archive pages, matching the new noindex behavior so Google gets consistent signals.
+
+### Fixed
+- Fixed a crash on the Nova, Natura, and Prism themes caused by an outdated internal file path after the v1.3.3 project restructure.
+- Fixed the contact form failing silently on submission due to a broken security token path.
+- Fixed scheduled and draft content appearing in theme footers, shortcode blocks, and navigation menus before their publication date. Any call to the content index on the front-end now automatically excludes unpublished items, instead of relying on each individual call site to filter them.
+- Fixed leftover `tmp-update-*` folders piling up in `/bckps/` after an update was interrupted (server timeout, connection loss) partway through. Any orphaned folder from a previous interrupted update is now cleaned up automatically the next time the update page loads.
+- **SynaptikDocs theme** — improved contrast and accessibility across both light and dark modes to meet WCAG AA requirements. Swapped sidebar and content background tones so the sidebar is visually recessed in both modes. Inline code snippets now use a teal accent instead of green to stand out from the primary color. Links inside article content are now underlined for accessibility compliance.
+
+---
+
 ## [1.3.2] — 2026-08-03
 
 ### Added

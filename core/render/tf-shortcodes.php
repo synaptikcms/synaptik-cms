@@ -247,7 +247,6 @@ function _shortcode_parse_attrs(string $str): array
  */
 function render_recent_articles_shortcode(int $limit, string $tag = '', string $category = ''): string
 {
-    require_once __DIR__ . '/data-layer.php';
     $articles = sl_load_index('article');
 
     if (!empty($tag)) {
@@ -325,7 +324,6 @@ function render_recent_articles_shortcode(int $limit, string $tag = '', string $
  */
 function render_recent_projects_shortcode(int $limit): string
 {
-    require_once __DIR__ . '/data-layer.php';
     $projects = sl_load_index('project');
 
     usort($projects, fn($a, $b) => strcmp($b['date'] ?? '', $a['date'] ?? ''));
@@ -378,7 +376,7 @@ function render_articles_by_tag_shortcode(string $tag, int $limit): string
  */
 function _contact_generate_csrf(): string
 {
-    $secretFile = __DIR__ . '/private/contact.secret';
+    $secretFile = CMS_ROOT . '/private/contact.secret';
     if (file_exists($secretFile)) {
         $secret = trim(file_get_contents($secretFile));
         if (strlen($secret) === 64) {
@@ -402,12 +400,12 @@ function render_contact_form_html(): string
     static $cssInjected = false;
     $cssLink = '';
     if (!$cssInjected) {
-        $theme       = loadSettings()['active_theme'] ?? 'default';
+        $theme       = loadConfig()['active_theme'] ?? 'default';
         $cssLink     = '<link rel="stylesheet" href="' . getBaseUrl() . 'theme/' . htmlspecialchars($theme) . '/css/contact.css">' . "\n";
         $cssInjected = true;
     }
 
-    $settings        = loadSettings();
+    $settings        = loadConfig();
     $hcaptchaSiteKey = trim($settings['hcaptcha_site_key'] ?? '');
     $hcaptchaEnabled = !empty($hcaptchaSiteKey);
     $csrfToken       = _contact_generate_csrf();
@@ -429,7 +427,7 @@ function render_contact_form_html(): string
         $statusHtml = '<p class="contact-status error">' . $msg . '</p>' . "\n";
     }
 
-    $handlerUrl = getBaseUrl() . 'contact-process.php';
+    $handlerUrl = getBaseUrl() . 'core/contact-process.php';
     $timestamp  = time();
 
     $html  = $cssLink;

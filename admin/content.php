@@ -6,7 +6,7 @@ if (!defined('INCLUDED')) {
 }
 
 // Load application settings
-$appSettings = admin_load_settings();
+$appSettings = admin_load_config();
 
 // Define available content types
 $contentTypes = ['article', 'page', 'project'];
@@ -1187,10 +1187,10 @@ function handleContentEdit() {
 }
 
 /**
- * Sync menu item URLs in settings.json when a post's slug or category changes
+ * Sync menu item URLs in config.json when a post's slug or category changes
  */
 function syncMenuUrls($contentType, $oldSlug, $newSlug, $newCategory) {
-	$settingsFile = '../settings.json';
+	$settingsFile = '../config.json';
 	if (!file_exists($settingsFile)) return;
 
 	$settings = json_decode(file_get_contents($settingsFile), true);

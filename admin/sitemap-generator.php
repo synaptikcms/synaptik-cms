@@ -117,15 +117,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_sitemap'])) 
         }
     }
 
-    // ── Content-type archive pages (articles and projects only) ────────────────
-    // Pages archive (/pages/) is intentionally excluded — it serves no purpose
-    // for visitors or search engines and no mainstream CMS indexes it.
-    foreach (['article', 'project'] as $ct) {
-        if (!empty($data[$ct])) {
-            $pluralSlug = admin_front_url_slug($ct . 's');
-            $addUrl($baseUrl . '/' . $pluralSlug . '/', date('Y-m-d'), '0.5');
-        }
-    }
+    // ── Content-type archive pages (/articles/, /projects/, /pages/) ──────────
+    // Not included in the sitemap. These archive pages are noindexed by the
+    // front-end (see tf-page.php) since they duplicate their child items and
+    // add nothing to the search index. Excluding them from the sitemap keeps
+    // signals to Google consistent (no crawl encouragement + noindex on the
+    // page itself).
 
     // ── Save ─────────────────────────────────────────────────────────────────
     try {

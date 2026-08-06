@@ -5,7 +5,7 @@ if (!defined('INCLUDED')) {
 	exit('Direct access to this file is not allowed');
 }
 
-require_once dirname(__DIR__) . '/../plugin-api.php';
+require_once dirname(__DIR__) . '/../core/plugin-api.php';
 
 // ── ACTIVATE / DEACTIVATE / DELETE ──────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['plugin_action'])) {

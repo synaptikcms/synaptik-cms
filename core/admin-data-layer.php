@@ -5,7 +5,7 @@
  * Provides all write operations for the split-file architecture.
  * Requires data-layer.php (read functions) to be loaded first.
  *
- * Placement: CMS root (same directory as data-layer.php).
+ * Placement: /core/ (same directory as data-layer.php).
  * Include from admin-functions.php after requiring data-layer.php.
  *
  * Index fields stored per type:

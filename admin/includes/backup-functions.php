@@ -14,7 +14,7 @@ if (!function_exists('_backup_build_zip')) {
 		if (!class_exists('ZipArchive')) return false;
 		$zip = new ZipArchive();
 		if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) return false;
-		if (file_exists($root . '/settings.json')) $zip->addFile($root . '/settings.json', 'settings.json');
+		if (file_exists($root . '/config.json')) $zip->addFile($root . '/config.json', 'config.json');
 		if (file_exists($root . '/version.json'))  $zip->addFile($root . '/version.json',  'version.json');
 		$addDir = function(string $absDir, string $prefix) use ($zip): void {
 			if (!is_dir($absDir)) return;

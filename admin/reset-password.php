@@ -81,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             include $adminCredFile;
             }
             if (empty($admin_email)) {
-             $settings    = admin_load_settings();
+             $settings    = admin_load_config();
             $admin_email = trim($settings['contact_email'] ?? '');
             }
 

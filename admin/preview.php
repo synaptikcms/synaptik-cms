@@ -25,7 +25,7 @@ $_SERVER['SCRIPT_NAME'] = dirname(dirname($_SERVER['SCRIPT_NAME'])) . '/index.ph
 
 require_once $rootDir . '/functions.php';
 
-$settings = loadSettings();
+$settings = loadConfig();
 // Load lightweight indices — preview builds its own $item from POST data,
 // $data is only needed so cleanUrl() / getCategoryPath() can resolve paths.
 require_once $rootDir . '/data-layer.php';

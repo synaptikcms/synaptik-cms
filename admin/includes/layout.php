@@ -261,7 +261,7 @@ $_sb_version     = (is_array($_sb_versionData) && !empty($_sb_versionData['versi
 	<?php if ($_needsEditorJS): ?>
 	<script src="assets/js/gallery.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/gallery.js'); ?>"></script>
 	<script>
-		<?php $_autosave_settings = admin_load_settings(); ?>
+		<?php $_autosave_settings = admin_load_config(); ?>
 		window.AUTOSAVE_ENABLED_BY_SETTINGS = <?php echo !empty($_autosave_settings['autosave_enabled']) ? 'true' : 'false'; ?>;
 		window.AUTOSAVE_INTERVAL_SECONDS    = <?php echo (int)($_autosave_settings['autosave_interval'] ?? 5) * 60; ?>;
 	</script>

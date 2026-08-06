@@ -5,7 +5,7 @@
  * Generates a signed HMAC token containing the theme name + timestamp,
  * then redirects to the site homepage with ?_tp=TOKEN in the URL.
  *
- * index.php validates the token inside loadSettings() and overrides
+ * index.php validates the token inside loadConfig() and overrides
  * active_theme for that single request only. Zero session state.
  * Closing the preview tab (with or without the Close button) leaves
  * no trace — the token only works when present in the URL.

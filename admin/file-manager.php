@@ -25,10 +25,10 @@ $contentType = $_GET['type']   ?? '';
 require_once 'includes/admin-functions.php';
 require_once 'image-optimization.php';
 require_once 'progress-helpers.php';
-require_once '../data-functions.php';
-require_once '../core-functions.php';
+require_once '../core/data-functions.php';
+require_once '../core/core-functions.php';
 
-require_once '../data-layer.php';
+require_once '../core/data-layer.php';
 $data = sl_build_data_array(['article', 'page', 'project'], false);
 
 $baseUploadPath = '../files/';
@@ -43,7 +43,7 @@ if (!file_exists($fullPath)) {
 	mkdir($fullPath, 0755, true);
 }
 
-$settingsFile = '../settings.json';
+$settingsFile = dirname(__DIR__) . '/config.json';
 $appSettings  = [];
 if (file_exists($settingsFile)) {
 	$freshSettings = json_decode(file_get_contents($settingsFile), true);

@@ -25,6 +25,7 @@
  * call in admin-data-layer.php triggers sl_invalidate_index_cache(), which
  * purges all three levels so the next front-end request sees fresh data.
  */
+if (!defined('CMS_ROOT')) define('CMS_ROOT', dirname(__DIR__));
 
 if (defined('SL_DATA_LAYER_LOADED')) return;
 define('SL_DATA_LAYER_LOADED', true);
@@ -59,11 +60,11 @@ function _sl_cache_del(string $key): void
 
 /**
  * Returns the absolute path to the persistent file cache directory.
- * __DIR__ is the CMS root (the directory containing this file).
+ * Cache lives at the CMS root, not inside /core/.
  */
 function _sl_cache_dir(): string
 {
-    return __DIR__ . '/cache';
+    return CMS_ROOT . '/cache';
 }
 
 /**
@@ -191,7 +192,7 @@ function sl_clear_all_cache(): void
 
 function sl_data_dir(): string
 {
-    return __DIR__ . '/data';
+    return CMS_ROOT . '/data';
 }
 
 function sl_type_dir(string $type): string
@@ -249,6 +250,23 @@ function sl_load_index(string $type): array
     $raw     = file_get_contents($path);
     $decoded = ($raw !== false && $raw !== '') ? json_decode($raw, true) : null;
     $result  = is_array($decoded) ? $decoded : [];
+
+    // On the front-end, exclude drafts and future scheduled items so they
+    // never leak into footers, shortcodes, menus, or any other call site.
+    // The admin panel defines LANG_CONTEXT === 'admin' and needs the full
+    // unfiltered index to manage scheduled/draft content.
+    if (!$isAdmin) {
+        $now    = time();
+        $result = array_values(array_filter($result, function (array $item) use ($now): bool {
+            $status = $item['status'] ?? 'published';
+            if ($status === 'draft') return false;
+            if ($status === 'scheduled') {
+                $at = isset($item['publish_at']) ? strtotime($item['publish_at']) : false;
+                return $at !== false && $at <= $now;
+            }
+            return true;
+        }));
+    }
 
     _sl_cache_set($globalsKey, $result);
 
@@ -521,7 +539,7 @@ function format_date(string $date): string
     $ts = strtotime($date);
     if ($ts === false) return $date;
 
-    $settings = function_exists('loadSettings') ? loadSettings() : [];
+    $settings = function_exists('loadConfig') ? loadConfig() : [];
     return date($settings['date_format'] ?? 'Y-m-d', $ts);
 }
 }
@@ -538,7 +556,7 @@ function output_canonical_url(?array $pageData = null): string
 }
 }
 
-function loadDefaultSettings(): array
+function loadDefaultConfig(): array
 {
     return [
         'articles_per_page'          => 6,

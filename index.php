@@ -4,24 +4,24 @@ ini_set('memory_limit', '256M');
 // Use the same session cookie name as the admin panel (see
 // admin/includes/session-config.php) so an authenticated admin session is
 // visible here too — required for the front-end admin bar (#snk-admin-bar,
-// further below) and the theme-preview token check in loadSettings(). Without
+// further below) and the theme-preview token check in loadConfig(). Without
 // this, the front end would start a separate PHPSESSID-based session that can
 // never see $_SESSION['admin'] set by admin/auth.php.
 //
-// admin_dir is read directly from settings.json here (not via
-// resolve_admin_dir(), which depends on loadSettings() — not yet available,
+// admin_dir is read directly from config.json here (not via
+// resolve_admin_dir(), which depends on loadConfig() — not yet available,
 // since functions.php hasn't been required yet at this point).
 $__adminDirForSession = 'admin';
-$__settingsPathForSession = __DIR__ . '/settings.json';
-if (file_exists($__settingsPathForSession)) {
-    $__decodedForSession = json_decode(file_get_contents($__settingsPathForSession), true);
+$__configPathForSession = __DIR__ . '/config.json';
+if (file_exists($__configPathForSession)) {
+    $__decodedForSession = json_decode(file_get_contents($__configPathForSession), true);
     if (is_array($__decodedForSession) && !empty($__decodedForSession['admin_dir'])) {
         $__adminDirForSession = $__decodedForSession['admin_dir'];
     }
 }
 $__sessionConfigPath = __DIR__ . '/' . $__adminDirForSession . '/includes/session-config.php';
-// Fallback: if settings.json points to a folder that no longer exists (renamed
-// admin folder not saved back to settings, config drift between environments),
+// Fallback: if config.json points to a folder that no longer exists (renamed
+// admin folder not saved back to config, config drift between environments),
 // scan the filesystem for the real admin folder so the shared session cookie
 // name is still configured on the front end. Mirrors resolve_admin_dir() in
 // core-functions.php, inlined here because functions.php is not loaded yet.
@@ -38,11 +38,17 @@ if (!file_exists($__sessionConfigPath)) {
 if (file_exists($__sessionConfigPath)) {
     require_once $__sessionConfigPath;
 }
-unset($__adminDirForSession, $__settingsPathForSession, $__decodedForSession, $__sessionConfigPath);
+unset($__adminDirForSession, $__configPathForSession, $__decodedForSession, $__sessionConfigPath);
 
 session_start();
-// Include the functions file
-require_once 'functions.php';
+// One-time migration (v1.3.3 architecture refactor). The script deletes
+// itself after running, so this check becomes a no-op on subsequent loads.
+if (file_exists(__DIR__ . '/migrate.php')) {
+    require_once __DIR__ . '/migrate.php';
+}
+
+// Include the CMS bootstrap loader (core libraries + rendering modules).
+require_once __DIR__ . '/core/functions.php';
 
 // Generic plugin hook: fired as early as possible in the request —
 // right after functions.php (so pl_load_active_plugins() has run) and
@@ -52,11 +58,11 @@ require_once 'functions.php';
 // from its own init file — index.php itself never names a specific plugin.
 pl_do_hook('early_request');
 
-// Load the new split-file data layer
-require_once 'data-layer.php';
+// data-layer.php is already required by core/functions.php; the guarded
+// SL_DATA_LAYER_LOADED define makes a second require a no-op if kept.
 
-// Load settings
-$settings = loadSettings();
+// Load site configuration (formerly loadSettings / config.json).
+$settings = loadConfig();
 
 // ── Public password reset route ─────────────────────────────────
 // Intercepts ?reset_token= BEFORE any routing or output.
@@ -86,7 +92,7 @@ if (isset($_GET['reset_token']) && $_GET['reset_token'] !== '') {
 }
 
 // Theme preview banner: shown when a valid _tp token is present in the URL.
-// The token is validated inside loadSettings() — if active_theme was overridden,
+// The token is validated inside loadConfig() — if active_theme was overridden,
 // we know the token is valid and we display the banner.
 $_themePreviewBanner = '';
 if (isset($_GET['_tp']) && isset($_SESSION['admin']) && $_SESSION['admin'] === true) {

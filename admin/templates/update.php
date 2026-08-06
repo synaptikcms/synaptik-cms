@@ -10,7 +10,23 @@ $root      = dirname(dirname(__DIR__));
 $_upd_info = admin_check_for_update();
 
 $_skipPrefixes = ['__MACOSX/', 'data/', 'files/', 'bckps/', 'cache/', 'private/', 'admin/cache/', 'admin/drafts/'];
-$_skipFiles    = ['.DS_Store', 'settings.json', 'install.lock', 'install.php', 'admin/admin-credentials.php'];
+$_skipFiles    = ['.DS_Store', 'config.json', 'install.lock', 'install.php', 'admin/admin-credentials.php'];
+
+// Sweep orphaned tmp-update-* directories left behind by a previous update
+// that was interrupted (PHP timeout, fatal error, connection loss) before
+// reaching its own cleanup step. Runs on every page load, not just on apply,
+// so orphans never accumulate even if the admin never retries the update.
+if (!function_exists('_upd_sweep_orphans')) {
+	function _upd_sweep_orphans(string $bckpsDir): void
+	{
+		if (!is_dir($bckpsDir)) return;
+		foreach (glob($bckpsDir . '/tmp-update-*', GLOB_ONLYDIR) ?: [] as $orphan) {
+			_backup_clear_dir($orphan);
+			@rmdir($orphan);
+		}
+	}
+}
+_upd_sweep_orphans($root . '/bckps');
 
 if (!function_exists('_upd_detect_prefix')) {
 	/**
@@ -139,6 +155,17 @@ if (isset($_POST['apply_update'])) {
 		exit;
 	}
 
+	// Guarantees $tmpDir is removed even if this request never reaches the
+	// normal cleanup call below (PHP timeout, fatal error, memory exhaustion).
+	// This is what previously left tmp-update-* directories orphaned in bckps/
+	// on shared hosting when a large release ZIP took too long to copy.
+	register_shutdown_function(function () use ($tmpDir) {
+		if (is_dir($tmpDir)) {
+			_backup_clear_dir($tmpDir);
+			@rmdir($tmpDir);
+		}
+	});
+
 	$zip = new ZipArchive();
 	$zip->open($releaseZip);
 	$_extractPrefix = _upd_detect_prefix($zip);
@@ -197,6 +224,14 @@ if (isset($_POST['apply_update'])) {
 	// ── Cleanup ────────────────────────────────────────────────────────────────
 	_backup_clear_dir($tmpDir);
 	@rmdir($tmpDir);
+
+	// Authorize migrate.php to run, if the release ZIP shipped one. Without this
+	// lock file, migrate.php refuses to execute — it only trusts a migration
+	// script that was actually deposited by this update flow, never one found
+	// on disk for any other reason (restored backup, manual re-upload, etc.).
+	if (file_exists($root . '/migrate.php')) {
+		@file_put_contents($root . '/migrate.lock', (string) time());
+	}
 
 	$updateCacheFile = dirname(__DIR__) . '/cache/update-check.json';
 	if (file_exists($updateCacheFile)) @unlink($updateCacheFile);

@@ -9,7 +9,7 @@
  * Resolve the admin directory name reliably.
  *
  * Resolution order:
- *   1. settings.json → admin_dir key (fastest — normal runtime path)
+ *   1. config.json → admin_dir key (fastest — normal runtime path)
  *   2. Filesystem scan for a folder containing admin-credentials.php (fallback
  *      for fresh installs or renamed folders not yet saved to settings)
  *   3. Hard default 'admin'
@@ -24,18 +24,18 @@ function resolve_admin_dir(): string
         return $GLOBALS['_resolved_admin_dir'];
     }
 
-    // 1. settings.json
-    if (function_exists('loadSettings')) {
-        $s = loadSettings();
+    // 1. config.json
+    if (function_exists('loadConfig')) {
+        $s = loadConfig();
         $fromSettings = rtrim($s['admin_dir'] ?? '', '/');
-        if ($fromSettings !== '' && is_dir(__DIR__ . '/' . $fromSettings)) {
+        if ($fromSettings !== '' && is_dir(CMS_ROOT . '/' . $fromSettings)) {
             $GLOBALS['_resolved_admin_dir'] = $fromSettings;
             return $fromSettings;
         }
     }
 
     // 2. Filesystem scan
-    foreach (glob(__DIR__ . '/*/admin-credentials.php') ?: [] as $f) {
+    foreach (glob(CMS_ROOT . '/*/admin-credentials.php') ?: [] as $f) {
         $found = basename(dirname($f));
         $GLOBALS['_resolved_admin_dir'] = $found;
         return $found;
@@ -149,10 +149,10 @@ function get404PageContent()
     $base_url = getBaseUrl();
     $home_url = cleanUrl('home');
 
-    $settings    = loadSettings();
+    $settings    = loadConfig();
     $activeTheme = isset($settings['active_theme']) ? $settings['active_theme'] : 'default';
 
-    $templatePath = __DIR__ . '/theme/' . $activeTheme . '/404.php';
+    $templatePath = CMS_ROOT . '/theme/' . $activeTheme . '/404.php';
 
     if (file_exists($templatePath)) {
         ob_start();
@@ -261,7 +261,7 @@ function processContent($type, $slug, $data, $settings, $category = '', $tag = '
 
                 // Use the theme's content-list.php template when available.
                 // Falls back to hardcoded rendering so existing themes keep working.
-                $contentListTpl = __DIR__ . '/theme/' . ($settings['active_theme'] ?? 'default') . '/content-list.php';
+                $contentListTpl = CMS_ROOT . '/theme/' . ($settings['active_theme'] ?? 'default') . '/content-list.php';
 
                 ob_start();
                 if (file_exists($contentListTpl)) {

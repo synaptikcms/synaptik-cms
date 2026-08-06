@@ -7,7 +7,7 @@
  * Injected variables (from loadThemeTemplate):
  * @var array $item  The article data array
  */
-$settings = loadSettings(); ?>
+$settings = loadConfig(); ?>
         <article class="content-single">
             <a href="<?php echo cleanUrl('article'); ?>" class="back-link"><?php echo __t('articles') ?: 'Articles'; ?></a>
             <?php if (!empty($item['category'])): ?>

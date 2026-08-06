@@ -165,7 +165,7 @@ function generateMenuItemUrl($item)
  */
 function renderDefaultMenu($data)
 {
-    $settings = loadSettings();
+    $settings = loadConfig();
     $data = [
         'page'    => sl_load_index('page'),
         'article' => sl_load_index('article'),

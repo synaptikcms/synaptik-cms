@@ -7,8 +7,8 @@ if (!defined('INCLUDED')) {
 
 require_once 'includes/admin-functions.php';
 
-// Load settings
-$appSettings = admin_load_settings();
+// Load configuration
+$appSettings = admin_load_config();
 
 // Handle cache clear request
 if (isset($_POST['clear_cache'])) {
@@ -76,7 +76,7 @@ if (isset($_POST['save_menu'])) {
 	
 	// Save settings to file
 	$jsonData = json_encode($appSettings, JSON_PRETTY_PRINT);
-	$result = file_put_contents(dirname(__DIR__) . '/settings.json', $jsonData);
+	$result = file_put_contents(dirname(__DIR__) . '/config.json', $jsonData);
 	
 	if ($result !== false) {
 		$_SESSION['message'] = __t('menu_saved');
@@ -262,12 +262,12 @@ if (isset($_POST['save_settings'])) {
 	}
 
 	// Save settings
-	$saveResult = file_put_contents(dirname(__DIR__) . '/settings.json', json_encode($appSettings, JSON_PRETTY_PRINT));
+	$saveResult = file_put_contents(dirname(__DIR__) . '/config.json', json_encode($appSettings, JSON_PRETTY_PRINT));
 	if ($saveResult === false) {
-		error_log('Failed to save settings to file: ../settings.json');
+		error_log('Failed to save configuration to file: ../config.json');
 		$_SESSION['error'] = __t('settings_save_failed');
 	} else {
-		if (function_exists('loadSettings_invalidate')) loadSettings_invalidate();
+		if (function_exists('loadConfig_invalidate')) loadConfig_invalidate();
 		$_SESSION['message'] = __t('settings_saved');
 	}
 	header('Location: index.php?action=settings&tab=' . $activeTab);

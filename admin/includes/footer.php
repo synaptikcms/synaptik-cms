@@ -35,7 +35,7 @@ $isMenuBuilder = ($action === 'menu_builder');
 	<script src="assets/js/gallery.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/gallery.js'); ?>"></script>
 	<script>
 		<?php
-		$_autosave_settings = admin_load_settings();
+		$_autosave_settings = admin_load_config();
 		?>
 		window.AUTOSAVE_ENABLED_BY_SETTINGS = <?php echo !empty($_autosave_settings['autosave_enabled']) ? 'true' : 'false'; ?>;
 		window.AUTOSAVE_INTERVAL_SECONDS    = <?php echo (int)($_autosave_settings['autosave_interval'] ?? 5) * 60; ?>;

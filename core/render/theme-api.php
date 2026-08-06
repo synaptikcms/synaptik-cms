@@ -132,7 +132,7 @@ function get_theme_option($name, $default = null) {
  */
 function add_theme_stylesheet($stylesheet) {
     add_theme_action('header_scripts', function() use ($stylesheet) {
-        $settings = loadSettings();
+        $settings = loadConfig();
         $theme    = $settings['active_theme'] ?? 'default';
         echo '<link rel="stylesheet" href="' . getBaseUrl() . 'theme/' . $theme . '/' . $stylesheet . '">';
     });
@@ -147,7 +147,7 @@ function add_theme_stylesheet($stylesheet) {
 function add_theme_script($script, $in_footer = true) {
     $hook = $in_footer ? 'footer_scripts' : 'header_scripts';
     add_theme_action($hook, function() use ($script) {
-        $settings = loadSettings();
+        $settings = loadConfig();
         $theme    = $settings['active_theme'] ?? 'default';
         echo '<script src="' . getBaseUrl() . 'theme/' . $theme . '/' . $script . '"></script>';
     });

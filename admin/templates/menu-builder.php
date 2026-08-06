@@ -5,7 +5,7 @@ if (!defined('INCLUDED')) {
 	exit('Direct access to this file is not allowed');
 }
 
-$appSettings  = admin_load_settings();
+$appSettings  = admin_load_config();
 $contentTypes = ['article', 'page', 'project'];
 ?>
 		<form method="post" action="index.php?action=menu_builder">

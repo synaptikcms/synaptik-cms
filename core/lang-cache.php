@@ -9,16 +9,23 @@ function _lang_context(): string {
 }
 
 /**
- * Returns the absolute CMS root path (where settings.json lives).
- * Walks up from __DIR__ until settings.json is found (max 3 levels).
+ * Returns the absolute CMS root path (where config.json lives).
+ * Uses the CMS_ROOT constant defined by /core/functions.php. If this file
+ * is ever loaded standalone (before CMS_ROOT is defined), it falls back to
+ * walking up from __DIR__ until config.json is found.
  */
 function _lang_cms_root(): string {
 	static $root = null;
 	if ($root !== null) return $root;
 
+	if (defined('CMS_ROOT')) {
+		$root = CMS_ROOT;
+		return $root;
+	}
+
 	$dir = __DIR__;
 	for ($i = 0; $i < 3; $i++) {
-		if (file_exists($dir . '/settings.json')) {
+		if (file_exists($dir . '/config.json')) {
 			$root = rtrim($dir, '/\\');
 			return $root;
 		}
@@ -69,16 +76,17 @@ function _lang_cache_path(string $locale): string {
 
 /**
  * Returns true if the cache file exists and is newer than both
- * the source JSON file and settings.json.
+ * the source JSON file and config.json.
  */
 function _lang_cache_is_valid(string $cachePath, string $jsonPath): bool {
 	if (!file_exists($cachePath)) return false;
 
 	$cacheMtime    = filemtime($cachePath);
 	$jsonMtime     = filemtime($jsonPath);
-	$settingsMtime = filemtime(_lang_cms_root() . '/settings.json');
+	$configPath    = _lang_cms_root() . '/config.json';
+	$configMtime   = file_exists($configPath) ? filemtime($configPath) : 0;
 
-	return $cacheMtime >= $jsonMtime && $cacheMtime >= $settingsMtime;
+	return $cacheMtime >= $jsonMtime && $cacheMtime >= $configMtime;
 }
 
 /**
@@ -131,7 +139,7 @@ function _lang_build_cache(string $locale, string $jsonPath, string $cachePath):
 			  . " * Locale   : {$locale}\n"
 			  . " * Source   : " . basename(dirname($jsonPath)) . '/' . basename($jsonPath) . "\n"
 			  . " * Generated: " . date('Y-m-d H:i:s') . "\n"
-			  . " * Invalidated automatically when settings.json or the source .json changes.\n"
+			  . " * Invalidated automatically when config.json or the source .json changes.\n"
 			  . " */\n"
 			  . "return {$exported};\n";
 
@@ -173,10 +181,10 @@ function lang_load(): array {
 	}
 
 	// Read the active locale for the current context (admin vs front).
-	// settings.json may carry separate keys:
+	// config.json may carry separate keys:
 	//   - active_language → public site
 	//   - admin_language  → admin panel (falls back to active_language if unset)
-	$settingsFile = _lang_cms_root() . '/settings.json';
+	$settingsFile = _lang_cms_root() . '/config.json';
 	$locale = 'en';
 	if (file_exists($settingsFile)) {
 		$s = json_decode(file_get_contents($settingsFile), true);
@@ -210,7 +218,7 @@ if (!function_exists('lang_current')) {
 	 * (admin → admin_language ?? active_language, front → active_language).
 	 */
 	function lang_current(): string {
-		$settingsFile = _lang_cms_root() . '/settings.json';
+		$settingsFile = _lang_cms_root() . '/config.json';
 		if (file_exists($settingsFile)) {
 			$s = json_decode(file_get_contents($settingsFile), true);
 			if (is_array($s)) {

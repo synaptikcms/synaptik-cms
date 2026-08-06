@@ -59,7 +59,7 @@ if (!file_exists($targetDir)) {
 $thumbsDir = ensureThumbnailsDir($targetDir);
 
 // Load settings directly from settings file to ensure latest values
-$settingsFile = '../settings.json';
+$settingsFile = dirname(__DIR__) . '/config.json';
 $appSettings = [];
 if (file_exists($settingsFile)) {
 	$loadedSettings = json_decode(file_get_contents($settingsFile), true);

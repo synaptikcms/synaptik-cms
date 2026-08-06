@@ -1,7 +1,0 @@
-User-agent: *
-Disallow: /admin/
-Disallow: /bckps/
-Disallow: /data/
-Disallow: /lang/
-
-Sitemap: https://synaptikcms.com/sitemap.xml

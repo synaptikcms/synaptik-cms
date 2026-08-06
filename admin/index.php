@@ -155,7 +155,7 @@ $type   = $_GET['type']   ?? '';
 // and $extraHead come from the plugin's own return value, not from
 // admin_get_page_title() / a static <head> block.
 if ($action === 'plugin_page') {
-	require_once dirname(__DIR__) . '/plugin-api.php';
+	require_once dirname(__DIR__) . '/core/plugin-api.php';
 
 	$_pluginSlug = preg_replace('/[^a-z0-9_-]/', '', $_GET['slug'] ?? '');
 	$_pluginView = preg_replace('/[^a-z0-9_-]/', '', $_GET['view'] ?? '');

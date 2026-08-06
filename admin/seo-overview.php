@@ -9,7 +9,7 @@ if (!isset($_SESSION['admin'])) {
 require_once 'includes/admin-functions.php';
 
 $data        = admin_load_data();
-$appSettings = admin_load_settings();
+$appSettings = admin_load_config();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_seo_save'])) {
 	header('Content-Type: application/json');

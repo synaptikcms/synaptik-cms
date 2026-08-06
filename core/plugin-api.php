@@ -33,9 +33,9 @@
 if (defined('PLUGIN_API_LOADED')) return;
 define('PLUGIN_API_LOADED', true);
 
-define('PL_CMS_ROOT', __DIR__);
-define('PL_ROOT', __DIR__ . '/plugins');
-define('PL_REGISTRY_PATH', __DIR__ . '/plugins.json');
+define('PL_CMS_ROOT', CMS_ROOT);
+define('PL_ROOT', CMS_ROOT . '/plugins');
+define('PL_REGISTRY_PATH', PL_ROOT . '/plugins.json');
 
 if (!is_dir(PL_ROOT)) {
     @mkdir(PL_ROOT, 0755, true);

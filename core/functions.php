@@ -1,16 +1,21 @@
 <?php
 /**
  * Core Functions
- * 
+ *
  * Contains essential system functions for the CMS.
  */
 
-// Include specialized function libraries
-require_once dirname(__FILE__) . '/core-functions.php';
-require_once dirname(__FILE__) . '/data-functions.php';
-require_once dirname(__FILE__) . '/theme-api.php';
-require_once dirname(__FILE__) . '/data-layer.php';
-require_once dirname(__FILE__) . '/plugin-api.php';
+// Absolute path to the CMS root — one level above /core/.
+// Every subsequent path built from CMS_ROOT is safe regardless of where
+// this file is required from.
+if (!defined('CMS_ROOT')) define('CMS_ROOT', dirname(__DIR__));
+
+// Include specialized function libraries (all live in /core/ or /core/render/)
+require_once __DIR__ . '/core-functions.php';
+require_once __DIR__ . '/data-functions.php';
+require_once __DIR__ . '/render/theme-api.php';
+require_once __DIR__ . '/data-layer.php';
+require_once __DIR__ . '/plugin-api.php';
 
 /**
  * Sanitize a string to create a valid slug
@@ -214,32 +219,32 @@ function adminCleanUrl($contentType, $slug, $customSlug = '', $category = '') {
 }
 
 /**
- * Load settings from settings.json, with per-request GLOBALS cache.
+ * Load settings from config.json, with per-request GLOBALS cache.
  *
  * The file is read from disk only once per PHP request. Every subsequent
  * call within the same request returns the cached array instantly.
- * Call loadSettings_invalidate() after writing settings.json to force
+ * Call loadConfig_invalidate() after writing config.json to force
  * a fresh read on the next call within the same request.
  *
- * @return array Merged settings array (defaults + settings.json overrides)
+ * @return array Merged settings array (defaults + config.json overrides)
  */
-function loadSettings() {
+function loadConfig() {
 	// Per-request cache — avoids repeated file_get_contents / json_decode
-	// on the same settings.json within a single PHP request.
-	if (isset($GLOBALS['_settings_cache'])) {
-		return $GLOBALS['_settings_cache'];
+	// on the same config.json within a single PHP request.
+	if (isset($GLOBALS['_config_cache'])) {
+		return $GLOBALS['_config_cache'];
 	}
 
-	$settings = loadDefaultSettings();
+	$settings = loadDefaultConfig();
 
-	if (file_exists(__DIR__ . '/settings.json')) {
-		$loadedSettings = json_decode(file_get_contents(__DIR__ . '/settings.json'), true);
+	if (file_exists(CMS_ROOT . '/config.json')) {
+		$loadedSettings = json_decode(file_get_contents(CMS_ROOT . '/config.json'), true);
 		if (is_array($loadedSettings)) {
 			$settings = array_merge($settings, $loadedSettings);
 		}
 	}
 
-	// Always refresh the theme list from filesystem — runs even when settings.json is absent
+	// Always refresh the theme list from filesystem — runs even when config.json is absent
 	$settings['available_themes'] = getAvailableThemes();
 
 	// Ensure theme setting always exists and is valid
@@ -263,9 +268,9 @@ function loadSettings() {
 				// Validate TTL (2 hours)
 				if (is_numeric($tpTs) && (time() - (int)$tpTs) < 7200) {
 					// Read admin_dir directly from the already-parsed settings to avoid
-					// calling resolve_admin_dir() which would re-enter loadSettings() and loop.
+					// calling resolve_admin_dir() which would re-enter loadConfig() and loop.
 					$adminDir = rtrim($settings['admin_dir'] ?? 'admin', '/');
-					$credFile = dirname(__FILE__) . '/' . $adminDir . '/admin-credentials.php';
+					$credFile = CMS_ROOT . '/' . $adminDir . '/admin-credentials.php';
 					if (file_exists($credFile)) {
 						$admin_password = '';
 						require $credFile; // Sets $admin_password
@@ -288,17 +293,17 @@ function loadSettings() {
 		@date_default_timezone_set($settings['timezone']);
 	}
 
-	$GLOBALS['_settings_cache'] = $settings;
+	$GLOBALS['_config_cache'] = $settings;
 	return $settings;
 }
 
 /**
- * Invalidate the per-request settings cache.
- * Call this immediately after writing settings.json so that subsequent
- * loadSettings() calls within the same request see the updated values.
+ * Invalidate the per-request config cache.
+ * Call this immediately after writing config.json so that subsequent
+ * loadConfig() calls within the same request see the updated values.
  */
-function loadSettings_invalidate(): void {
-	unset($GLOBALS['_settings_cache']);
+function loadConfig_invalidate(): void {
+	unset($GLOBALS['_config_cache']);
 }
 
 /**
@@ -306,7 +311,7 @@ function loadSettings_invalidate(): void {
  * @return array List of available themes
  */
 function getAvailableThemes() {
-	$themesDir = dirname(__FILE__) . '/theme/';
+	$themesDir = CMS_ROOT . '/theme/';
 	$themes = [];
 	
 	// Make sure the theme directory exists
@@ -351,14 +356,14 @@ function getAvailableThemes() {
 * @return void
 */
 function loadThemeTemplate($template, $params = []) {
-   $settings = loadSettings();
+   $settings = loadConfig();
    $theme = $settings['active_theme'] ?? 'default';
 
    // Extract parameters into variables
    extract($params);
 
    // Define possible template paths with FULL server paths
-   $basePath = dirname(__FILE__);
+   $basePath = CMS_ROOT;
    $templatePaths = [
    $basePath . "/theme/{$theme}/{$template}.php", // Theme-specific template
    $basePath . "/theme/default/{$template}.php", // Default theme fallback
@@ -379,21 +384,22 @@ function loadThemeTemplate($template, $params = []) {
 // ─── Internationalisation ─────────────────────────────────────────────────────
 require_once __DIR__ . '/lang-cache.php';
 
+
 // ─── Theme functions ──────────────────────────────────────────────────────────
 // Auto-load the active theme's functions.php after all core libraries are ready.
 // Theme functions.php can register hooks, define custom shortcodes, or add any
 // theme-specific PHP behaviour. It cannot redeclare core functions — use theme
 // partial files (partials/article-card.php etc.) to override rendered HTML instead.
 (function () {
-	$__s    = loadSettings();
-	$__path = __DIR__ . '/theme/' . ($__s['active_theme'] ?? 'default') . '/functions.php';
+	$__s    = loadConfig();
+	$__path = CMS_ROOT . '/theme/' . ($__s['active_theme'] ?? 'default') . '/functions.php';
 	if (file_exists($__path)) {
 		require_once $__path;
 	}
 })();
 
 // ─── Plugin autoload ───────────────────────────────────────────────────────────
-// Loads every plugin marked active in plugins.json (managed from Admin →
+// Loads every plugin marked active in plugins/plugins.json (managed from Admin →
 // Extensions). See plugin-api.php for the registry, activation, and hook
 // points a plugin can use. A plugin is a self-contained folder at the CMS
 // root — it owns its own routing, data storage, and admin; this is the only

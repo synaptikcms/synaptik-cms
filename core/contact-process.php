@@ -22,11 +22,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// ── Load settings ─────────────────────────────────────────────────────────────
-$settingsFile = __DIR__ . '/settings.json';
-$settings     = [];
-if (file_exists($settingsFile)) {
-    $decoded = json_decode(file_get_contents($settingsFile), true);
+// Resolve CMS root (one level above /core/)
+if (!defined('CMS_ROOT')) define('CMS_ROOT', dirname(__DIR__));
+
+// ── Load configuration ────────────────────────────────────────────────────────
+$configFile = CMS_ROOT . '/config.json';
+$settings   = [];
+if (file_exists($configFile)) {
+    $decoded = json_decode(file_get_contents($configFile), true);
     if (is_array($decoded)) {
         $settings = $decoded;
     }
@@ -165,7 +168,7 @@ function _contact_get_ip(): string
  */
 function _contact_private_dir(): string
 {
-    $dir = __DIR__ . '/private';
+    $dir = CMS_ROOT . '/private';
 
     if (!is_dir($dir)) {
         mkdir($dir, 0750, true);

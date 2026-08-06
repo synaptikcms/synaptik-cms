@@ -55,8 +55,8 @@ $i18n = [
         'security_note'         => '⚠ Security reminder: delete <code>install.php</code> from your server.',
         'footer_note'           => '⚠ Remember: delete <code>install.php</code> from your server after installation.',
         'summary_password'      => 'Hash your password and write <code>admin-credentials.php</code>',
-        'summary_rename'        => 'Rename the admin folder (the new name is saved in settings.json — no file patching needed)',
-        'summary_settings'      => 'Write site settings to <code>settings.json</code>',
+        'summary_rename'        => 'Rename the admin folder (the new name is saved in config.json — no file patching needed)',
+        'summary_settings'      => 'Write site settings to <code>config.json</code>',
         'summary_htaccess'      => 'Add deny-all <code>.htaccess</code> to <code>/data/</code>, <code>/bckps/</code>, <code>/private/</code> — and PHP-execution block to <code>/files/</code>',
         'summary_dirs'          => 'Create missing directories (<code>/files/</code>, <code>/bckps/</code>, <code>/private/</code>)',
         'summary_lock'          => 'Lock the installer with <code>install.lock</code>',
@@ -128,8 +128,8 @@ $i18n = [
         'security_note'         => '⚠ Rappel de sécurité : supprimez <code>install.php</code> de votre serveur.',
         'footer_note'           => '⚠ N\'oubliez pas : supprimez <code>install.php</code> de votre serveur après l\'installation.',
         'summary_password'      => 'Hacher votre mot de passe et écrire <code>admin-credentials.php</code>',
-        'summary_rename'        => 'Renommer le dossier admin (le nouveau nom est sauvegardé dans settings.json — aucun patch de fichiers)',
-        'summary_settings'      => 'Écrire les paramètres dans <code>settings.json</code>',
+        'summary_rename'        => 'Renommer le dossier admin (le nouveau nom est sauvegardé dans config.json — aucun patch de fichiers)',
+        'summary_settings'      => 'Écrire les paramètres dans <code>config.json</code>',
         'summary_htaccess'      => 'Ajouter <code>.htaccess</code> deny-all sur <code>/data/</code>, <code>/bckps/</code>, <code>/private/</code> — et blocage PHP sur <code>/files/</code>',
         'summary_dirs'          => 'Créer les dossiers manquants (<code>/files/</code>, <code>/bckps/</code>, <code>/private/</code>)',
         'summary_lock'          => 'Verrouiller l\'installeur avec <code>install.lock</code>',
@@ -201,8 +201,8 @@ $i18n = [
         'security_note'         => '⚠ Aviso de seguridad: elimine <code>install.php</code> de su servidor.',
         'footer_note'           => '⚠ Recuerde: elimine <code>install.php</code> de su servidor tras la instalación.',
         'summary_password'      => 'Cifrar su contraseña y escribir <code>admin-credentials.php</code>',
-        'summary_rename'        => 'Renombrar la carpeta admin (el nuevo nombre se guarda en settings.json — sin parcheo de archivos)',
-        'summary_settings'      => 'Escribir la configuración en <code>settings.json</code>',
+        'summary_rename'        => 'Renombrar la carpeta admin (el nuevo nombre se guarda en config.json — sin parcheo de archivos)',
+        'summary_settings'      => 'Escribir la configuración en <code>config.json</code>',
         'summary_htaccess'      => 'Añadir <code>.htaccess</code> deny-all en <code>/data/</code>, <code>/bckps/</code>, <code>/private/</code> — y bloqueo PHP en <code>/files/</code>',
         'summary_dirs'          => 'Crear directorios faltantes (<code>/files/</code>, <code>/bckps/</code>, <code>/private/</code>)',
         'summary_lock'          => 'Bloquear el instalador con <code>install.lock</code>',
@@ -283,8 +283,8 @@ function lang_url(string $lang): string
 
 if (file_exists(__DIR__ . '/install.lock')) {
     $adminDir = 'admin';
-    if (file_exists(__DIR__ . '/settings.json')) {
-        $s = json_decode(file_get_contents(__DIR__ . '/settings.json'), true);
+    if (file_exists(__DIR__ . '/config.json')) {
+        $s = json_decode(file_get_contents(__DIR__ . '/config.json'), true);
         if (!empty($s['admin_dir'])) $adminDir = $s['admin_dir'];
     }
     http_response_code(403);
@@ -516,10 +516,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         $dstAdminPath = __DIR__ . '/' . $adminDir;
 
-        // Step 3 — Write a complete settings.json with all defaults + user-supplied values.
+        // Step 3 — Write a complete config.json with all defaults + user-supplied values.
         // This ensures the file is explicit and complete from day one; nothing relies
         // on runtime-only defaults after first install.
-        $settingsFile = __DIR__ . '/settings.json';
+        $configFile = __DIR__ . '/config.json';
 
         // Scan installed themes from the filesystem (same logic as getAvailableThemes())
         $_themes  = [];
@@ -607,7 +607,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'site_favicon'               => '',
         ];
 
-        file_put_contents($settingsFile, json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        file_put_contents($configFile, json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 
         // Step 4 — .htaccess on sensitive directories + ensure required dirs exist
         //
@@ -656,6 +656,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // is ever deleted by accident. Best-effort: silently ignored if the
         // filesystem permissions don't allow it (installer stays lock-protected).
         @unlink(__FILE__);
+
+        // Step 7 — Remove migrate.php if it shipped with this release ZIP.
+        // migrate.php is a one-time upgrade script for sites coming from an
+        // older version; a fresh install has nothing to migrate. It already
+        // refuses to run without migrate.lock (only written by the in-admin
+        // updater), but there's no reason to leave a dead script on disk.
+        @unlink(__DIR__ . '/migrate.php');
 
         $success     = true;
         $redirectUrl = $adminDir . '/auth.php';

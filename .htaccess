@@ -7,18 +7,12 @@ RewriteEngine On
 # Explicitly allow category-based URL routing (overrides server-level theme restrictions)
 RewriteRule ^theme-[^/]+/ index.php [QSA,L]
 
-# The /plugins/ folder physically exists at the site root (it holds the
-# installed plugin files), which would otherwise let Apache's "skip existing
-# directories" rule below serve a raw directory listing instead of routing
-# to index.php. This forces the CMS router to handle the bare /plugins/ (or
-# /plugins) URL — e.g. for a CMS page using that slug — while every deeper
-# path (/plugins/newsletter/..., /plugins/redirects/admin/actions.php, etc.)
-# is left untouched so active plugins keep working normally.
-RewriteRule ^plugins/?$ index.php [QSA,L]
-
 # Handle specific PHP redirects first
 RewriteRule ^get-files\.php$ file-manager.php?action=get_files [QSA,L]
 RewriteRule ^file-upload\.php$ file-manager.php [QSA,L]
+
+# Legacy backward compat: contact-process.php moved to /core/
+RewriteRule ^contact-process\.php$ core/contact-process.php [QSA,L]
 
 # Don't apply rules to existing files or directories
 RewriteCond %{REQUEST_FILENAME} !-f
@@ -30,8 +24,8 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     Header set Access-Control-Allow-Origin "*"
 </FilesMatch>
 
-# Block direct access to settings.json
-<Files ~ "settings\.json$">
+# Block direct access to config.json
+<Files ~ "config\.json$">
     Order allow,deny
     Deny from all
 </Files>
@@ -81,8 +75,8 @@ RewriteRule ^(.*)$ index.php [QSA,L]
 default-src 'self'; \
 script-src 'self' 'unsafe-inline' https://js.hcaptcha.com https://cdn.jsdelivr.net https://www.googletagmanager.com; \
 frame-src https://newassets.hcaptcha.com; \
-style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; \
-font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; \
+style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.bunny.net https://cdn.jsdelivr.net; \
+font-src 'self' https://fonts.gstatic.com https://fonts.bunny.net https://cdn.jsdelivr.net; \
 img-src 'self' data: blob:; \
 connect-src 'self' https://hcaptcha.com https://api.hcaptcha.com https://www.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net; \
 frame-ancestors 'self'"

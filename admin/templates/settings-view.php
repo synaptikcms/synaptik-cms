@@ -36,7 +36,7 @@ function _sv_image_picker(string $field, string $currentPath): void {
 	<?php
 }
 
-$appSettings = admin_load_settings();
+$appSettings = admin_load_config();
 $data        = admin_load_data();
 $activeTab   = $_GET['tab'] ?? 'general';
 

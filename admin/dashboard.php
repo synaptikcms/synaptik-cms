@@ -56,7 +56,7 @@ if (is_dir($_sb_draftsDir)) {
 
 // ── Settings (reuse if already loaded by caller) ─────────────────────────────
 if (!isset($appSettings)) {
-	$appSettings = admin_load_settings();
+	$appSettings = admin_load_config();
 }
 
 // ── Update check ─────────────────────────────────────────────────────────────

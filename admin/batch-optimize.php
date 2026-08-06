@@ -26,11 +26,11 @@ ini_set('memory_limit', '256M');
 
 require_once('includes/admin-functions.php');
 require_once('image-optimization.php');
-require_once('../data-functions.php');
-require_once('../core-functions.php');
+require_once(dirname(__DIR__) . '/core/data-functions.php');
+require_once(dirname(__DIR__) . '/core/core-functions.php');
 
 $appSettings = [];
-if (($raw = file_get_contents('../settings.json')) !== false) {
+if (($raw = file_get_contents(dirname(__DIR__) . '/config.json')) !== false) {
 	$dec = json_decode($raw, true);
 	if (is_array($dec)) $appSettings = $dec;
 }

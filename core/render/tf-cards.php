@@ -19,7 +19,7 @@ function render_item_custom_fields(array $item, string $type): string
     $values = $item['custom_fields'] ?? [];
     if (empty($values)) return '';
 
-    $schema = loadSettings()['custom_fields_schema'][$type] ?? [];
+    $schema = loadConfig()['custom_fields_schema'][$type] ?? [];
     if (empty($schema)) return '';
 
     $rows = '';
@@ -215,7 +215,8 @@ function get_article_summary(array $article, int $length = 150): string
     $fileSlug = $article['_file']
         ?? (!empty($article['custom_slug']) ? $article['custom_slug'] : ($article['slug'] ?? ''));
     if ($fileSlug !== '') {
-        require_once __DIR__ . '/data-layer.php';
+        // data-layer.php is already loaded by /core/functions.php; require kept as safety net.
+        require_once dirname(__DIR__) . '/data-layer.php';
         $full = sl_load_item('article', $fileSlug);
         if ($full !== null && !empty($full['content'])) {
             return htmlspecialchars(_clean_excerpt($full['content'], $length)) . '...';
@@ -297,7 +298,8 @@ function render_related_items(array $item, int $limit = 5): string
 {
     if (!($item['show_related_items'] ?? false)) return '';
 
-    require_once __DIR__ . '/data-layer.php';
+    // data-layer.php is already loaded by /core/functions.php; require kept as safety net.
+    require_once dirname(__DIR__) . '/data-layer.php';
 
     $manual        = $item['related_items'] ?? [];
     $resolvedItems = [];

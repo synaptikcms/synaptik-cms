@@ -46,16 +46,16 @@ if (!function_exists('sanitizeSlug')) {
 }
 
 /**
- * Load settings from settings.json, merged with hardcoded defaults.
- * Unique source of truth pour tous les paramètres de l'application.
- * Utilisé dans tout l'admin via admin_load_settings().
+ * Load configuration from config.json, merged with hardcoded defaults.
+ * Unique source of truth for every application parameter.
+ * Used across the admin panel via admin_load_config().
  */
-function admin_load_settings(): array {
-	$settings = loadDefaultSettings();
+function admin_load_config(): array {
+	$settings = loadDefaultConfig();
 
-	$settingsFile = dirname(dirname(__DIR__)) . '/settings.json';
-	if (file_exists($settingsFile)) {
-		$loaded = json_decode(file_get_contents($settingsFile), true);
+	$configFile = dirname(dirname(__DIR__)) . '/config.json';
+	if (file_exists($configFile)) {
+		$loaded = json_decode(file_get_contents($configFile), true);
 		if (is_array($loaded)) {
 			$settings = array_merge($settings, $loaded);
 			if (!empty($settings['timezone'])) {
@@ -80,7 +80,7 @@ function admin_load_settings(): array {
 function admin_format_date($date) {
 	if (empty($date)) return '';
 
-	$appSettings = admin_load_settings();
+	$appSettings = admin_load_config();
 	$format      = $appSettings['date_format'] ?? 'Y-m-d';
 
 	$timestamp = strtotime($date);
@@ -133,9 +133,10 @@ function setAdminMessage($message, $type = 'success') {
 // Define our own versions of functions to avoid conflicts
 // Load main site functions in a way that doesn't cause conflicts
 function admin_require_core_functions() {
-	// Include core functions without function conflicts
-	include_once '../data-functions.php';
-	include_once '../core-functions.php';
+	// Include core functions without function conflicts.
+	// The files live in /core/ (moved out of the CMS root during the /core reorg).
+	include_once dirname(dirname(__DIR__)) . '/core/data-functions.php';
+	include_once dirname(dirname(__DIR__)) . '/core/core-functions.php';
 }
 admin_require_core_functions();
 
@@ -356,7 +357,7 @@ function admin_front_url_slug(string $type): string {
 		// Always use the FRONT-end locale here, even when called from admin.
 		// lang_current() now returns admin_language when LANG_CONTEXT === 'admin',
 		// which would break URL generation — so we read active_language directly.
-		$settingsFile = _lang_cms_root() . '/settings.json';
+		$settingsFile = _lang_cms_root() . '/config.json';
 		$locale = 'en';
 		if (file_exists($settingsFile)) {
 			$s = json_decode(file_get_contents($settingsFile), true);
@@ -523,7 +524,7 @@ function updateProgress($processed, $total, $status = null) {
  * @return array Hierarchical menu structure
  */
 function get_smart_default_menu() {
-	$settings = admin_load_settings();
+	$settings = admin_load_config();
 	$data = admin_load_data();
 	
 	// If using custom menu, return it as-is
@@ -609,7 +610,7 @@ function get_smart_default_menu() {
 }
 
 /**
- * Sync menu URLs in settings.json when a category is renamed.
+ * Sync menu URLs in config.json when a category is renamed.
  * Rebuilds the URL for every menu item whose content belongs to the renamed category.
  *
  * @param array  $data            The already-updated data array (post-save)
@@ -617,7 +618,7 @@ function get_smart_default_menu() {
  * @param string $newCategoryName The new category name (not yet slugified)
  */
 function syncMenuUrlsForCategory($data, $oldCategorySlug, $newCategoryName) {
-	$settingsFile = '../settings.json';
+	$settingsFile = dirname(dirname(__DIR__)) . '/config.json';
 	if (!file_exists($settingsFile)) return;
 
 	$settings = json_decode(file_get_contents($settingsFile), true);
@@ -681,14 +682,14 @@ function syncMenuUrlsForCategory($data, $oldCategorySlug, $newCategoryName) {
 }
 
 /**
- * Sync menu URLs in settings.json when a tag is renamed or deleted.
+ * Sync menu URLs in config.json when a tag is renamed or deleted.
  * Updates menu items of type 'tag' whose content_slug matches the old tag slug.
  *
  * @param string      $oldTagSlug  Slug of the old tag name
  * @param string|null $newTagName  New tag name, or null if deleted
  */
 function syncMenuUrlsForTag($oldTagSlug, $newTagName) {
-	$settingsFile = '../settings.json';
+	$settingsFile = dirname(dirname(__DIR__)) . '/config.json';
 	if (!file_exists($settingsFile)) return;
 
 	$settings = json_decode(file_get_contents($settingsFile), true);
@@ -731,7 +732,7 @@ function syncMenuUrlsForTag($oldTagSlug, $newTagName) {
 function getPageTemplates(): array {
 	$templates = ['' => __t('page_template_default', 'Default')];
 
-	$settings  = admin_load_settings();
+	$settings  = admin_load_config();
 	$theme     = $settings['active_theme'] ?? 'default';
 	$dir       = dirname(dirname(__DIR__)) . '/theme/' . basename($theme) . '/page-templates/';
 
@@ -962,10 +963,10 @@ function admin_fetch_news(): array {
 }
 
 define('LANG_CONTEXT', 'admin');
-require_once dirname(dirname(__DIR__)) . '/lang-cache.php';
-// Load split-file data layer (read) and admin data layer (write)
-require_once dirname(dirname(__DIR__)) . '/data-layer.php';
-require_once dirname(dirname(__DIR__)) . '/admin-data-layer.php';
+require_once dirname(dirname(__DIR__)) . '/core/lang-cache.php';
+// Load split-file data layer (read) and admin data layer (write) — both in /core/
+require_once dirname(dirname(__DIR__)) . '/core/data-layer.php';
+require_once dirname(dirname(__DIR__)) . '/core/admin-data-layer.php';
 
 /**
  * Wrapper functions for backwards compatibility

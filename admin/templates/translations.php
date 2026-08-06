@@ -19,7 +19,7 @@ if (!defined('INCLUDED')) {
  * URL: index.php?action=translations[&scope=front|admin][&locale=xx]
  */
 
-$appSettings = isset($appSettings) ? $appSettings : admin_load_settings();
+$appSettings = isset($appSettings) ? $appSettings : admin_load_config();
 
 $scope  = ($_GET['scope']  ?? 'front') === 'admin' ? 'admin' : 'front';
 $locale = preg_match('/^[a-z]{2}(_[A-Z]{2})?$/', $_GET['locale'] ?? '')

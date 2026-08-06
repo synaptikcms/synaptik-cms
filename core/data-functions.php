@@ -415,8 +415,8 @@ function renderCategoryPage($category, $data)
     }));
 
     // Use the theme's content-list.php template when available
-    $settings       = loadSettings();
-    $contentListTpl = __DIR__ . '/theme/' . ($settings['active_theme'] ?? 'default') . '/content-list.php';
+    $settings       = loadConfig();
+    $contentListTpl = CMS_ROOT . '/theme/' . ($settings['active_theme'] ?? 'default') . '/content-list.php';
 
     ob_start();
     if (file_exists($contentListTpl)) {
@@ -501,8 +501,8 @@ function renderTagPage($tag, $data)
     }));
 
     // Use the theme's content-list.php template when available
-    $settings       = loadSettings();
-    $contentListTpl = __DIR__ . '/theme/' . ($settings['active_theme'] ?? 'default') . '/content-list.php';
+    $settings       = loadConfig();
+    $contentListTpl = CMS_ROOT . '/theme/' . ($settings['active_theme'] ?? 'default') . '/content-list.php';
 
     ob_start();
     if (file_exists($contentListTpl)) {

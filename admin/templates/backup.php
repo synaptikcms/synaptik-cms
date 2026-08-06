@@ -13,8 +13,8 @@ function _backup_build_zip(string $root, string $zipPath): bool
 	$zip = new ZipArchive();
 	if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) return false;
 
-	$settingsFile = $root . '/settings.json';
-	if (file_exists($settingsFile)) $zip->addFile($settingsFile, 'settings.json');
+	$settingsFile = $root . '/config.json';
+	if (file_exists($settingsFile)) $zip->addFile($settingsFile, 'config.json');
 
 	$versionFile = $root . '/version.json';
 	if (file_exists($versionFile)) $zip->addFile($versionFile, 'version.json');
@@ -178,8 +178,8 @@ if (isset($_POST['restore_zip_backup']) && isset($_FILES['backup_zip_file'])) {
 		exit;
 	}
 
-	// Must contain settings.json and at least one file under data/
-	$hasSettings = ($zip->locateName('settings.json') !== false);
+	// Must contain config.json (or legacy settings.json) and at least one file under data/
+	$hasSettings = ($zip->locateName('config.json') !== false) || ($zip->locateName('settings.json') !== false);
 	$hasData     = false;
 	for ($i = 0; $i < $zip->numFiles; $i++) {
 		if (strpos($zip->getNameIndex($i), 'data/') === 0) { $hasData = true; break; }
@@ -234,11 +234,14 @@ if (isset($_POST['restore_zip_backup']) && isset($_FILES['backup_zip_file'])) {
 	// ── Apply restore ─────────────────────────────────────────────────────────
 	$ok = true;
 
-	// settings.json
-	$tmpSettings = $tmpDir . '/settings.json';
+	// config.json (or legacy settings.json)
+	$tmpSettings = $tmpDir . '/config.json';
+	if (!file_exists($tmpSettings)) {
+		$tmpSettings = $tmpDir . '/settings.json';
+	}
 	if (file_exists($tmpSettings)) {
-		$ok = $ok && (copy($tmpSettings, $root . '/settings.json') !== false);
-		if (function_exists('loadSettings_invalidate')) loadSettings_invalidate();
+		$ok = $ok && (copy($tmpSettings, $root . '/config.json') !== false);
+		if (function_exists('loadConfig_invalidate')) loadConfig_invalidate();
 	}
 
 	// /data/ — clear existing JSON content, then copy from ZIP

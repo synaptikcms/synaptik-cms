@@ -4,7 +4,7 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
 // Load CMS functions (url_slug, cleanUrl, getCategoryPath, getBaseUrl, sanitizeSlug)
-require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/core/functions.php';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

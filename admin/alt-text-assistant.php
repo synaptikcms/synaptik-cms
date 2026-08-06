@@ -9,7 +9,7 @@ if (!isset($_SESSION['admin'])) {
 require_once 'includes/admin-functions.php';
 
 $data        = admin_load_data();
-$appSettings = admin_load_settings();
+$appSettings = admin_load_config();
 
 // ── AJAX save handler ─────────────────────────────────────────────────────────
 // Saves alt_text or caption for a specific image within a gallery entry.

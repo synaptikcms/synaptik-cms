@@ -8,9 +8,9 @@
  *
  * Variables injected by loadThemeTemplate():
  *   $item     — the page data array
- *   $settings — site settings array  (also available via loadSettings())
+ *   $settings — site settings array  (also available via loadConfig())
  */
-$settings = loadSettings();
+$settings = loadConfig();
 $hasInlineShortcode = (mb_strpos($item['content'] ?? '', '[contact_form]') !== false);
 ?>
 

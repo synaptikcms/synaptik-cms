@@ -9,7 +9,7 @@ if (!isset($_SESSION['admin'])) {
 require_once 'includes/admin-functions.php';
 
 $siteRoot    = dirname(__DIR__);
-$settings    = json_decode(file_get_contents($siteRoot . '/settings.json'), true);
+$settings    = json_decode(file_get_contents($siteRoot . '/config.json'), true);
 $activeTheme = $settings['active_theme'] ?? 'default';
 $themeDir    = $siteRoot . '/theme/' . $activeTheme;
 $backupDir   = $siteRoot . '/bckps/templates/' . $activeTheme . '/';

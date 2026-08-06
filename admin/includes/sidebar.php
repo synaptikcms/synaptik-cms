@@ -5,7 +5,7 @@
  */
 
 if (!isset($data)) {
-	require_once dirname(dirname(__DIR__)) . '/data-layer.php';
+	require_once dirname(dirname(__DIR__)) . '../../core/data-layer.php';
 	$data = sl_build_data_array(['article', 'page', 'project'], false);
 }
 
@@ -266,7 +266,7 @@ function sb_icon(string $name, string $class = ''): string {
 	 * plugin-api.php is guaranteed loaded here rather than assumed — most admin
 	 * pages only load includes/admin-functions.php, which does not pull it in. */
 	if (!function_exists('pl_get_admin_menu_items')) {
-		require_once dirname(dirname(__DIR__)) . '/plugin-api.php';
+		require_once dirname(dirname(__DIR__)) . '/core/plugin-api.php';
 	}
 	$_sb_plugin_items = pl_get_admin_menu_items();
 	if (!empty($_sb_plugin_items)):

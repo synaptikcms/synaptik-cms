@@ -11,7 +11,7 @@
  *
  * Email source priority:
  *   1. $admin_email in admin-credentials.php  (installer v2+)
- *   2. contact_email in settings.json         (pre-v2 fallback)
+ *   2. contact_email in config.json           (pre-v2 fallback)
  *
  * Token: stored in private/reset_token.json (protected by .htaccess)
  * TTL  : 15 minutes
@@ -37,7 +37,7 @@ if (file_exists($adminCredFile)) {
     include $adminCredFile;
 }
 if (empty($admin_email)) {
-    $settings    = admin_load_settings();
+    $settings    = admin_load_config();
     $admin_email = trim($settings['contact_email'] ?? '');
 }
 
@@ -96,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // __DIR__ is always the real admin folder on disk.
                     // dirname(__DIR__) is the CMS root. We derive the public URL
                     // path from DOCUMENT_ROOT which is always correct.
-                    $settings  = admin_load_settings();
+                    $settings  = admin_load_config();
                     $protocol  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
                     $host      = $_SERVER['HTTP_HOST'];
                     $docRoot   = rtrim($_SERVER['DOCUMENT_ROOT'], '/');

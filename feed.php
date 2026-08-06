@@ -4,9 +4,9 @@
  * Accessible at /feed.php or via the /feed/ rewrite rule.
  */
 
-require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/core/functions.php';
 
-$settings = loadSettings();
+$settings = loadConfig();
 $articles = sl_load_index('article');
 
 // Published only, sorted newest first, cap at 20

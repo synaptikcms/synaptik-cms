@@ -80,22 +80,42 @@ function render_meta_tags($settings, $metaTitle, $metaDescription, $pageData = n
 <?php endif; ?>
 <?php if ($settings['enable_seo']): ?>
     <?php
+        global $type, $slug, $category, $tag;
+        $_type     = $type     ?? '';
+        $_slug     = $slug     ?? '';
+        $_category = $category ?? '';
+        $_tag      = $tag      ?? '';
+
+        // Archive pages (tag pages and content-type list pages like /articles/,
+        // /projects/, /pages/) are noindexed to keep Google focused on real
+        // content. They are thin listings that duplicate their child items,
+        // so indexing them dilutes the search index. "follow" lets Google
+        // still crawl the links to reach the real articles/pages/projects.
+        // Category pages are intentionally left indexed — they often carry
+        // unique intro text and group related content in a way that has SEO
+        // value. Must be paired with NOT blocking these pages in robots.txt,
+        // or Google can never crawl to see this tag and drop them from index.
+        $_isArchive = false;
+        if ($_type === 'tag' && !empty($_tag)) {
+            $_isArchive = true;
+        } elseif (!empty($_type) && empty($_slug) && empty($_category) && empty($_tag)
+                  && !in_array($_type, ['home', '404'], true)) {
+            $_isArchive = true;
+        }
+        if ($_isArchive) {
+            echo '<meta name="robots" content="noindex, follow">';
+        }
+
+        // Canonical URL — built from the same routing logic used for internal
+        // links (cleanUrl), instead of $_SERVER['REQUEST_URI']. REQUEST_URI
+        // varies with/without trailing slash and query strings, which causes
+        // each variant to self-canonicalize — a duplicate content signal that
+        // confuses Google ("chose different canonical than user"). cleanUrl()
+        // always returns a single normalized form (trailing slash, no query
+        // string) matching the URLs used in nav.
         if ($pageData && !empty($pageData['canonical_url'])) {
             echo '<link rel="canonical" href="' . htmlspecialchars($pageData['canonical_url'], $f, $c) . '">';
         } else {
-            // Build a normalized canonical from the same routing logic used for
-            // internal links (cleanUrl), instead of $_SERVER['REQUEST_URI'].
-            // REQUEST_URI varies with/without trailing slash and query strings,
-            // which causes each variant to self-canonicalize — a duplicate
-            // content signal that confuses Google ("chose different canonical
-            // than user"). cleanUrl() always returns a single normalized form
-            // (trailing slash, no query string) matching the URLs used in nav.
-            global $type, $slug, $category, $tag;
-            $_type     = $type     ?? '';
-            $_slug     = $slug     ?? '';
-            $_category = $category ?? '';
-            $_tag      = $tag      ?? '';
-
             if ($_type === 'category' && !empty($_category)) {
                 $_canonical = cleanUrl('category', null, null, $_category);
             } elseif ($_type === 'tag' && !empty($_tag)) {
@@ -155,9 +175,9 @@ function render_header_scripts($headerScripts)
         $headerScripts = [];
     }
     $base     = getBaseUrl();
-    $settings = loadSettings();
+    $settings = loadConfig();
     $theme    = $settings['active_theme'] ?? 'default';
-    $root     = __DIR__;
+    $root     = CMS_ROOT;
 
     $system = [
         '<base href="' . htmlspecialchars($base) . '">',
@@ -380,7 +400,7 @@ function get_social_icon($platform)
  */
 function getThemeResourcePath($resource, $file = '')
 {
-    $theme = loadSettings()['active_theme'] ?? 'default';
+    $theme = loadConfig()['active_theme'] ?? 'default';
     return "theme/{$theme}/{$resource}/{$file}";
 }
 
@@ -393,8 +413,8 @@ function getThemeResourcePath($resource, $file = '')
  */
 function loadThemePartial(string $name, array $vars = []): ?string
 {
-    $theme = loadSettings()['active_theme'] ?? 'default';
-    $path  = __DIR__ . '/theme/' . $theme . '/partials/' . $name . '.php';
+    $theme = loadConfig()['active_theme'] ?? 'default';
+    $path  = CMS_ROOT . '/theme/' . $theme . '/partials/' . $name . '.php';
     if (!file_exists($path)) {
         return null;
     }
