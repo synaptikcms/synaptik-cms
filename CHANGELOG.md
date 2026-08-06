@@ -17,7 +17,7 @@ All notable changes to SynaptikCMS are documented here.
 - Fixed a crash on the Nova, Natura, and Prism themes caused by an outdated internal file path after the v1.3.3 project restructure.
 - Fixed the contact form failing silently on submission due to a broken security token path.
 - Fixed scheduled and draft content appearing in theme footers, shortcode blocks, and navigation menus before their publication date. Any call to the content index on the front-end now automatically excludes unpublished items, instead of relying on each individual call site to filter them.
-- Fixed leftover `tmp-update-*` folders piling up in `/bckps/` after an update was interrupted (server timeout, connection loss) partway through. Any orphaned folder from a previous interrupted update is now cleaned up automatically the next time the update page loads.
+- Fixed leftover `tmp-update-*` folders piling up in `/bckps/` after every update, whether it succeeded or was interrupted partway through. Any orphaned folder from a previous update is now cleaned up automatically the next time the update page loads.
 - **SynaptikDocs theme** — improved contrast and accessibility across both light and dark modes to meet WCAG AA requirements. Swapped sidebar and content background tones so the sidebar is visually recessed in both modes. Inline code snippets now use a teal accent instead of green to stand out from the primary color. Links inside article content are now underlined for accessibility compliance.
 
 ---

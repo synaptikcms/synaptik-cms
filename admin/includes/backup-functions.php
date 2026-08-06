@@ -35,10 +35,18 @@ if (!function_exists('_backup_build_zip')) {
 }
 
 /**
- * Recursively delete directory contents, preserving .htaccess files.
+ * Recursively delete directory contents.
+ *
+ * @param string $dir           Directory to empty (the directory itself is left in place).
+ * @param bool   $preserveHtaccess  When true (default), .htaccess files are left untouched —
+ *                                   used when clearing a live directory (data/, bckps/) that
+ *                                   must keep its access protection. Pass false to wipe a
+ *                                   directory completely, e.g. a temporary extraction folder
+ *                                   that must be removable afterwards regardless of what the
+ *                                   extracted release ZIP happened to contain.
  */
 if (!function_exists('_backup_clear_dir')) {
-	function _backup_clear_dir(string $dir): void
+	function _backup_clear_dir(string $dir, bool $preserveHtaccess = true): void
 	{
 		if (!is_dir($dir)) return;
 		$it = new RecursiveIteratorIterator(
@@ -46,7 +54,7 @@ if (!function_exists('_backup_clear_dir')) {
 			RecursiveIteratorIterator::CHILD_FIRST
 		);
 		foreach ($it as $f) {
-			if (basename($f->getPathname()) === '.htaccess') continue;
+			if ($preserveHtaccess && basename($f->getPathname()) === '.htaccess') continue;
 			$f->isDir() ? @rmdir($f->getRealPath()) : @unlink($f->getRealPath());
 		}
 	}

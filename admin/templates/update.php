@@ -21,7 +21,7 @@ if (!function_exists('_upd_sweep_orphans')) {
 	{
 		if (!is_dir($bckpsDir)) return;
 		foreach (glob($bckpsDir . '/tmp-update-*', GLOB_ONLYDIR) ?: [] as $orphan) {
-			_backup_clear_dir($orphan);
+			_backup_clear_dir($orphan, false);
 			@rmdir($orphan);
 		}
 	}
@@ -161,7 +161,7 @@ if (isset($_POST['apply_update'])) {
 	// on shared hosting when a large release ZIP took too long to copy.
 	register_shutdown_function(function () use ($tmpDir) {
 		if (is_dir($tmpDir)) {
-			_backup_clear_dir($tmpDir);
+			_backup_clear_dir($tmpDir, false);
 			@rmdir($tmpDir);
 		}
 	});
@@ -172,7 +172,7 @@ if (isset($_POST['apply_update'])) {
 	if (!$zip->extractTo($tmpDir)) {
 		$zip->close();
 		@unlink($releaseZip);
-		_backup_clear_dir($tmpDir);
+		_backup_clear_dir($tmpDir, false);
 		@rmdir($tmpDir);
 		$_SESSION['error'] = __t('update_failed_extract');
 		header('Location: index.php?action=update');
@@ -222,7 +222,7 @@ if (isset($_POST['apply_update'])) {
 	}
 
 	// ── Cleanup ────────────────────────────────────────────────────────────────
-	_backup_clear_dir($tmpDir);
+	_backup_clear_dir($tmpDir, false);
 	@rmdir($tmpDir);
 
 	// Authorize migrate.php to run, if the release ZIP shipped one. Without this
