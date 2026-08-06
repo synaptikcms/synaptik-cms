@@ -7,25 +7,23 @@
  * renames settings.json → config.json, and moves plugins.json into /plugins/.
  *
  * Deletes itself when done — zero residual code in the codebase.
+ *
+ * Trigger condition: settings.json still present at the CMS root. That file
+ * only exists on an install that hasn't completed this migration yet — a
+ * fresh v1.3.3+ install never creates it, and a previously-migrated site has
+ * already renamed it to config.json. No other guard is needed: this script
+ * ships inside the release ZIP itself, so its mere presence on disk already
+ * means it was deposited by a real update.
  */
 
-// Only run from index.php (CMS_ROOT is defined by core/functions.php,
-// but migrate.php fires before that — use __DIR__ which is the CMS root).
 $__mRoot      = __DIR__;
 $__mOldConfig = $__mRoot . '/settings.json';
-$__mLockFile  = $__mRoot . '/migrate.lock';
 
-// ── 0. Guard: only run for a real update, on an install that needs it ──────
-// migrate.lock is written by admin/templates/update.php right after a
-// successful update copy — it is the only proof this migrate.php was just
-// deposited by that flow. Without it (fresh install, restored backup,
-// manual re-upload that happens to include this file), refuse to run and
-// self-destruct quietly instead of touching files that may not need it.
-// settings.json presence is a second, independent check: an install that
-// already completed a previous migration has no settings.json left.
-if (!file_exists($__mLockFile) || !file_exists($__mOldConfig)) {
+if (!file_exists($__mOldConfig)) {
+    // Already migrated (or a fresh install that never had settings.json).
+    // Nothing to do — just remove this script so it stops running on
+    // every request.
     @unlink(__FILE__);
-    @unlink($__mLockFile);
     return;
 }
 
@@ -69,16 +67,29 @@ if (!file_exists($__mNewConfig)) {
     // nothing was actually deleted. Merge instead: settings.json holds the
     // real, actively-used site configuration, so its values take priority
     // over whatever is already in config.json.
-    $__mOldData = json_decode(file_get_contents($__mOldConfig), true);
-    $__mNewData = json_decode(file_get_contents($__mNewConfig), true);
+    //
+    // settings.json is only removed if the merge actually succeeds — never
+    // unconditionally. A read/decode failure here (permissions, corrupt
+    // file) leaves settings.json untouched on disk rather than silently
+    // discarding it with nothing written in its place.
+    $__mOldRaw  = file_get_contents($__mOldConfig);
+    $__mOldData = $__mOldRaw !== false ? json_decode($__mOldRaw, true) : null;
     if (is_array($__mOldData)) {
-        $__mMerged = is_array($__mNewData) ? array_merge($__mNewData, $__mOldData) : $__mOldData;
-        file_put_contents(
+        $__mNewRaw    = file_get_contents($__mNewConfig);
+        $__mNewData   = $__mNewRaw !== false ? json_decode($__mNewRaw, true) : null;
+        $__mMerged    = is_array($__mNewData) ? array_merge($__mNewData, $__mOldData) : $__mOldData;
+        $__mWriteOk   = file_put_contents(
             $__mNewConfig,
             json_encode($__mMerged, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
-        );
+        ) !== false;
+        if ($__mWriteOk) {
+            unlink($__mOldConfig);
+        } else {
+            error_log('[SynaptikCMS migrate.php] Failed to write merged config.json — settings.json left in place for manual recovery.');
+        }
+    } else {
+        error_log('[SynaptikCMS migrate.php] Could not read/decode settings.json — left in place untouched. config.json was not modified.');
     }
-    @unlink($__mOldConfig);
 }
 
 // ── 3. Move plugins.json into /plugins/ ──────────────────────────────────────
@@ -99,8 +110,7 @@ if (file_exists($__mOldRegistry)) {
 
 // ── 4. Self-destruct ─────────────────────────────────────────────────────────
 @unlink(__FILE__);
-@unlink($__mLockFile);
 
-unset($__mRoot, $__mLegacyFiles, $__mFile, $__mPath, $__mLockFile,
+unset($__mRoot, $__mLegacyFiles, $__mFile, $__mPath,
       $__mOldConfig, $__mNewConfig, $__mOldData, $__mNewData, $__mMerged,
       $__mOldRegistry, $__mNewRegistry);

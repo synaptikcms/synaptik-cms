@@ -10,6 +10,12 @@ require_once 'includes/admin-functions.php';
 // Load configuration
 $appSettings = admin_load_config();
 
+// Active settings tab, posted by the hidden #settings-active-tab field so a
+// redirect after save lands back on the tab the admin was editing. Falls back
+// to 'general' for any request that doesn't carry it (e.g. the standalone
+// cache-clear form).
+$activeTab = $_POST['tab'] ?? 'general';
+
 // Handle cache clear request
 if (isset($_POST['clear_cache'])) {
 	sl_clear_all_cache();

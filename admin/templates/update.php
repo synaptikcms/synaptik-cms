@@ -225,14 +225,6 @@ if (isset($_POST['apply_update'])) {
 	_backup_clear_dir($tmpDir, false);
 	@rmdir($tmpDir);
 
-	// Authorize migrate.php to run, if the release ZIP shipped one. Without this
-	// lock file, migrate.php refuses to execute — it only trusts a migration
-	// script that was actually deposited by this update flow, never one found
-	// on disk for any other reason (restored backup, manual re-upload, etc.).
-	if (file_exists($root . '/migrate.php')) {
-		@file_put_contents($root . '/migrate.lock', (string) time());
-	}
-
 	$updateCacheFile = dirname(__DIR__) . '/cache/update-check.json';
 	if (file_exists($updateCacheFile)) @unlink($updateCacheFile);
 	if (function_exists('sl_clear_all_cache')) sl_clear_all_cache();

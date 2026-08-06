@@ -56,6 +56,7 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 		</div>
 
 		<form method="post" action="index.php?action=settings" enctype="multipart/form-data">
+			<input type="hidden" name="tab" id="settings-active-tab" value="<?php echo htmlspecialchars($activeTab); ?>">
 
 			<!-- ══════════════════════ GENERAL TAB ══════════════════════ -->
 			<div id="general-tab" class="tab-content" <?php echo $activeTab !== 'general' ? 'style="display: none;"' : ''; ?>>
@@ -688,6 +689,8 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 					const tabId = this.getAttribute('data-tab');
 					document.getElementById(tabId + '-tab').style.display = 'grid';
 					this.classList.add('active');
+					const hiddenTab = document.getElementById('settings-active-tab');
+					if (hiddenTab) hiddenTab.value = tabId;
 					const url = new URL(window.location.href);
 					url.searchParams.set('tab', tabId);
 					history.replaceState(null, '', url);
