@@ -5,6 +5,7 @@
 # SynaptikCMS
 
 **A full-featured flat-file PHP CMS built for speed and simplicity. JSON storage, no database, no dependencies — just upload to any server and go.**  
+<br>
 
 <img src="https://img.shields.io/badge/PHP-7.4%2B-777bb4?style=flat&logo=php&logoColor=white" height="32">
 <img src="https://img.shields.io/badge/license-MIT-22c55e?style=flat" height="32">
