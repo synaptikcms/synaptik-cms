@@ -1,15 +1,22 @@
 <div align="center">
 
+# Please give it a Star if you like the project! ⭐
+---
+
 # SynaptikCMS
 
-**A flat-file PHP CMS. No database. No bloat. Just fast.**
+**A full-featured flat-file PHP CMS built for speed and simplicity. JSON storage, no database, no dependencies — just upload to any server and go.**
 
-[![Version](https://img.shields.io/badge/version-1.3-6366f1?style=flat-square)](https://github.com/synaptikcms/synaptik-cms/releases)
-[![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4?style=flat-square&logo=php&logoColor=white)](https://www.php.net/)
-[![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](LICENSE.md)
-[![Size](https://img.shields.io/badge/footprint-2MB-f59e0b?style=flat-square)]()
 
-[Live Demo](https://synaptikcms.com/synaptik-demo/) · [Download Themes](https://synaptikcms.com/themes/) · [Download Plugins](https://synaptikcms.com/plugins/) · [Documentation](https://synaptikcms.com/docs/) · [Changelog](CHANGELOG.md) · [Report a Bug](https://github.com/synaptikcms/synaptik-cms/issues)
+<img src="https://img.shields.io/badge/PHP-7.4%2B-777bb4?style=flat&logo=php&logoColor=white" height="26">
+<img src="https://img.shields.io/badge/license-MIT-22c55e?style=flat" height="26">
+<img src="https://img.shields.io/badge/footprint-2MB-14b8a6?style=flat" height="26">
+<img src="https://img.shields.io/badge/no-database-e11d48?style=flat" height="26">
+<img src="https://img.shields.io/badge/zero-dependencies-0ea5e9?style=flat" height="26">
+<img src="https://img.shields.io/github/stars/synaptikcms/synaptik-cms?style=flat&color=f59e0b&label=stars" height="26">
+<img src="https://img.shields.io/github/v/release/synaptikcms/synaptik-cms?style=flat&color=6366f1&label=latest" height="26">
+
+[Live Demo](https://synaptikcms.com/live-demo/) · [Download Themes](https://synaptikcms.com/themes/) · [Download Plugins](https://synaptikcms.com/plugins/) · [Documentation](https://synaptikcms.com/docs/) · [Changelog](CHANGELOG.md) · [Report a Bug](https://github.com/synaptikcms/synaptik-cms/issues)
 
 ![Dashboard](.github/assets/dashboard-light.png)
 ![Dashboard Dark](.github/assets/dashboard-dark.png)
@@ -36,19 +43,23 @@ It was built for developers, designers, artists, creative professionals, writers
 
 ## Why SynaptikCMS?
 
-| | SynaptikCMS | WordPress | Grav | Kirby |
-|---|---|---|---|---|
-| Database required | ✗ | MySQL | ✗ | ✗ |
-| Admin panel included | ✓ | ✓ | Plugin | ✓ |
-| WYSIWYG + Markdown | ✓ | ✓ | ✗ | ✓ |
-| Theme system | ✓ hooks/filters | ✓ | ✓ | ✓ |
-| Plugin system | ✓ | ✓ | ✓ | ✓ |
-| Built-in i18n | ✓ EN/FR/ES | Plugin | ✓ | ✓ |
-| Image optimization | ✓ built-in | Plugin | Plugin | Plugin |
-| License | MIT free | GPL free | MIT free | Paid |
-| Install time | ~2 min | ~10 min | ~5 min | ~5 min |
+| | SynaptikCMS | WordPress | Grav | Kirby | Bludit | Typemill |
+|---|---|---|---|---|---|---|
+| Database required | ✗ | MySQL | ✗ | ✗ | ✗ | ✗ |
+| Admin panel included | ✓ | ✓ | Plugin | ✓ | ✓ | ✓ |
+| WYSIWYG + Markdown | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ |
+| Theme system | ✓ hooks/filters | ✓ | ✓ | ✓ | ✓ | ✓ Twig |
+| Plugin system | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| One-click updates | ✓ core/themes/plugins | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Built-in i18n | ✓ EN/FR/ES | Plugin | ✓ | ✓ | ✓ | ✓ |
+| Image optimization | ✓ built-in | Plugin | Plugin | Plugin | Plugin | Plugin |
+| Built-in analytics | ✓ plugin | Plugin | Plugin | Plugin | Plugin | Plugin |
+| Composer required | ✗ | ✗ | ✓ | ✓ | ✗ | ✓ |
+| Install footprint | ~2 MB | ~50 MB | ~30 MB | ~20 MB | ~5 MB | ~10 MB |
+| License | MIT free | GPL free | MIT free | Paid | MIT free | MIT free |
+| Install time | ~2 min | ~10 min | ~5 min | ~5 min | ~3 min | ~5 min |
 
-SynaptikCMS is not trying to replace WordPress at scale. It is the right tool when you want a real admin panel with no database — for portfolios, documentation sites, small business sites, or any project where simplicity and load speed matter.
+SynaptikCMS is not trying to replace WordPress at scale. It is the right tool when you want a real admin panel with no database — for portfolios, documentation sites, small business sites, personal blogs or any project where simplicity and load speed matter.
 
 ---
 
@@ -56,10 +67,9 @@ SynaptikCMS is not trying to replace WordPress at scale. It is the right tool wh
 
 No composer. No npm. No database setup.
 
-1. Download the latest release ZIP
+1. Download the [latest release ZIP](https://synaptikcms.com/files/releases/synaptikcms-latest.zip)
 2. Extract and upload the files to your server
 3. Visit `yourdomain.com/install.php` (or `yourdomain.com/subfolder/install.php`) and complete the setup wizard (site name, language, admin password, admin folder name)
-4. Delete `install.php` from your server
 
 **That's it.** You're running.
 
@@ -90,7 +100,7 @@ You can download more free themes for your Synaptik installation on the [Officia
 - **Alt Text Assistant** — bulk-edit alt text and captions for gallery images
 - **Sitemap Generator** — one-click XML sitemap, submit URL shown inline
 - **Backup and Restore** — full ZIP backup of `/data/`, `/files/` and settings; restore in one click
-- **Automatic Updates** — update notification in dashboard, one-click update with automatic safety backup
+- **Automatic Updates** — one-click updates for the CMS core, themes, and plugins, with an automatic safety backup before each update
 - **Translation Editor** — add or edit translations with the built-in editor (both for back-end and front-end), or simply customize the text strings displayed on your site
 
 ### Themes
@@ -99,15 +109,16 @@ You can download more free themes for your Synaptik installation on the [Officia
 - Live theme preview without activating
 - Theme upload via ZIP with validation
 - Theme manager with activate and delete
-- Ships with default theme: `Mono`. More themes can be downloaded at [https://synaptikcms.com/themes/](https://synaptikcms.com/themes/).
+- Ships with default theme: `Mono`. More themes can be downloaded at [https://synaptikcms.com/themes/](https://synaptikcms.com/themes/)
+- Full theme developer documentation at [https://synaptikcms.com/docs/theming/theming-guide/](https://synaptikcms.com/docs/theming/theming-guide/)
 
 ### Plugins
 - Self-contained extensions under `/plugins/` — own routing, data storage, and admin screens, with zero core file edits required
 - Plugin pages render inside the real admin panel (sidebar entry, standard layout) once activated
 - Install by uploading a `.zip` from **Admin → Tools → Extensions**, activate and deactivate with one click
 - Activation state tracked separately from installation — deactivating a plugin preserves its data
+- Official plugins can be downloaded at [https://synaptikcms.com/plugins/](https://synaptikcms.com/plugins/)
 - Full plugin developer documentation at [https://synaptikcms.com/docs/plugin-system/](https://synaptikcms.com/docs/plugin-system/)
-- Official plugins can be downloaded at [https://synaptikcms.com/plugins/](https://synaptikcms.com/plugins/).
 
 ### SEO and Performance
 - Meta title, description, keywords per content item
@@ -277,5 +288,5 @@ Issues and pull requests are welcome. Please open an issue before submitting a l
 ---
 
 <div align="center">
-Made with care by <a href="https://github.com/synaptikcms">@synaptikcms</a>
+Made with ❤️ by <a href="https://github.com/synaptikcms">@synaptikcms</a>
 </div>

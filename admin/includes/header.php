@@ -185,7 +185,7 @@ $currentFile   = basename($_SERVER['PHP_SELF']);
 						<button type="button" id="save-draft-btn" class="btn btn-outline btn-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:4px;vertical-align:-1px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><?php _e('save_draft'); ?></button>
 						<button type="button" id="preview-btn" class="btn btn-outline btn-sm" title="<?php _e('preview_open_tab'); ?>"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:4px;vertical-align:-1px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><?php _e('preview_badge'); ?></button>
 						<?php if ($_topbar_view_url): ?>
-						<a target="_blank" href="<?php echo htmlspecialchars($_topbar_view_url); ?>" class="btn btn-outline btn-sm">
+						<a href="<?php echo htmlspecialchars($_topbar_view_url); ?>" class="btn btn-outline btn-sm">
 							<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:4px;vertical-align:-1px"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><?php printf(__t('view_type'), __t('type_' . $currentType)); ?>
 						</a>
 						<?php endif; ?>

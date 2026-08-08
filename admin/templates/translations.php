@@ -12,9 +12,7 @@ if (!defined('INCLUDED')) {
  * lets the user edit the values inline, and provides a "New locale"
  * action that duplicates en.json under a chosen language code.
  *
- * Read/write operations call admin/translations.php via fetch().
- * Backend is not yet implemented — UI is wired with stub data so the
- * layout can be validated before plugging the handlers in.
+ * Read/write operations call admin/translations-api.php via fetch().
  *
  * URL: index.php?action=translations[&scope=front|admin][&locale=xx]
  */
@@ -289,9 +287,9 @@ body.sidebar-collapsed .trl-savebar,
 <script>
 /* eslint-disable */
 /**
- * Translation Editor — UI mockup wiring.
- * Backend (fetch to translations.php) not implemented yet — table is
- * seeded with a stub payload so the layout can be validated.
+ * Translation Editor — client-side controller.
+ * Loads strings from translations-api.php, tracks dirty state, and
+ * persists edits via the save/create endpoints.
  */
 (function () {
 	'use strict';

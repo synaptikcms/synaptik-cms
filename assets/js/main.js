@@ -765,7 +765,7 @@ const highlighters = {
 
 			if (searchLoading) searchLoading.style.display = 'block';
 
-			let apiUrl = `search.php?q=${encodeURIComponent(query)}`
+			let apiUrl = `${getBaseUrl()}core/search.php?q=${encodeURIComponent(query)}`
 			           + `&content=${inContent}`
 			           + `&articles=${inArticles}`
 			           + `&pages=${inPages}`

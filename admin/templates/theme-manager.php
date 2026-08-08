@@ -9,6 +9,8 @@ $appSettings = admin_load_config();
 $activeTheme = $appSettings['active_theme'] ?? 'default';
 $themesDir   = '../theme/';
 
+require_once __DIR__ . '/../includes/extension-update-functions.php';
+
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 if (!function_exists('tm_delete_dir')) {
 	function tm_delete_dir(string $dir): bool {
@@ -72,6 +74,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_theme'])) {
 	exit;
 }
 
+// ── UPDATE THEME ───────────────────────────────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_theme'])) {
+	admin_csrf_check();
+
+	$themeName = basename($_POST['theme_name'] ?? '');
+	$result    = admin_apply_extension_update('theme', $themeName);
+
+	if ($result['success']) {
+		$_SESSION['message'] = sprintf(__t('theme_manager_update_success', 'Theme "%s" updated successfully.'), htmlspecialchars($themeName));
+	} else {
+		$_SESSION['error'] = $result['error'] ?? __t('update_failed_apply');
+	}
+
+	header('Location: index.php?action=manage_themes');
+	exit;
+}
+
 // ── BUILD THEMES LIST ─────────────────────────────────────────────────────────
 // URL base for preview images
 $protocol   = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
@@ -113,6 +132,9 @@ if (is_dir($themesDir)) {
 	}
 }
 usort($themes, fn($a, $b) => $b['active'] <=> $a['active']);
+
+// Available updates, keyed by theme slug — fetched once, 24h-cached.
+$themeUpdates = admin_check_theme_updates();
 ?>
 
 <p class="help-text"><?php _e('theme_manager_desc'); ?></p>
@@ -162,6 +184,9 @@ usort($themes, fn($a, $b) => $b['active'] <=> $a['active']);
 				<?php if ($theme['active']): ?>
 				<span class="theme-badge-active"><?php _e('theme_active_label'); ?></span>
 				<?php endif; ?>
+				<?php if (isset($themeUpdates[$theme['name']])): ?>
+				<span class="theme-badge-update" title="<?php echo htmlspecialchars(sprintf(__t('theme_update_available_title', 'Version %s available'), $themeUpdates[$theme['name']]['remote_version'])); ?>"><?php _e('theme_update_badge', 'Update available'); ?></span>
+				<?php endif; ?>
 			</div>
 
 			<?php if ($theme['author'] || $theme['version']): ?>
@@ -194,6 +219,12 @@ usort($themes, fn($a, $b) => $b['active'] <=> $a['active']);
 				<?php else: ?>
 				<span class="help-text"><?php _e('theme_manager_active_cannot_delete'); ?></span>
 				<?php endif; ?>
+				<?php if (isset($themeUpdates[$theme['name']])): ?>
+				<button
+					type="button"
+					class="btn btn-primary btn-sm"
+					onclick="confirmUpdateTheme('<?php echo htmlspecialchars($theme['name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($theme['label'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($themeUpdates[$theme['name']]['remote_version'], ENT_QUOTES); ?>')"><?php echo admin_icon('update'); ?> <?php _e('theme_update_btn', 'Update'); ?></button>
+				<?php endif; ?>
 				<button
 				type="button"
 				class="btn btn-outline"
@@ -218,6 +249,13 @@ usort($themes, fn($a, $b) => $b['active'] <=> $a['active']);
 	<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
 	<input type="hidden" name="activate_theme" value="1">
 	<input type="hidden" name="theme_name" id="activate-theme-name" value="">
+</form>
+
+<!-- Hidden update form — submitted programmatically -->
+<form id="update-theme-form" method="POST" action="index.php?action=manage_themes" style="display:none;">
+	<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
+	<input type="hidden" name="update_theme" value="1">
+	<input type="hidden" name="theme_name" id="update-theme-name" value="">
 </form>
 
 <script>
@@ -250,6 +288,23 @@ function confirmDeleteTheme(name, label) {
 			onConfirm: function () {
 				document.getElementById('delete-theme-name').value = name;
 				document.getElementById('delete-theme-form').submit();
+			}
+		}
+	);
+}
+
+function confirmUpdateTheme(name, label, newVersion) {
+	showModal(
+		t('theme_update_confirm').replace('%s', label).replace('%v', newVersion),
+		t('theme_update_confirm_title'),
+		{
+			showCancel:  true,
+			confirmText: t('theme_update_btn'),
+			cancelText:  t('cancel'),
+			danger:      false,
+			onConfirm: function () {
+				document.getElementById('update-theme-name').value = name;
+				document.getElementById('update-theme-form').submit();
 			}
 		}
 	);

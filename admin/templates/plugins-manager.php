@@ -6,6 +6,7 @@ if (!defined('INCLUDED')) {
 }
 
 require_once dirname(__DIR__) . '/../core/plugin-api.php';
+require_once dirname(__DIR__) . '/includes/extension-update-functions.php';
 
 // ── ACTIVATE / DEACTIVATE / DELETE ──────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['plugin_action'])) {
@@ -28,6 +29,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['plugin_action'])) {
 		} else {
 			$_SESSION['error'] = __t('extensions_delete_failed', 'Could not delete plugin. Deactivate it first, then try again.');
 		}
+	} elseif ($_POST['plugin_action'] === 'update' && $slug !== '') {
+		$result = admin_apply_extension_update('plugin', $slug);
+		if ($result['success']) {
+			$_SESSION['message'] = sprintf(__t('extensions_update_success', 'Plugin "%s" updated successfully.'), htmlspecialchars($slug));
+		} else {
+			$_SESSION['error'] = $result['error'] ?? __t('update_failed_apply');
+		}
 	}
 
 	header('Location: index.php?action=plugins');
@@ -43,6 +51,9 @@ $plugins = pl_list_plugins();
 // association ksort() just established).
 ksort($plugins);
 uasort($plugins, fn($a, $b) => (int)$b['active'] <=> (int)$a['active']);
+
+// Available updates, keyed by plugin slug — fetched once, 24h-cached.
+$pluginUpdates = admin_check_plugin_updates();
 ?>
 
 <p class="help-text"><?php _e('extensions_desc'); ?></p>
@@ -81,6 +92,9 @@ uasort($plugins, fn($a, $b) => (int)$b['active'] <=> (int)$a['active']);
 				<?php if ($plugin['active']): ?>
 				<span class="theme-badge-active"><?php _e('extensions_active', 'Active'); ?></span>
 				<?php endif; ?>
+				<?php if (isset($pluginUpdates[$slug])): ?>
+				<span class="theme-badge-update" title="<?php echo htmlspecialchars(sprintf(__t('theme_update_available_title', 'Version %s available'), $pluginUpdates[$slug]['remote_version'])); ?>"><?php _e('theme_update_badge', 'Update available'); ?></span>
+				<?php endif; ?>
 			</div>
 
 			<?php if (!empty($plugin['author']) || !empty($plugin['version'])): ?>
@@ -106,6 +120,9 @@ uasort($plugins, fn($a, $b) => (int)$b['active'] <=> (int)$a['active']);
 				<?php else: ?>
 				<button type="button" class="btn btn-primary btn-sm" onclick="confirmPluginAction('activate', '<?php echo htmlspecialchars($slug, ENT_QUOTES); ?>')"><?php _e('extensions_activate'); ?></button>
 				<button type="button" class="btn btn-danger btn-sm" onclick="confirmPluginDelete('<?php echo htmlspecialchars($slug, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($plugin['name'] ?? $slug, ENT_QUOTES); ?>')"><?php _e('extensions_delete'); ?></button>
+				<?php endif; ?>
+				<?php if (isset($pluginUpdates[$slug])): ?>
+				<button type="button" class="btn btn-primary btn-sm" onclick="confirmPluginUpdate('<?php echo htmlspecialchars($slug, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($plugin['name'] ?? $slug, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pluginUpdates[$slug]['remote_version'], ENT_QUOTES); ?>')"><?php echo admin_icon('update'); ?> <?php _e('theme_update_btn', 'Update'); ?></button>
 				<?php endif; ?>
 			</div>
 		</div>
@@ -160,6 +177,24 @@ function confirmPluginDelete(slug, label) {
 			onConfirm: function () {
 				document.getElementById('plugin-delete-slug').value = slug;
 				document.getElementById('plugin-delete-form').submit();
+			}
+		}
+	);
+}
+
+function confirmPluginUpdate(slug, label, newVersion) {
+	showModal(
+		t('theme_update_confirm').replace('%s', label).replace('%v', newVersion),
+		t('theme_update_confirm_title'),
+		{
+			showCancel:  true,
+			confirmText: t('theme_update_btn'),
+			cancelText:  t('cancel'),
+			danger:      false,
+			onConfirm: function () {
+				document.getElementById('plugin-toggle-action').value = 'update';
+				document.getElementById('plugin-toggle-slug').value   = slug;
+				document.getElementById('plugin-toggle-form').submit();
 			}
 		}
 	);

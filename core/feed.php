@@ -1,10 +1,10 @@
 <?php
 /**
  * RSS 2.0 feed — articles sorted by date descending.
- * Accessible at /feed.php or via the /feed/ rewrite rule.
+ * Accessible at /core/feed.php.
  */
 
-require_once __DIR__ . '/core/functions.php';
+require_once __DIR__ . '/functions.php';
 
 $settings = loadConfig();
 $articles = sl_load_index('article');
@@ -17,7 +17,7 @@ $articles = array_slice(array_values($articles), 0, 20);
 $baseUrl   = getBaseUrl();
 $siteTitle = htmlspecialchars($settings['site_title']      ?? 'SynaptikCMS', ENT_XML1);
 $siteDesc  = htmlspecialchars($settings['site_description'] ?? '',            ENT_XML1);
-$feedUrl   = $baseUrl . 'feed.php';
+$feedUrl   = $baseUrl . 'core/feed.php';
 $buildDate = date(DATE_RSS);
 
 header('Content-Type: application/rss+xml; charset=utf-8');

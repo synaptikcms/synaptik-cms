@@ -2,6 +2,25 @@
 
 All notable changes to SynaptikCMS are documented here.  
 
+## [1.3.4] — 2026-08-08
+
+### Added
+- **Automatic theme and plugin updates** — Admin → Appearance → Themes and Admin → Extensions now check for newer versions of installed themes and plugins against a public registry, the same way the core CMS already checks for new releases. An "Update available" badge appears on any theme or plugin with a newer version, with a one-click Update button that downloads, safety-backs-up, and replaces the extension's files. Plugin `data/` and `private/` folders (subscriber lists, bookings, CSRF secrets) are always preserved during a plugin update, never overwritten.
+- Update checks are cached for 24 hours to avoid repeated remote lookups, matching the existing core-update check behaviour.
+- **New Vitae Theme** — A CV/portfolio theme with identity card hero, animated skill bars, experience timeline, masonry project grid, dark/light toggle and styled contact form. All CV data is managed from a single admin page and the theme uses custom fields to display data. Detailed instructions on how to use and set up inside the package.
+- **New Analytics Plugin** — Server-side traffic analytics with no external scripts, no cookies, and no database. Tracks page views, unique visitors, referrers, and device types automatically once activated. The admin panel shows a views-per-day line chart, device and traffic-source breakdowns, a top-pages ranking, and a referrer domain table — all filterable by 7, 30, 90, or 365 days. Bots and logged-in admins are excluded from tracking. IPs are never stored: each visitor is identified by a daily-rotating hash for the single-day "today" count, and a monthly-rotating hash for accurate unique-visitor counts over longer periods. Log retention is configurable and data can be purged at any time from the Settings tab. GDPR-friendly by design.
+
+### Changed
+- Extension update downloads now explicitly detect HTTP error responses (e.g. a renamed or missing file on the server) instead of only failing later at the "invalid package" step, giving a clearer error message when a download link is broken.
+- **Cleaner root directory** — `search.php` and `feed.php` moved from the CMS root into `/core/`, leaving only `index.php` and `install.php` as root-level entry points. All internal references (JS search endpoint, RSS auto-discovery link) updated accordingly.
+- `getBaseUrl()` now derives the CMS sub-directory from `CMS_ROOT` instead of `$_SERVER['SCRIPT_NAME']`, making it reliable regardless of which script handles the request.
+
+### Fixed
+- Fixed search (`Ctrl+K` and the search page) returning no results on any site that had already run the v1.3.3 migration. `search.php` still required `data-layer.php` from its old root-level path, which no longer exists after the `/core/` restructure.
+- Fixed the content editor preview button opening a blank or broken page.
+
+---
+
 ## [1.3.3] — 2026-08-06
 
 ### Added

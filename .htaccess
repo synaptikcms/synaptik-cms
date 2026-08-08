@@ -77,7 +77,7 @@ script-src 'self' 'unsafe-inline' https://js.hcaptcha.com https://cdn.jsdelivr.n
 frame-src https://newassets.hcaptcha.com; \
 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.bunny.net https://cdn.jsdelivr.net; \
 font-src 'self' https://fonts.gstatic.com https://fonts.bunny.net https://cdn.jsdelivr.net; \
-img-src 'self' data: blob:; \
+img-src 'self' data: blob: https://img.shields.io; \
 connect-src 'self' https://hcaptcha.com https://api.hcaptcha.com https://www.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net; \
 frame-ancestors 'self'"
 </IfModule>

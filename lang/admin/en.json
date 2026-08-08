@@ -897,6 +897,19 @@
     "theme_manager_activate_confirm_title": "Switch Theme",
     "theme_manager_activated": "Theme \"%s\" activated.",
     "theme_manager_activate_failed": "Activation failed. Check permissions on config.json.",
+    "theme_manager_update_success": "Theme \"%s\" updated successfully.",
+    "theme_update_badge": "Update available",
+    "theme_update_available_title": "Version %s available",
+    "theme_update_btn": "Update",
+    "theme_update_confirm": "Update \"%s\" to version %v? A backup of the current version will be created automatically. Any manual changes made directly to its files will be overwritten.",
+    "theme_update_confirm_title": "Confirm Update",
+    "ext_update_invalid_slug": "Invalid theme/plugin identifier.",
+    "ext_update_not_found": "No update available for this item \u2014 refresh and try again.",
+    "ext_update_not_installed": "This item is not currently installed.",
+    "ext_update_download_404": "The download link for this update returned an error (file missing or renamed on the server). Contact the theme/plugin author.",
+    "dashboard_ext_updates_available": "%d theme/plugin update(s) available",
+    "dashboard_ext_updates_themes": "%d theme(s)",
+    "dashboard_ext_updates_plugins": "%d plugin(s)",
     "seo_overview": "SEO Overview",
     "seo_overview_btn": "Open SEO Overview",
     "seo_total_content": "Total content",
@@ -1178,5 +1191,6 @@
     "extensions_delete": "Delete",
     "extensions_delete_confirm": "Permanently delete the plugin \"%s\" and all its files? This cannot be undone.",
     "extensions_deleted": "Plugin deleted.",
-    "extensions_delete_failed": "Could not delete plugin. Deactivate it first, then try again."
+    "extensions_delete_failed": "Could not delete plugin. Deactivate it first, then try again.",
+    "extensions_update_success": "Plugin \"%s\" updated successfully."
 }

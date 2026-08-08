@@ -23,12 +23,11 @@ chdir($rootDir);
 
 $_SERVER['SCRIPT_NAME'] = dirname(dirname($_SERVER['SCRIPT_NAME'])) . '/index.php';
 
-require_once $rootDir . '/functions.php';
+require_once $rootDir . '/core/functions.php';
 
 $settings = loadConfig();
 // Load lightweight indices — preview builds its own $item from POST data,
 // $data is only needed so cleanUrl() / getCategoryPath() can resolve paths.
-require_once $rootDir . '/data-layer.php';
 $data = sl_build_data_array(['article', 'page', 'project'], false);
 
 $activeTheme = $settings['active_theme'] ?? 'default';

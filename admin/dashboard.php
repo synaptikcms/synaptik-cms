@@ -63,6 +63,15 @@ if (!isset($appSettings)) {
 $_sb_update = admin_check_for_update();
 $_sb_news = admin_fetch_news();
 
+// Theme/plugin updates — same 24h-cached registry check used by the Theme
+// Manager and Extensions pages, so surfacing it here costs nothing extra on
+// a normal page load (cache hit) and never requires visiting those pages
+// first for the admin to find out an update exists.
+require_once __DIR__ . '/includes/extension-update-functions.php';
+$_sb_theme_updates  = admin_check_theme_updates();
+$_sb_plugin_updates = admin_check_plugin_updates();
+$_sb_ext_update_count = count($_sb_theme_updates) + count($_sb_plugin_updates);
+
 // ── Recent content items ─────────────────────────────────────────────────────
 $recentItems = [];
 foreach (['article', 'page', 'project'] as $_type) {
@@ -145,6 +154,18 @@ function dash_opcache_enabled(): bool {
 			<a href="<?php echo htmlspecialchars($_sb_update['changelog_url']); ?>" target="_blank" rel="noopener"><?php _e('update_changelog_link'); ?></a>
 		<?php endif; ?>
 		<a href="index.php?action=update"><?php _e('update_apply_btn'); ?> →</a>
+	</div>
+	<?php endif; ?>
+
+	<?php if ($_sb_ext_update_count > 0): ?>
+	<div class="update-notice">
+		<strong><?php echo admin_icon('update'); ?> <?php echo sprintf(__t('dashboard_ext_updates_available', '%d theme/plugin update(s) available'), $_sb_ext_update_count); ?></strong>
+		<?php if (!empty($_sb_theme_updates)): ?>
+			<a href="index.php?action=manage_themes"><?php echo sprintf(__t('dashboard_ext_updates_themes', '%d theme(s)'), count($_sb_theme_updates)); ?> →</a>
+		<?php endif; ?>
+		<?php if (!empty($_sb_plugin_updates)): ?>
+			<a href="index.php?action=plugins"><?php echo sprintf(__t('dashboard_ext_updates_plugins', '%d plugin(s)'), count($_sb_plugin_updates)); ?> →</a>
+		<?php endif; ?>
 	</div>
 	<?php endif; ?>
 	

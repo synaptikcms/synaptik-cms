@@ -889,6 +889,19 @@
   "theme_manager_activate_confirm_title": "Cambiar tema",
   "theme_manager_activated": "Tema «%s» activado.",
   "theme_manager_activate_failed": "Error al activar. Verifique los permisos de config.json.",
+  "theme_manager_update_success": "Tema \"%s\" actualizado correctamente.",
+  "theme_update_badge": "Actualización disponible",
+  "theme_update_available_title": "Versión %s disponible",
+  "theme_update_btn": "Actualizar",
+  "theme_update_confirm": "¿Actualizar \"%s\" a la versión %v? Se creará automáticamente una copia de seguridad de la versión actual. Cualquier cambio manual realizado directamente en sus archivos se sobrescribirá.",
+  "theme_update_confirm_title": "Confirmar actualización",
+  "ext_update_invalid_slug": "Identificador de tema/plugin no válido.",
+  "ext_update_not_found": "No hay actualización disponible para este elemento — actualice la página e inténtelo de nuevo.",
+  "ext_update_not_installed": "Este elemento no está instalado actualmente.",
+  "ext_update_download_404": "El enlace de descarga de esta actualización devolvió un error (archivo ausente o renombrado en el servidor). Contacta al autor del tema/plugin.",
+  "dashboard_ext_updates_available": "%d actualización(es) de tema/plugin disponible(s)",
+  "dashboard_ext_updates_themes": "%d tema(s)",
+  "dashboard_ext_updates_plugins": "%d plugin(s)",
   "seo_overview": "Resumen SEO",
   "seo_overview_btn": "Ver Resumen SEO",
   "seo_total_content": "Total contenido",
@@ -1177,5 +1190,6 @@
   "extensions_delete": "Eliminar",
   "extensions_delete_confirm": "¿Eliminar permanentemente el plugin \"%s\" y todos sus archivos? Esta acción no se puede deshacer.",
   "extensions_deleted": "Plugin eliminado.",
-  "extensions_delete_failed": "No se pudo eliminar el plugin. Desactívalo primero e inténtalo de nuevo."
+  "extensions_delete_failed": "No se pudo eliminar el plugin. Desactívalo primero e inténtalo de nuevo.",
+  "extensions_update_success": "Plugin \"%s\" actualizado correctamente."
 }

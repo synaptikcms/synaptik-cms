@@ -2551,237 +2551,49 @@ document.addEventListener('DOMContentLoaded', function() {
 	// Add CSS for the columns
 	const style = document.createElement('style');
 	style.textContent = `
-	/* ===== Sections pliables dans l'éditeur WYSIWYG ===== */
-	.editor-content .c-col{
-	  --c-color:#60a5fa;
-	  --c-bg:rgba(96,165,250,.08);
-	  border:1px solid rgba(0,0,0,.1);
-	  border-radius:10px;
-	  margin:10px 0;
-	  background:var(--c-bg);
-	  overflow:hidden;
-	}
-	.editor-content .c-col > .c-head{
-	  display:flex;
-	  align-items:center;
-	  gap:10px;
-	  padding:10px 12px;
-	  background:rgba(0,0,0,.03);
-	  cursor:default;
-	  user-select:none;
-	  border-bottom:1px solid rgba(0,0,0,.06);
-	}
-	.editor-content .c-col > .c-head .c-title{
-	  flex:1;
-	  font-weight:600;
-	  color:var(--c-color);
-	  outline:none;
-	}
-	.editor-content .c-col > .c-head .c-title:focus{
-	  background:rgba(255,255,255,.6);
-	  border-radius:4px;
-	  padding:2px 4px;
-	}
-	.editor-content .c-col > .c-head .c-chevron{
-	  font-size:11px;
-	  color:var(--c-color);
-	  opacity:.6;
-	  /* rétablit l'affichage du caractère ▼ dans l'éditeur */
-	  display:inline-flex;
-	  align-items:center;
-	  justify-content:center;
-	  width:20px;
-	  height:20px;
-	}
-	.editor-content .c-col > .c-head .c-chevron::before{
-	  display:none; /* masque le triangle CSS : on garde le caractère ▼ */
-	}
-	.editor-content .c-col > .c-head .c-color-btn{
-	  display:flex;
-	  align-items:center;
-	  justify-content:center;
-	  width:20px;
-	  height:20px;
-	  padding:0;
-	  margin-left:4px;
-	  border:none;
-	  border-radius:4px;
-	  background:transparent;
-	  font-size:12px;
-	  line-height:1;
-	  cursor:pointer;
-	  opacity:.55;
-	}
-	.editor-content .c-col > .c-head .c-color-btn:hover{
-	  opacity:1;
-	  background:rgba(0,0,0,.06);
-	}
-	.editor-content .c-col > .c-head .c-del-btn{
-	  display:flex;
-	  align-items:center;
-	  justify-content:center;
-	  width:20px;
-	  height:20px;
-	  padding:0;
-	  margin-left:4px;
-	  border:none;
-	  border-radius:4px;
-	  background:transparent;
-	  color:#c0392b;
-	  font-size:12px;
-	  line-height:1;
-	  cursor:pointer;
-	  opacity:.55;
-	}
-	.editor-content .c-col > .c-head .c-del-btn:hover{
-	  opacity:1;
-	  background:rgba(192,57,43,.12);
-	}
-	.editor-content .c-col > .c-body{
-	  display:block !important;      /* toujours visible en édition */
-	  max-height:none !important;    /* override l'animation max-height du thème */
-	  overflow:visible !important;
-	  opacity:1 !important;
-	  transform:none !important;
-	  padding:10px 14px !important;
-	}
-	.editor-content .c-col[data-level="1"]::before{ content:"Niveau 1"; }
-	.editor-content .c-col[data-level="2"]::before{ content:"Niveau 2"; }
-	.editor-content .c-col[data-level="3"]::before{ content:"Niveau 3"; }
-	.editor-content .c-col[data-level="4"]::before{ content:"Niveau 4"; }
-	.editor-content .c-col::before{
-	  display:inline-block;
-	  font-size:10px;
-	  text-transform:uppercase;
-	  letter-spacing:.5px;
-	  color:var(--c-color);
-	  opacity:.6;
-	  padding:3px 8px;
-	  background:rgba(0,0,0,.05);
-	  border-bottom-right-radius:6px;
-	  font-weight:700;
-	}
-	.editor-content .c-col[data-level="2"]{margin-left:8px;}
-	.editor-content .c-col[data-level="3"]{margin-left:16px;}
-	.editor-content .c-col[data-level="4"]{margin-left:24px;}
-	
-	.content-columns {
-	  display: flex;
-	  flex-wrap: wrap;
-	  gap: 20px;
-	  margin: 1em 0;
-	}
-	
-	.columns-2 .column {
-	  flex: 0 0 calc(50% - 10px);
-	}
-	
-	.columns-3 .column {
-	  flex: 0 0 calc(33.333% - 14px);
-	}
-	
-	.columns-4 .column {
-	  flex: 0 0 calc(25% - 15px);
-	}
-	
+	/* ===== Collapsible sections in WYSIWYG Editor ===== */
+	.editor-content .c-col { --c-color: #60a5fa; --c-bg: rgba(96,165,250,.08); border: 1px solid rgba(0,0,0,.1); border-radius: 10px; margin: 10px 0; background: var(--c-bg); overflow: hidden; }
+	.editor-content .c-col > .c-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(0,0,0,.03); cursor:default; user-select: none; border-bottom: 1px solid rgba(0,0,0,.06); }
+	.editor-content .c-col > .c-head .c-title { flex: 1; font-weight: 600; color: var(--c-color); outline: none; }
+	.editor-content .c-col > .c-head .c-title:focus { background: rgba(255,255,255,.6); border-radius: 4px; padding: 2px 4px; }
+	.editor-content .c-col > .c-head .c-chevron { font-size: 11px; color: var(--c-color); opacity: .6; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; }
+	.editor-content .c-col > .c-head .c-chevron::before { display: none; }
+	.editor-content .c-col > .c-head .c-color-btn { display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; margin-left: 4px; border: none; border-radius: 4px; background: transparent; font-size: 12px; line-height: 1; cursor: pointer; opacity: .55; }
+	.editor-content .c-col > .c-head .c-color-btn:hover { opacity: 1; background: rgba(0,0,0,.06); }
+	.editor-content .c-col > .c-head .c-del-btn { display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; margin-left: 4px; border: none; border-radius: 4px; background: transparent; color: #c0392b; font-size: 12px; line-height: 1; cursor: pointer; opacity: .55; }
+	.editor-content .c-col > .c-head .c-del-btn:hover { opacity: 1; background: rgba(192,57,43,.12); }
+	.editor-content .c-col > .c-body { display: block !important; max-height: none !important; overflow: visible !important; opacity: 1 !important; transform: none !important; padding: 10px 14px !important; }
+	.editor-content .c-col[data-level="1"]::before { content: "Niveau 1"; }
+	.editor-content .c-col[data-level="2"]::before { content: "Niveau 2"; }
+	.editor-content .c-col[data-level="3"]::before { content: "Niveau 3"; }
+	.editor-content .c-col[data-level="4"]::before { content: "Niveau 4"; }
+	.editor-content .c-col::before { display: inline-block; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--c-color); opacity: .6; padding: 3px 8px; background: rgba(0,0,0,.05); border-bottom-right-radius: 6px; font-weight: 700; }
+	.editor-content .c-col[data-level="2"] { margin-left: 8px; }
+	.editor-content .c-col[data-level="3"] { margin-left: 16px; }
+	.editor-content .c-col[data-level="4"] { margin-left: 24px; }
+	.content-columns { display: flex; flex-wrap: wrap; gap: 20px; margin: 1em 0; }
+	.columns-2 .column { flex: 0 0 calc(50% - 10px); }
+	.columns-3 .column { flex: 0 0 calc(33.333% - 14px); }
+	.columns-4 .column { flex: 0 0 calc(25% - 15px); }
 	@media (max-width: 768px) {
-	  .content-columns {
-		flex-direction: column;
-	  }
-	  
-	  .columns-2 .column,
-	  .columns-3 .column,
-	  .columns-4 .column {
-		flex: 0 0 100%;
-	  }
+	  .content-columns { flex-direction: column; }
+	  .columns-2 .column, .columns-3 .column, .columns-4 .column { flex: 0 0 100%; }
 	}
 	/* ===== Dropdown toolbar ===== */
-	.editor-dropdown {
-	  position: relative;
-	  display: inline-flex;
-	}
-	.editor-dropdown-btn {
-	  display: inline-flex;
-	  align-items: center;
-	  gap: 2px;
-	}
-	.editor-dropdown-arrow {
-	  font-size: 8px;
-	  opacity: .6;
-	  margin-left: 1px;
-	}
-	.editor-dropdown-menu {
-	  display: none;
-	  position: absolute;
-	  top: calc(100% + 4px);
-	  left: 0;
-	  background: #fff;
-	  border: 1px solid #d0d7de;
-	  border-radius: 6px;
-	  padding: 4px;
-	  z-index: 9999;
-	  min-width: 160px;
-	  box-shadow: 0 6px 18px rgba(0,0,0,.15);
-	  flex-direction: column;
-	  gap: 2px;
-	}
-	.editor-dropdown-menu.open {
-	  display: flex;
-	}
-	.editor-dropdown-item {
-	  display: flex;
-	  align-items: center;
-	  gap: 8px;
-	  width: 100%;
-	  background: none;
-	  border: none;
-	  color: #1a1a1a;
-	  cursor: pointer;
-	  padding: 6px 10px;
-	  border-radius: 4px;
-	  font-size: 13px;
-	  text-align: left;
-	  white-space: nowrap;
-	}
-	.editor-dropdown-item:hover {
-	  background: #f0f6ff;
-	  color: #0969da;
-	}
-	.dropdown-item-label {
-	  font-size: 12px;
-	  opacity: .85;
-	}
+	.editor-dropdown { position: relative; display: inline-flex; }
+	.editor-dropdown-btn { display: inline-flex; align-items: center; gap: 2px; }
+	.editor-dropdown-arrow { font-size: 8px; opacity: .6; margin-left: 1px; }
+	.editor-dropdown-menu { display: none; position: absolute; top: calc(100% + 4px); left: 0; background: #fff; border: 1px solid #d0d7de; border-radius: 6px; padding: 4px; z-index: 9999; min-width: 160px; box-shadow: 0 6px 18px rgba(0,0,0,.15); flex-direction: column; gap: 2px; }
+	.editor-dropdown-menu.open { display: flex; }
+	.editor-dropdown-item { display: flex; align-items: center; gap: 8px; width: 100%; background: none; border: none; color: #1a1a1a; cursor: pointer; padding: 6px 10px; border-radius: 4px; font-size: 13px; text-align: left; white-space: nowrap; }
+	.editor-dropdown-item:hover { background: #f0f6ff; color: #0969da; }
+	.dropdown-item-label { font-size: 12px; opacity: .85; }
 	/* ===== Color picker ===== */
-	.editor-color-wrapper {
-	  position: relative;
-	  display: inline-flex;
-	}
-	.editor-color-btn {
-	  display: inline-flex;
-	  flex-direction: column;
-	  align-items: center;
-	  gap: 2px;
-	  padding: 4px 6px !important;
-	}
-	.color-letter {
-	  font-weight: 700;
-	  font-size: 13px;
-	  line-height: 1;
-	}
-	.color-swatch {
-	  display: block;
-	  width: 16px;
-	  height: 3px;
-	  border-radius: 2px;
-	  background: #e74c3c;
-	}
-	.editor-color-input {
-	  position: absolute;
-	  opacity: 0;
-	  width: 0;
-	  height: 0;
-	  pointer-events: none;
-	}
+	.editor-color-wrapper { position: relative; display: inline-flex; }
+	.editor-color-btn { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 6px !important; }
+	.color-letter { font-weight: 700; font-size: 13px; line-height: 1; }
+	.color-swatch { display: block; width: 16px; height: 3px; border-radius: 2px; background: #e74c3c; }
+	.editor-color-input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
   `;
 	document.head.appendChild(style);
 

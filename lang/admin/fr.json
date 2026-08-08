@@ -892,6 +892,19 @@
   "theme_manager_activate_confirm_title": "Changer de thème",
   "theme_manager_activated": "Thème « %s » activé.",
   "theme_manager_activate_failed": "Échec de l'activation. Vérifiez les permissions sur config.json.",
+  "theme_manager_update_success": "Thème « %s » mis à jour avec succès.",
+  "theme_update_badge": "Mise à jour disponible",
+  "theme_update_available_title": "Version %s disponible",
+  "theme_update_btn": "Mettre à jour",
+  "theme_update_confirm": "Mettre à jour « %s » vers la version %v ? Une sauvegarde de la version actuelle sera créée automatiquement. Toute modification manuelle apportée directement à ses fichiers sera écrasée.",
+  "theme_update_confirm_title": "Confirmer la mise à jour",
+  "ext_update_invalid_slug": "Identifiant de thème/plugin invalide.",
+  "ext_update_not_found": "Aucune mise à jour disponible pour cet élément — actualisez et réessayez.",
+  "ext_update_not_installed": "Cet élément n'est pas installé actuellement.",
+  "ext_update_download_404": "Le lien de téléchargement de cette mise à jour a renvoyé une erreur (fichier manquant ou renommé sur le serveur). Contactez l'auteur du thème/plugin.",
+  "dashboard_ext_updates_available": "%d mise(s) à jour de thème/plugin disponible(s)",
+  "dashboard_ext_updates_themes": "%d thème(s)",
+  "dashboard_ext_updates_plugins": "%d plugin(s)",
   "seo_overview": "Aperçu SEO",
   "seo_overview_btn": "Ouvrir l'aperçu SEO",
   "seo_total_content": "Contenus total",
@@ -1177,5 +1190,6 @@
   "extensions_delete": "Supprimer",
   "extensions_delete_confirm": "Supprimer définitivement le plugin \"%s\" et tous ses fichiers ? Cette action est irréversible.",
   "extensions_deleted": "Plugin supprimé.",
-  "extensions_delete_failed": "Impossible de supprimer le plugin. Désactivez-le d'abord, puis réessayez."
+  "extensions_delete_failed": "Impossible de supprimer le plugin. Désactivez-le d'abord, puis réessayez.",
+  "extensions_update_success": "Plugin \"%s\" mis à jour avec succès."
 }

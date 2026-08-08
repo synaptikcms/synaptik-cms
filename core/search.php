@@ -6,7 +6,7 @@ header('Cache-Control: no-store');
 // Load CMS functions (url_slug, cleanUrl, getCategoryPath, getBaseUrl, sanitizeSlug,
 // sl_build_data_array). functions.php already requires data-layer.php internally —
 // no separate include needed here.
-require_once __DIR__ . '/core/functions.php';
+require_once __DIR__ . '/functions.php';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

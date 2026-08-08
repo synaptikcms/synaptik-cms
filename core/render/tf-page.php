@@ -196,7 +196,7 @@ function render_header_scripts($headerScripts)
             . _asset_version($root . '/assets/js/main.js') . '"></script>',
         '    <link rel="alternate" type="application/rss+xml" title="'
             . htmlspecialchars($settings['site_title'] ?? 'RSS Feed')
-            . '" href="' . $base . 'feed.php">',
+            . '" href="' . $base . 'core/feed.php">',
     ];
 
     $lang = '    <script>window.CMS_LANG = ' . lang_js_bridge() . ';</script>';
@@ -308,6 +308,8 @@ function render_content_gallery($item)
 
 /**
  * Renders the footer text and optional social links.
+ * Appends a "Powered by SynaptikCMS" attribution link — visible, crawlable,
+ * and honest. Never hidden: hidden backlinks are a Google spam violation.
  * Uses the global $settings variable populated by index.php.
  */
 function render_footer_content()
@@ -337,6 +339,9 @@ function render_footer_content()
         }
         echo '</div>';
     }
+
+    // Attribution — visible, honest, crawlable. Do not hide with CSS.
+    echo '<p class="snk-credit">Powered by <a href="https://synaptikcms.com" target="_blank" rel="noopener">SynaptikCMS</a></p>';
 
     return ob_get_clean();
 }

@@ -5,7 +5,7 @@
  */
 
 if (!isset($data)) {
-	require_once dirname(dirname(__DIR__)) . '../../core/data-layer.php';
+	require_once dirname(dirname(__DIR__)) . '/core/data-layer.php';
 	$data = sl_build_data_array(['article', 'page', 'project'], false);
 }
 

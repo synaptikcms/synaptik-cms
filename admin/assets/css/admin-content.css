@@ -227,6 +227,7 @@
 .theme-card-body { display: flex; flex-direction: column; flex: 1; gap: 6px; padding: 14px 16px; }
 .theme-card-name { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-family: var(--font-headings); font-weight: 600; font-size: 1em; color: var(--text); }
 .theme-badge-active { padding: 2px 8px; background: var(--primary); color: #fff; border-radius: var(--radius-sm); font-size: .7em; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.theme-badge-update { padding: 2px 8px; background: var(--warning); color: #fff; border-radius: var(--radius-sm); font-size: .7em; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
 .badge-orphan { margin-left: 10px; padding: 3px 8px; background: var(--danger); color: #fff; border-radius: var(--radius-sm); font-size: .7em; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
 .theme-card-meta { font-size: .8em; color: var(--text-faint); }
 .theme-card-desc { flex: 1; font-size: .85em; color: var(--text-muted); }

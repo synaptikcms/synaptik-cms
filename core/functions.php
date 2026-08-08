@@ -81,16 +81,32 @@ function decodeHtmlEntities($text) {
 }
 
 /**
- * Get the base URL with proper trailing slash
- * @return string Base URL
+ * Get the base URL with proper trailing slash.
+ *
+ * Derives the sub-directory from CMS_ROOT vs DOCUMENT_ROOT so the result
+ * is stable regardless of which PHP script is the actual entry point
+ * (index.php, core/search.php, core/feed.php, etc.). Falls back to
+ * SCRIPT_NAME when DOCUMENT_ROOT is unavailable.
+ *
+ * @return string  e.g. 'https://example.com/' or 'http://localhost:8888/cmsapp/'
  */
 function getBaseUrl() {
 	$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
 	          || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
 	          || (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on');
-	$baseUrl = ($isHttps ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'];
-	$baseDir = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
-	return $baseUrl . $baseDir . '/';
+	$origin = ($isHttps ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'];
+
+	$docRoot = realpath($_SERVER['DOCUMENT_ROOT'] ?? '') ?: '';
+	$cmsRoot = defined('CMS_ROOT') ? realpath(CMS_ROOT) ?: '' : '';
+
+	if ($docRoot !== '' && $cmsRoot !== '' && strpos($cmsRoot, $docRoot) === 0) {
+		$subDir = substr($cmsRoot, strlen($docRoot));
+	} else {
+		// Fallback: derive from SCRIPT_NAME (works when running from CMS root)
+		$subDir = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
+	}
+
+	return $origin . $subDir . '/';
 }
 
 function url_slug(string $type): string {
