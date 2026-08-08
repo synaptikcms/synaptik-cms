@@ -14,7 +14,7 @@
 <img src="https://img.shields.io/badge/zero-dependencies-0ea5e9?style=flat" height="32">
 <img src="https://img.shields.io/github/stars/synaptikcms/synaptik-cms?style=flat&color=f59e0b&label=stars" height="32">
 <img src="https://img.shields.io/github/v/release/synaptikcms/synaptik-cms?style=flat&color=6366f1&label=latest" height="32">  
-<br>
+<br><br>
 
 [Live Demo](https://synaptikcms.com/live-demo/) · [Download Themes](https://synaptikcms.com/themes/) · [Download Plugins](https://synaptikcms.com/plugins/) · [Documentation](https://synaptikcms.com/docs/) · [Changelog](CHANGELOG.md) · [Report a Bug](https://github.com/synaptikcms/synaptik-cms/issues)  
 <br>
