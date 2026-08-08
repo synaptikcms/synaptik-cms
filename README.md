@@ -18,10 +18,7 @@
 [Live Demo](https://synaptikcms.com/live-demo/) · [Download Themes](https://synaptikcms.com/themes/) · [Download Plugins](https://synaptikcms.com/plugins/) · [Documentation](https://synaptikcms.com/docs/) · [Changelog](CHANGELOG.md) · [Report a Bug](https://github.com/synaptikcms/synaptik-cms/issues)
 
 ![Dashboard](.github/assets/dashboard-light.png)
-![Dashboard Dark](.github/assets/dashboard-dark.png)
 ![Editor](.github/assets/editor-light.jpg)
-![Editor Dark](.github/assets/editor-dark.jpg)
-![Media Manager](.github/assets/file-manager-light.jpg)
 ![Media Manager Dark](.github/assets/file-manager-dark.jpg)
 ![Editor Markdown](.github/assets/editor-markdown-sidebar-collapsed.png)
 ![Gallery Example](.github/assets/gallery-sidebar-collapsed.jpg)
