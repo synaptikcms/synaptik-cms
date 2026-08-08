@@ -7,13 +7,13 @@
 **A full-featured flat-file PHP CMS built for speed and simplicity. JSON storage, no database, no dependencies — just upload to any server and go.**
 
 
-<img src="https://img.shields.io/badge/PHP-7.4%2B-777bb4?style=flat&logo=php&logoColor=white" height="26">
-<img src="https://img.shields.io/badge/license-MIT-22c55e?style=flat" height="26">
-<img src="https://img.shields.io/badge/footprint-2MB-14b8a6?style=flat" height="26">
-<img src="https://img.shields.io/badge/no-database-e11d48?style=flat" height="26">
-<img src="https://img.shields.io/badge/zero-dependencies-0ea5e9?style=flat" height="26">
-<img src="https://img.shields.io/github/stars/synaptikcms/synaptik-cms?style=flat&color=f59e0b&label=stars" height="26">
-<img src="https://img.shields.io/github/v/release/synaptikcms/synaptik-cms?style=flat&color=6366f1&label=latest" height="26">
+<img src="https://img.shields.io/badge/PHP-7.4%2B-777bb4?style=flat&logo=php&logoColor=white" height="32">
+<img src="https://img.shields.io/badge/license-MIT-22c55e?style=flat" height="32">
+<img src="https://img.shields.io/badge/footprint-2MB-14b8a6?style=flat" height="32">
+<img src="https://img.shields.io/badge/no-database-e11d48?style=flat" height="32">
+<img src="https://img.shields.io/badge/zero-dependencies-0ea5e9?style=flat" height="32">
+<img src="https://img.shields.io/github/stars/synaptikcms/synaptik-cms?style=flat&color=f59e0b&label=stars" height="32">
+<img src="https://img.shields.io/github/v/release/synaptikcms/synaptik-cms?style=flat&color=6366f1&label=latest" height="32">
 
 [Live Demo](https://synaptikcms.com/live-demo/) · [Download Themes](https://synaptikcms.com/themes/) · [Download Plugins](https://synaptikcms.com/plugins/) · [Documentation](https://synaptikcms.com/docs/) · [Changelog](CHANGELOG.md) · [Report a Bug](https://github.com/synaptikcms/synaptik-cms/issues)
 
