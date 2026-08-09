@@ -1,10 +1,11 @@
 <div align="center">
 
 # If you like the project, please give it a Star! ⭐
+---
 
 # SynaptikCMS
 
-**A full-featured flat-file PHP CMS built for speed and simplicity. JSON storage, no database, no dependencies — just upload to any server and go.**  
+**A full-featured flat-file PHP CMS built for speed and simplicity. JSON storage, no database, no dependencies — just upload to any server and go.**
 <br>
 
 <img src="https://img.shields.io/badge/PHP-7.4%2B-777bb4?style=flat&logo=php&logoColor=white" height="32">
@@ -13,11 +14,11 @@
 <img src="https://img.shields.io/badge/no-database-e11d48?style=flat" height="32">
 <img src="https://img.shields.io/badge/zero-dependencies-0ea5e9?style=flat" height="32">
 <img src="https://img.shields.io/github/stars/synaptikcms/synaptik-cms?style=flat&color=f59e0b&label=stars" height="32">
-<img src="https://img.shields.io/github/v/release/synaptikcms/synaptik-cms?style=flat&color=6366f1&label=latest" height="32">  
+<img src="https://img.shields.io/github/v/release/synaptikcms/synaptik-cms?style=flat&color=6366f1&label=latest" height="32">
 <br><br>
 
-[Live Demo](https://synaptikcms.com/live-demo/) · [Download Themes](https://synaptikcms.com/themes/) · [Download Plugins](https://synaptikcms.com/plugins/) · [Documentation](https://synaptikcms.com/docs/) · [Changelog](CHANGELOG.md) · [Report a Bug](https://github.com/synaptikcms/synaptik-cms/issues)  
-<br>
+[Live Demo](https://synaptikcms.com/live-demo/) · [Download Themes](https://synaptikcms.com/themes/) · [Download Plugins](https://synaptikcms.com/plugins/) · [Documentation](https://synaptikcms.com/docs/) · [Changelog](CHANGELOG.md) · [Report a Bug](https://github.com/synaptikcms/synaptik-cms/issues)
+<br><br>
 
 ![Dashboard](.github/assets/dashboard-light.png)
 ![Editor](.github/assets/editor-light.jpg)
@@ -53,7 +54,7 @@ It was built for developers, designers, artists, creative professionals, writers
 | Image optimization | ✓ built-in | Plugin | Plugin | Plugin | Plugin | Plugin |
 | Built-in analytics | ✓ plugin | Plugin | Plugin | Plugin | Plugin | Plugin |
 | Composer required | ✗ | ✗ | ✓ | ✓ | ✗ | ✓ |
-| Install footprint | ~2 MB | ~50 MB | ~30 MB | ~20 MB | ~5 MB | ~10 MB |
+| Install footprint | ~2 MB | ~86 MB | ~52 MB | ~20 MB | ~9 MB | ~10 MB |
 | License | MIT free | GPL free | MIT free | Paid | MIT free | MIT free |
 | Install time | ~2 min | ~10 min | ~5 min | ~5 min | ~3 min | ~5 min |
 
@@ -70,10 +71,13 @@ No composer. No npm. No database setup.
 3. Visit `yourdomain.com/install.php` (or `yourdomain.com/subfolder/install.php`) and complete the setup wizard (site name, language, admin password, admin folder name)
 
 **That's it.** You're running.
+<br><br>
 
 > ⚠️ Always run `install.php` before using the CMS. See the [installation guide](https://synaptikcms.com/docs/getting-started/#toc-installation) for details.
+<br>
 
-You can download more free themes for your Synaptik installation on the [Official Website](https://synaptikcms.com/themes/).
+**Note:** The default install package ships only with the default theme. You can download clean, beautiful and responsive free themes for your Synaptik installation on the [Official Website's Themes Page](https://synaptikcms.com/themes/).
+If you wish to extend the functionalities of your CMS, official plugins can be found [on this page](https://synaptikcms.com/plugins/).
 
 ---
 
