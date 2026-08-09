@@ -1,7 +1,6 @@
 <div align="center">
 
 # If you like the project, please give it a Star! ⭐
----
 
 # SynaptikCMS
 
