@@ -24,7 +24,7 @@ All notable changes to SynaptikCMS are documented here.
 ## [1.3.3] — 2026-08-06
 
 ### Added
-- **New Cookie Consent Plugin** - GDPR-friendly cookie consent banner with per-category opt-in (analytics, marketing), stateless customizable UI, and a public JS API so themes and other plugins can defer their tracking scripts until consent is given. [Download it here](https://synaptikcms.com/files/plugins/cookie-consent-synaptikcms.zip)
+- **New Cookie Consent Plugin** - GDPR-friendly cookie consent banner with per-category opt-in (analytics, marketing), stateless customizable UI, and a public JS API so themes and other plugins can defer their tracking scripts until consent is given. [Download it here](https://synaptikcms.com/files/plugins/cookie-consent-plugin-synaptikcms.zip)
 
 ### Changed
 - **Cleaner project structure** — core PHP files (data layer, rendering engine, plugin API, i18n cache) have been moved out of the root into a dedicated `/core/` directory, and template rendering modules into `/core/render/`. The plugin registry now lives at `/plugins/plugins.json` instead of the root, and `settings.json` has been renamed to `config.json` for clarity. The result is a much tidier root directory with only the actual entry points (`index.php`, `search.php`, `feed.php`, `install.php`) remaining. A one-time migration script runs automatically on the first page load after update to clean up legacy files — no manual action required.
