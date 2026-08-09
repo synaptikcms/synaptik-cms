@@ -269,7 +269,7 @@ plugins/
     └── my-plugin-init.php
 ```
 
-Unlike themes, plugins are not tied to the active theme — once activated from **Admin → Tools → Extensions**, a plugin runs regardless of which theme is in use, and can register its own admin sidebar entry and full admin page rendered inside the standard admin layout. See the [plugin system documentation](https://synaptikcms.com/docs/plugin-system/) for the full developer reference: the plugin API, admin page rendering, front-end shortcode integration, session reuse, CSRF, i18n, and how to package a plugin for distribution.
+Unlike themes, plugins are not tied to the active theme — once activated from **Admin → Tools → Extensions**, a plugin runs regardless of which theme is in use, and can register its own admin sidebar entry and full admin page rendered inside the standard admin layout. See the [plugin system documentation](https://synaptikcms.com/docs/tools/plugin-system/) for the full developer reference: the plugin API, admin page rendering, front-end shortcode integration, session reuse, CSRF, i18n, and how to package a plugin for distribution.
 
 ---
 
