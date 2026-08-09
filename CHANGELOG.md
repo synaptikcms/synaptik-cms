@@ -2,6 +2,23 @@
 
 All notable changes to SynaptikCMS are documented here.  
 
+## [1.3.4.1] — 2026-08-09
+
+### Added
+- **New Ink Theme** - Dark editorial theme for writers and bloggers. Big type, clean masonry card grid, burger menu, and nothing to distract from the content.
+- **Plugin API improvements** — Plugins can now register hooks with an execution priority (lower number runs first), so two plugins hooking the same event no longer depend on load order to behave predictably. A new filter system (`pl_add_filter` / `pl_apply_filter`) lets plugins transform data in a pipeline rather than just react to events. A new shared options API (`pl_get_option` / `pl_set_option` / `pl_delete_option`) gives plugins a standardized, zero-boilerplate way to store and retrieve their settings. All changes are fully backward compatible — existing plugins require no modification.
+
+### Changed
+- All themes updated to benefit from the latest features, CSS adjustments to adapt new footer info.
+- Merged `plugin-upload.php` and `theme-upload.php` into a single `extension-upload.php` endpoint — same security pipeline, one file to maintain.
+
+### Fixed
+- Fixed the admin bar "Edit" link pointing to the wrong item when drafts were present in the index — the link now reads the raw index directly instead of the filtered front-end index, which excluded drafts and caused position offsets.
+- Fixed topnav theme search in Synaptik-docs and Vanta themes, returning no results after `search.php` was moved to `/core/`.
+- Fixed admin flash error messages not auto-dismissing after 5 seconds, unlike success messages.
+
+---
+
 ## [1.3.4] — 2026-08-08
 
 ### Added
