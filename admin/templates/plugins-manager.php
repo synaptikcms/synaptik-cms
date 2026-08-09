@@ -66,8 +66,9 @@ $pluginUpdates = admin_check_plugin_updates();
 		<?php if (!class_exists('ZipArchive')): ?>
 			<p style="color:var(--danger-text);"><?php _e('extensions_upload_no_ziparchive'); ?></p>
 		<?php else: ?>
-			<form method="POST" action="plugin-upload.php" enctype="multipart/form-data" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+			<form method="POST" action="extension-upload.php" enctype="multipart/form-data" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
 				<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
+				<input type="hidden" name="_type" value="plugin">
 				<input type="file" name="plugin_zip" accept=".zip" required style="flex:1; max-width:500px;">
 				<button type="submit" class="btn btn-outline"><?php echo admin_icon('upload'); ?> <?php _e('extensions_upload_btn'); ?></button>
 			</form>

@@ -7,6 +7,8 @@
  *
  *   v1.3.4 — feed.php and search.php moved from root to /core/.
  *
+ *   v1.3.4.1 — plugin-upload.php and theme-upload.php merged into extension-upload.php.
+ *
  * Runs automatically on the first page load after each update. Cleans up
  * legacy files left at the CMS root. Deletes itself once all migrations
  * are complete — zero residual code in the codebase.
@@ -14,13 +16,30 @@
  * Trigger conditions (either causes the script to run):
  *   - settings.json present at root  → v1.3.3 migration pending
  *   - feed.php or search.php present at root → v1.3.4 migration pending
+ *   - plugin-upload.php or theme-upload.php present in /admin/ → v1.3.4.1 migration pending
  */
 
 $__mRoot            = __DIR__;
 $__mHasLegacyConfig = file_exists($__mRoot . '/settings.json');
 $__mHasLegacyRoot   = file_exists($__mRoot . '/feed.php') || file_exists($__mRoot . '/search.php');
 
-if (!$__mHasLegacyConfig && !$__mHasLegacyRoot) {
+// Resolve admin_dir before checking for legacy upload files.
+$__mAdminDirEarly = 'admin';
+foreach (['config.json', 'settings.json'] as $__mCf) {
+    $__mCfPath = $__mRoot . '/' . $__mCf;
+    if (file_exists($__mCfPath)) {
+        $__mCfData = json_decode(file_get_contents($__mCfPath), true);
+        if (is_array($__mCfData) && !empty($__mCfData['admin_dir'])) {
+            $__mAdminDirEarly = $__mCfData['admin_dir'];
+            break;
+        }
+    }
+}
+$__mHasLegacyUpload = file_exists($__mRoot . '/' . $__mAdminDirEarly . '/plugin-upload.php')
+                   || file_exists($__mRoot . '/' . $__mAdminDirEarly . '/theme-upload.php');
+unset($__mCf, $__mCfPath, $__mCfData, $__mAdminDirEarly);
+
+if (!$__mHasLegacyConfig && !$__mHasLegacyRoot && !$__mHasLegacyUpload) {
     // All migrations already applied — self-destruct.
     @unlink(__FILE__);
     return;
@@ -55,6 +74,37 @@ foreach ($__mLegacyFiles as $__mFile) {
     }
 }
 unset($__mFile, $__mPath);
+
+// ── 1b. Remove legacy admin upload files merged into extension-upload.php (v1.3.4.1) ───
+// Read admin_dir from config.json — never assume the folder is named 'admin'.
+$__mAdminDir = 'admin';
+$__mConfigPath = $__mRoot . '/config.json';
+if (file_exists($__mConfigPath)) {
+    $__mConfigRaw = json_decode(file_get_contents($__mConfigPath), true);
+    if (is_array($__mConfigRaw) && !empty($__mConfigRaw['admin_dir'])) {
+        $__mAdminDir = $__mConfigRaw['admin_dir'];
+    }
+}
+// Also try settings.json for sites not yet migrated to config.json (v1.3.3 pending).
+if ($__mAdminDir === 'admin' && file_exists($__mRoot . '/settings.json')) {
+    $__mSettingsRaw = json_decode(file_get_contents($__mRoot . '/settings.json'), true);
+    if (is_array($__mSettingsRaw) && !empty($__mSettingsRaw['admin_dir'])) {
+        $__mAdminDir = $__mSettingsRaw['admin_dir'];
+    }
+}
+
+$__mLegacyAdminFiles = [
+    $__mAdminDir . '/plugin-upload.php',
+    $__mAdminDir . '/theme-upload.php',
+];
+
+foreach ($__mLegacyAdminFiles as $__mFile) {
+    $__mPath = $__mRoot . '/' . $__mFile;
+    if (file_exists($__mPath)) {
+        @unlink($__mPath);
+    }
+}
+unset($__mFile, $__mPath, $__mAdminDir, $__mConfigPath, $__mConfigRaw, $__mSettingsRaw);
 
 // ── 2. Rename settings.json → config.json (v1.3.3 only) ─────────────────────
 if ($__mHasLegacyConfig) {
@@ -109,7 +159,7 @@ if ($__mHasLegacyConfig) {
 // ── 4. Self-destruct ─────────────────────────────────────────────────────────
 @unlink(__FILE__);
 
-unset($__mRoot, $__mHasLegacyConfig, $__mHasLegacyRoot, $__mLegacyFiles,
+unset($__mRoot, $__mHasLegacyConfig, $__mHasLegacyRoot, $__mHasLegacyUpload, $__mLegacyFiles, $__mLegacyAdminFiles,
       $__mOldConfig, $__mNewConfig, $__mOldRaw, $__mOldData,
       $__mNewRaw, $__mNewData, $__mMerged, $__mWriteOk,
       $__mOldRegistry, $__mNewRegistry);

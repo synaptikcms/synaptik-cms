@@ -11,8 +11,9 @@ RewriteRule ^theme-[^/]+/ index.php [QSA,L]
 RewriteRule ^get-files\.php$ file-manager.php?action=get_files [QSA,L]
 RewriteRule ^file-upload\.php$ file-manager.php [QSA,L]
 
-# Legacy backward compat: contact-process.php moved to /core/
+# Legacy backward compat: contact-process.php and search.php moved to /core/
 RewriteRule ^contact-process\.php$ core/contact-process.php [QSA,L]
+RewriteRule ^search\.php$ core/search.php [QSA,L]
 
 # Don't apply rules to existing files or directories
 RewriteCond %{REQUEST_FILENAME} !-f

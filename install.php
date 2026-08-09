@@ -625,6 +625,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (is_dir($dp)) file_put_contents($dp . '/.htaccess', $denyAll);
         }
 
+        // Create /plugins/ — no deny-all needed at root level (plugin PHP endpoints
+        // must remain publicly accessible). Individual plugin data/ and private/
+        // subfolders get their own .htaccess when created at runtime.
+        $pluginsDir = __DIR__ . '/plugins';
+        if (!is_dir($pluginsDir)) @mkdir($pluginsDir, 0755, true);
+        // Protect plugins.json (activation registry) from direct HTTP access.
+        $pluginsHtaccess = $pluginsDir . '/.htaccess';
+        if (!file_exists($pluginsHtaccess)) {
+            file_put_contents($pluginsHtaccess,
+                "<FilesMatch \"^plugins\\.json$\">\n" .
+                "    <IfModule mod_authz_core.c>\n    Require all denied\n    </IfModule>\n" .
+                "    <IfModule !mod_authz_core.c>\n    Deny from all\n    </IfModule>\n" .
+                "</FilesMatch>\n"
+            );
+        }
+
         // Create /files/ and block PHP execution inside it.
         // Media files (images, documents) continue to be served normally.
         $filesDir = __DIR__ . '/files';

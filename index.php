@@ -378,14 +378,21 @@ if ($isAdminLoggedIn) {
 		// Single item view
 		$_singleType = in_array($type, $contentTypes) ? $type : rtrim($type, 's');
 		if (in_array($_singleType, $contentTypes)) {
-			$_indexFound = sl_find_in_index($_singleType, $slug);
-			if ($_indexFound !== null) {
-				[, $_contentIndex] = $_indexFound;
-				$_ctxLabel  = $_adminLang['edit']                   ?? 'Edit';
-				$_ctxHref   = $_adminBase . '/index.php?action=edit&type=' . $_singleType . '&index=' . $_contentIndex;
-				$_newLabel  = $_adminLang['new_' . $_singleType]    ?? ('New ' . $_singleType);
-				$_newHref   = $_adminBase . '/index.php?action=add&type=' . $_singleType;
-				$_listLink  = $_adminBase . '/index.php?type=' . $_singleType;
+			// Read the raw _index.json directly to get the position the admin panel
+			// sees — sl_find_in_index() uses the front-end filtered index which
+			// excludes drafts, so its $pos shifts whenever drafts sit before the
+			// current item, causing the Edit link to point to the wrong item.
+			$_rawIndex   = json_decode(file_get_contents(CMS_ROOT . '/data/' . $_singleType . 's/_index.json'), true) ?? [];
+			$_adminIndex = null;
+			foreach ($_rawIndex as $_rawPos => $_rawEntry) {
+				if (sl_effective_slug($_rawEntry) === $slug) { $_adminIndex = $_rawPos; break; }
+			}
+			if ($_adminIndex !== null) {
+				$_ctxLabel = $_adminLang['edit']                ?? 'Edit';
+				$_ctxHref  = $_adminBase . '/index.php?action=edit&type=' . $_singleType . '&index=' . $_adminIndex;
+				$_newLabel = $_adminLang['new_' . $_singleType] ?? ('New ' . $_singleType);
+				$_newHref  = $_adminBase . '/index.php?action=add&type=' . $_singleType;
+				$_listLink = $_adminBase . '/index.php?type=' . $_singleType;
 			}
 		}
 	} elseif (!empty($type) && empty($slug) && in_array(rtrim($type, 's'), $contentTypes)) {

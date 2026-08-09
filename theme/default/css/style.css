@@ -326,7 +326,8 @@ tr:last-child td { border-bottom: none; }
 }
 /* ── Site footer ───── */
 .site-footer { border-top: 1px solid var(--border); padding: 1.5rem var(--pad); padding-left: calc(var(--sidebar-w) + var(--pad)); font-size: 0.72rem; color: var(--muted); }
-.site-footer-inner { align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.site-footer-inner { display: flex; justify-content: space-between; align-items: center; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+a.social-icon { margin-right: 10px; }
 .site-footer a { color: var(--muted); transition: color var(--dur) var(--ease); }
 .site-footer a:hover { color: var(--text); }
 .footer-social { display: flex; gap: 0.75rem; align-items: center; }

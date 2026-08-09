@@ -326,8 +326,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 	initBatchOperations();
 
-	// Auto-hide success messages after 5 seconds
-	const messages = document.querySelectorAll('.message:not(.error)');
+	// Auto-hide all flash messages after 5 seconds
+	const messages = document.querySelectorAll('.message');
 	if (messages.length > 0) {
 		setTimeout(function() {
 			messages.forEach(function(msg) {

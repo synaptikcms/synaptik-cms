@@ -147,8 +147,9 @@ $themeUpdates = admin_check_theme_updates();
 		<?php if (!class_exists('ZipArchive')): ?>
 			<p style="color:var(--danger-text);"><?php _e('theme_ziparchive_missing'); ?></p>
 		<?php else: ?>
-			<form method="POST" action="theme-upload.php" enctype="multipart/form-data" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+			<form method="POST" action="extension-upload.php" enctype="multipart/form-data" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
 				<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
+				<input type="hidden" name="_type" value="theme">
 				<input type="hidden" name="_redirect" value="index.php?action=manage_themes">
 				<input type="file" name="theme_zip" accept=".zip" required style="flex:1; max-width:500px;">
 				<button type="submit" class="btn btn-outline"><?php echo admin_icon('upload'); ?> <?php _e('theme_import_btn'); ?></button>

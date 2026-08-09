@@ -43,19 +43,59 @@ if (!is_dir(PL_ROOT)) {
 
 // ─── Minimal hook system (admin-context only — see file docblock) ─────────────
 
-$GLOBALS['_pl_hooks'] = [];
+$GLOBALS['_pl_hooks']   = [];
+$GLOBALS['_pl_filters'] = [];
 
-function pl_add_hook(string $hook, callable $callback): void
+/**
+ * Register an action callback on a hook.
+ * Lower priority runs first. Default 10 matches add_theme_action().
+ */
+function pl_add_hook(string $hook, callable $callback, int $priority = 10): void
 {
-    $GLOBALS['_pl_hooks'][$hook][] = $callback;
+    $GLOBALS['_pl_hooks'][$hook][$priority][] = $callback;
 }
 
+/**
+ * Fire all callbacks registered on a hook, in priority order.
+ */
 function pl_do_hook(string $hook, mixed $arg = null): void
 {
     if (empty($GLOBALS['_pl_hooks'][$hook])) return;
-    foreach ($GLOBALS['_pl_hooks'][$hook] as $callback) {
-        call_user_func($callback, $arg);
+    $buckets = $GLOBALS['_pl_hooks'][$hook];
+    ksort($buckets);
+    foreach ($buckets as $callbacks) {
+        foreach ($callbacks as $callback) {
+            call_user_func($callback, $arg);
+        }
     }
+}
+
+/**
+ * Register a filter callback. The callback receives $value (and optional
+ * extra args) and MUST return the (optionally modified) value.
+ * Lower priority runs first. Default 10 matches add_theme_filter().
+ */
+function pl_add_filter(string $hook, callable $callback, int $priority = 10): void
+{
+    $GLOBALS['_pl_filters'][$hook][$priority][] = $callback;
+}
+
+/**
+ * Pass $value through all filter callbacks registered on $hook and return
+ * the final value. Extra $args are forwarded to each callback after $value.
+ * Returns $value unchanged if no filters are registered.
+ */
+function pl_apply_filter(string $hook, mixed $value, mixed ...$args): mixed
+{
+    if (empty($GLOBALS['_pl_filters'][$hook])) return $value;
+    $buckets = $GLOBALS['_pl_filters'][$hook];
+    ksort($buckets);
+    foreach ($buckets as $callbacks) {
+        foreach ($callbacks as $callback) {
+            $value = call_user_func($callback, $value, ...$args);
+        }
+    }
+    return $value;
 }
 
 // ─── Registry ───────────────────────────────────────────────────────────────
@@ -284,6 +324,114 @@ function pl_load_active_plugins(): void
         if (!isset($discovered[$slug])) continue; // plugin folder removed/renamed
         pl_load_plugin($slug, $discovered[$slug]);
     }
+}
+
+// ─── Plugin options API ──────────────────────────────────────────────────────────
+
+/**
+ * In-request cache for plugin options, keyed by slug.
+ * Avoids re-reading the options file on every pl_get_option() call
+ * within the same request.
+ */
+$GLOBALS['_pl_options_cache'] = [];
+
+/**
+ * Return the path to a plugin's options file.
+ * Each plugin keeps its own options file inside its own data/ folder,
+ * so options survive plugin updates and are removed with the plugin folder.
+ */
+function _pl_options_path(string $slug): string
+{
+    return PL_ROOT . '/' . $slug . '/data/options.json';
+}
+
+/**
+ * Load (and cache) a plugin's options array.
+ */
+function _pl_load_options(string $slug): array
+{
+    if (isset($GLOBALS['_pl_options_cache'][$slug])) {
+        return $GLOBALS['_pl_options_cache'][$slug];
+    }
+    $path = _pl_options_path($slug);
+    $data = [];
+    if (file_exists($path)) {
+        $decoded = json_decode(file_get_contents($path), true);
+        if (is_array($decoded)) $data = $decoded;
+    }
+    $GLOBALS['_pl_options_cache'][$slug] = $data;
+    return $data;
+}
+
+/**
+ * Persist a plugin's options array to disk (atomic write).
+ */
+function _pl_save_options(string $slug, array $data): bool
+{
+    $path = _pl_options_path($slug);
+    $dir  = dirname($path);
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0755, true);
+        // .htaccess protection (mirrors plugin data/ convention)
+        $ht = dirname($dir) . '/data/.htaccess';
+        if (!file_exists($ht)) {
+            @file_put_contents($ht,
+                "<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n" .
+                "<IfModule !mod_authz_core.c>\n    Deny from all\n</IfModule>\n"
+            );
+        }
+    }
+    $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($json === false) return false;
+    $tmp = $path . '.tmp';
+    if (file_put_contents($tmp, $json, LOCK_EX) === false) return false;
+    $ok = rename($tmp, $path);
+    if ($ok) $GLOBALS['_pl_options_cache'][$slug] = $data;
+    return $ok;
+}
+
+/**
+ * Get a plugin option value.
+ *
+ * @param string $slug    Plugin slug
+ * @param string $key     Option key
+ * @param mixed  $default Returned when the key is absent or the file missing
+ * @return mixed
+ */
+function pl_get_option(string $slug, string $key, mixed $default = null): mixed
+{
+    $data = _pl_load_options($slug);
+    return array_key_exists($key, $data) ? $data[$key] : $default;
+}
+
+/**
+ * Set a plugin option value and persist to disk.
+ *
+ * @param string $slug  Plugin slug
+ * @param string $key   Option key
+ * @param mixed  $value Value to store (must be JSON-serializable)
+ * @return bool True on success
+ */
+function pl_set_option(string $slug, string $key, mixed $value): bool
+{
+    $data        = _pl_load_options($slug);
+    $data[$key]  = $value;
+    return _pl_save_options($slug, $data);
+}
+
+/**
+ * Delete a single plugin option key and persist to disk.
+ *
+ * @param string $slug Plugin slug
+ * @param string $key  Option key to remove
+ * @return bool True on success (also true if the key didn't exist)
+ */
+function pl_delete_option(string $slug, string $key): bool
+{
+    $data = _pl_load_options($slug);
+    if (!array_key_exists($key, $data)) return true;
+    unset($data[$key]);
+    return _pl_save_options($slug, $data);
 }
 
 // ─── Admin menu registration ───────────────────────────────────────────────────
