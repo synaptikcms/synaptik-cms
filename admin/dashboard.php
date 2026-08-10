@@ -25,10 +25,11 @@ if ($_sb_cacheValid) {
 		new RecursiveDirectoryIterator($_sb_filesDir, RecursiveDirectoryIterator::SKIP_DOTS)
 	);
 	foreach ($_sb_iter as $_sb_f) {
-		if ($_sb_f->isFile()) {
-			$_sb_fileCount++;
-			$_sb_fileSize += $_sb_f->getSize();
-		}
+		if (!$_sb_f->isFile()) continue;
+		$_sb_name = $_sb_f->getFilename();
+		if ($_sb_name[0] === '.' || strtolower($_sb_name) === '.htaccess') continue;
+		$_sb_fileCount++;
+		$_sb_fileSize += $_sb_f->getSize();
 	}
 	// Persist cache only if cache/ is writable
 	if (is_writable(dirname($_sb_mediaCache))) {

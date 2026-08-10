@@ -218,7 +218,7 @@
 /* =====================================================================
  * 7. THEME MANAGER
  * ===================================================================== */
-.theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; margin-top: 20px; }
+.theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
 .theme-card { display: flex; flex-direction: column; overflow: hidden; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); transition: border-color var(--transition), box-shadow var(--transition); }
 .theme-card:hover { box-shadow: var(--shadow-sm); background-color: var(--surface-2); }
 .theme-card.is-active { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft), var(--shadow-sm); }

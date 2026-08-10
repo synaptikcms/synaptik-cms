@@ -283,11 +283,11 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 				<div class="panel-content panel-collapsible">
 				<div class="form-group">
 				<label><?php _e('page_template_label'); ?></label>
-				 <select name="page_template" form="content-form">
-				 <?php foreach ($pageTemplates as $tplKey => $tplName): ?>
-				  <option value="<?php echo htmlspecialchars($tplKey); ?>" <?php echo $selectedTemplate === $tplKey ? 'selected' : ''; ?>><?php echo htmlspecialchars($tplName); ?></option>
-				   <?php endforeach; ?>
-									</select>
+				<select name="page_template" form="content-form">
+				<?php foreach ($pageTemplates as $tplKey => $tplName): ?>
+				 <option value="<?php echo htmlspecialchars($tplKey); ?>" <?php echo $selectedTemplate === $tplKey ? 'selected' : ''; ?>><?php echo htmlspecialchars($tplName); ?></option>
+				<?php endforeach; ?>
+				</select>
 				  <p class="help-text"><?php _e('page_template_help'); ?></p>
 				</div>
 				</div>

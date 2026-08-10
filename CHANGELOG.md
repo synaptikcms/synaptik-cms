@@ -2,6 +2,28 @@
 
 All notable changes to SynaptikCMS are documented here.  
 
+
+## [1.3.4.2] — 2026-08-10
+
+### Changed
+- **Analytics plugin v1.0.2** — The overview chart can now switch between Page Views and Unique Visitors. The selected time range is remembered across all analytics tabs.
+- **Installer** — Font switched from (Google Fonts) to Inter (Bunny Fonts).
+    - Password fields now have an eye icon toggle to reveal/hide the value.
+	- Footer and post-install notes now explain that `install.php` self-deletes and advise manual removal only as a fallback, rather than telling users to delete it themselves unconditionally.
+
+### Added
+- **Markdown nested lists** — Lists in Markdown content now support arbitrary nesting. Indent child items by 2 or more spaces to create sub-levels. Mixed ordered/unordered nesting is supported.
+
+### Security
+- Hardened `.htaccess` protection across the CMS core and all plugins. Several internal directories (`/cache/`, `/lang/`, `/core/`, admin sub-directories) were accessible over HTTP and are now deny-all protected. All plugin `data/` and `private/` directories now unconditionally rewrite their `.htaccess` on every activation rather than skipping the write when the file already existed — previously, manually deleting and recreating a data directory left it unprotected until the plugin was deactivated and reactivated. `install.php` updated to provision the correct `.htaccess` for all sensitive directories from the first install.
+
+### Fixed
+- **Dashboard** — Media file count now correctly excludes `.htaccess` and dotfiles from `/files/`. Previously, `.htaccess` was counted as a file (showing "1 file" on empty installs), and any stale cache generated in that state would persist for up to 5 minutes. Stale cache cleared on deploy.
+- Minor admin CSS adjustments: corrected a `background` shorthand in the base form styles that was interfering with custom `select` chevron rendering, and cleaned up sidebar panel form rules.
+- Other CSS improvements in the admin.
+
+---
+
 ## [1.3.4.1] — 2026-08-09
 
 ### Added

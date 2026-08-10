@@ -281,14 +281,14 @@ if (!$editItem) {
 							<h3 class="panel-header"><span class="toggle-icon">▶</span> 📐 <?php _e('page_template'); ?></h3>
 							<div class="panel-content panel-collapsible">
 								<div class="form-group">
-									<label><?php _e('page_template_label'); ?></label>
-									<select id="page_template" name="page_template" form="content-form">
-										<?php foreach ($pageTemplates as $tplKey => $tplName): ?>
-										<option value="<?php echo htmlspecialchars($tplKey); ?>" <?php echo $selectedTemplate === $tplKey ? 'selected' : ''; ?>><?php echo htmlspecialchars($tplName); ?></option>
-										<?php endforeach; ?>
-									</select>
-									<p class="help-text"><?php _e('page_template_help'); ?></p>
-								</div>
+								<label><?php _e('page_template_label'); ?></label>
+								<select id="page_template" name="page_template" form="content-form">
+								<?php foreach ($pageTemplates as $tplKey => $tplName): ?>
+								<option value="<?php echo htmlspecialchars($tplKey); ?>" <?php echo $selectedTemplate === $tplKey ? 'selected' : ''; ?>><?php echo htmlspecialchars($tplName); ?></option>
+								<?php endforeach; ?>
+								</select>
+							<p class="help-text"><?php _e('page_template_help'); ?></p>
+						</div>
 							</div>
 						</div>
 						<?php endif; ?>
@@ -817,11 +817,11 @@ if (!$editItem) {
 			}
 		});
 
-		// Forcer la valeur du textarea rich-text (editor.js peut ne pas l'avoir sync)
+		// Sync current editor content into FormData before posting
 		const activeFormat = window.CONTENT_FORMAT || 'html';
 		if (activeFormat === 'markdown') {
-			const contentHidden = document.getElementById('content-hidden');
-			if (contentHidden) data.set('content', contentHidden.value);
+			const contentArea = document.getElementById('content');
+			if (contentArea) data.set('content', contentArea.value);
 		} else {
 			const contentArea = document.getElementById('content');
 			if (contentArea) data.set('content', contentArea.value);

@@ -24,7 +24,7 @@
 }
 
 html[data-theme="light"], :root {
-  --bg: #eef1f4;               /* bg */
+  --bg: #e2e7ea;               /* bg */
   --bg-transparent: rgba(238, 241, 244, 0.779);
   --surface: #ffffff;          /* cards, inputs, tables */
   --surface-2: #f5f7f9;        /* subtle bgs, hover */
@@ -33,7 +33,7 @@ html[data-theme="light"], :root {
   --text: #20293a;
   --text-muted: #5d6b7e;
   --text-faint: #93a0b1;
-  --border: #dde3ea;
+  --border: #d1d8e0;
   --border-strong: #c2ccd7;
   --primary-soft: rgba(79, 167, 92, .12);
   --primary-text: #2f7a3c;
@@ -207,8 +207,8 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .
 .btn-warning { background: var(--warning); color: #3d2800; }
 .btn-warning:hover { background: var(--warning-hover); color: #3d2800; }
 
-.btn-sm { padding: 4px 10px; font-size: .8em; }
-.btn-lg { padding: 11px 22px; font-size: .95em; }
+.btn-sm { padding: 6px 12px; font-size: .9em; }
+.btn-lg { padding: 12px 24px; font-size: 1em; }
 .btn-block { width: 100%; }
 
 /* =====================================================================
@@ -216,7 +216,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .
  * ===================================================================== */
 .form-group { margin-bottom: 20px; }
  label { display: block; margin: 14px 0 7px; font-weight: 500; font-size: .9em; color: var(--text); line-height: 1.2; }
- input, textarea, select { font-family: inherit; font-size: 1em; color: var(--text); background-color: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 8px 12px; transition: border-color var(--transition), box-shadow var(--transition), background var(--transition); }
+ input, textarea, select { font-family: inherit; font-size: 1em; color: var(--text); background-color: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 8px 12px; transition: border-color var(--transition), box-shadow var(--transition), background-color var(--transition); }
  input[type="text"], input[type="password"], input[type="number"], textarea { width: 100%; }
  input[type="number"] { width: auto; min-width: 80px; }
  input[type="email"] { width: 50%; min-width: 280px; }

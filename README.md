@@ -2,6 +2,7 @@
 
 # If you like the project, please give it a Star! ⭐
 
+
 # SynaptikCMS
 
 **A full-featured flat-file PHP CMS built for speed and simplicity. JSON storage, no database, no dependencies — just upload to any server and go.**
@@ -73,7 +74,7 @@ No composer. No npm. No database setup.
 <br><br>
 
 > ⚠️ Always run `install.php` before using the CMS. See the [installation guide](https://synaptikcms.com/docs/getting-started/#toc-installation) for details.
-<br>
+<br><br>
 
 **Note:** The default install package ships only with the default theme. You can download clean, beautiful and responsive free themes for your Synaptik installation on the [Official Website's Themes Page](https://synaptikcms.com/themes/).
 If you wish to extend the functionalities of your CMS, official plugins can be found [on this page](https://synaptikcms.com/plugins/).

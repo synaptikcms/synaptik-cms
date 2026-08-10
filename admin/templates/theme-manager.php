@@ -140,7 +140,7 @@ $themeUpdates = admin_check_theme_updates();
 <p class="help-text"><?php _e('theme_manager_desc'); ?></p>
 
 <!-- Import thème -->
-<div class="site-settings-section" style="margin-bottom: 24px;">
+<div class="site-settings-section" style="margin-bottom: 40px;">
 	<h3><?php echo admin_icon('package'); ?> <?php _e('theme_import_title'); ?></h3>
 	<div class="form-group">
 		<p class="help-text"><?php _e('theme_import_help'); ?></p>

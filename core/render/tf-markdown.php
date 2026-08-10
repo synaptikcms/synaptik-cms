@@ -117,23 +117,13 @@ function _md_to_html(string $md): string
             continue;
         }
 
-        if (preg_match('/^([*+-])\s+(.+)/', $line, $m)) {
-            $output .= '<ul>' . "\n";
-            while ($i < $n && preg_match('/^[*+-]\s+(.+)/', $lines[$i], $lm)) {
-                $output .= '<li>' . _md_inline(trim($lm[1])) . '</li>' . "\n";
-                $i++;
-            }
-            $output .= '</ul>' . "\n";
+        if (preg_match('/^([*+\-])\s+(.+)/', $line, $m)) {
+            $output .= _md_render_list($lines, $i, $n, 0, 'ul');
             continue;
         }
 
         if (preg_match('/^\d+\.\s+(.+)/', $line, $m)) {
-            $output .= '<ol>' . "\n";
-            while ($i < $n && preg_match('/^\d+\.\s+(.+)/', $lines[$i], $lm)) {
-                $output .= '<li>' . _md_inline(trim($lm[1])) . '</li>' . "\n";
-                $i++;
-            }
-            $output .= '</ol>' . "\n";
+            $output .= _md_render_list($lines, $i, $n, 0, 'ol');
             continue;
         }
 
@@ -168,8 +158,8 @@ function _md_to_html(string $md): string
         while ($i < $n
             && trim($lines[$i]) !== ''
             && !preg_match('/^#{1,6}\s/', $lines[$i])
-            && !preg_match('/^[*+-]\s/', $lines[$i])
-            && !preg_match('/^\d+\.\s/', $lines[$i])
+            && !preg_match('/^[ \t]*[*+\-]\s/', $lines[$i])
+            && !preg_match('/^[ \t]*\d+\.\s/', $lines[$i])
             && !preg_match('/^>/', $lines[$i])
             && !preg_match('/^\s*([-*_])\1{2,}\s*$/', $lines[$i])
             && strpos($lines[$i], '\x00CODE') !== 0
@@ -181,10 +171,85 @@ function _md_to_html(string $md): string
             $paraText = implode("\n", $paraLines);
             $paraText = preg_replace('/  \n/', '<br>', $paraText);
             $output  .= '<p>' . _md_inline($paraText) . '</p>' . "\n";
+        } else {
+            // Safety: if no block matched and no para lines collected, advance to prevent infinite loop
+            $i++;
         }
     }
 
     return strtr($output, $inlineCodes);
+}
+
+/**
+ * Recursively render a Markdown list (ul or ol) from a lines array.
+ * Handles arbitrary nesting via indentation (2 or 4 spaces, or a tab).
+ *
+ * @param  array  $lines    All lines of the document.
+ * @param  int    &$i       Current line index, advanced by reference.
+ * @param  int    $n        Total line count.
+ * @param  int    $indent   Expected indentation level in spaces for this list.
+ * @param  string $tag      'ul' or 'ol'.
+ * @return string           HTML for the complete list.
+ */
+function _md_render_list(array $lines, int &$i, int $n, int $indent, string $tag): string
+{
+    $html = '<' . $tag . ">\n";
+
+    if ($indent === 0) {
+        // Root level: no leading whitespace
+        $ulPat = '/^[*+\-]\s+(.+)/';
+        $olPat = '/^\d+\.\s+(.+)/';
+    } else {
+        // Nested level: exactly $indent spaces/tabs, then the marker
+        $ulPat = '/^[ \t]{' . $indent . '}[*+\-]\s+(.+)/';
+        $olPat = '/^[ \t]{' . $indent . '}\d+\.\s+(.+)/';
+    }
+    $pat = ($tag === 'ul') ? $ulPat : $olPat;
+
+    while ($i < $n) {
+        $line = $lines[$i];
+
+        // Current-level item
+        if (preg_match($pat, $line, $m)) {
+            $i++;
+            $itemText = trim($m[1]);
+            $html    .= '<li>' . _md_inline($itemText);
+
+            // Detect child indentation from the very next line
+            if ($i < $n) {
+                $nextLine = $lines[$i];
+                if (preg_match('/^([ \t]+)[*+\-\d]/', $nextLine, $ind)) {
+                    $childIndent = strlen(str_replace("\t", '  ', $ind[1]));
+                    if ($childIndent > $indent) {
+                        $childTag = preg_match('/^[ \t]+\d+\./', $nextLine) ? 'ol' : 'ul';
+                        $html    .= "\n" . _md_render_list($lines, $i, $n, $childIndent, $childTag);
+                    }
+                }
+            }
+
+            $html .= "</li>\n";
+            continue;
+        }
+
+        // A blank line is tolerated; continue only if the next non-blank line
+        // is still a list item at the current indent level
+        if (trim($line) === '') {
+            $j = $i + 1;
+            while ($j < $n && trim($lines[$j]) === '') {
+                $j++;
+            }
+            if ($j < $n && preg_match($pat, $lines[$j])) {
+                $i = $j;
+                continue;
+            }
+            break;
+        }
+
+        // Any other content ends this list level
+        break;
+    }
+
+    return $html . '</' . $tag . ">\n";
 }
 
 /**

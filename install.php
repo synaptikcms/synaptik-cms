@@ -52,8 +52,9 @@ $i18n = [
         'success_desc'          => 'Your site has been configured successfully.',
         'success_admin'         => 'Admin panel:',
         'success_redirect'      => 'Redirecting in %ss…',
-        'security_note'         => '⚠ Security reminder: delete <code>install.php</code> from your server.',
-        'footer_note'           => '⚠ Remember: delete <code>install.php</code> from your server after installation.',
+        'security_note'         => '✅ <code>install.php</code> has been automatically deleted from your server.',
+        'footer_note_label'     => 'Security note:',
+        'footer_note'           => '<code>install.php</code> self-deletes after installation. If it is still present, remove it manually.',
         'summary_password'      => 'Hash your password and write <code>admin-credentials.php</code>',
         'summary_rename'        => 'Rename the admin folder (the new name is saved in config.json — no file patching needed)',
         'summary_settings'      => 'Write site settings to <code>config.json</code>',
@@ -125,8 +126,9 @@ $i18n = [
         'success_desc'          => 'Votre site a été configuré avec succès.',
         'success_admin'         => 'Panneau admin :',
         'success_redirect'      => 'Redirection dans %ss…',
-        'security_note'         => '⚠ Rappel de sécurité : supprimez <code>install.php</code> de votre serveur.',
-        'footer_note'           => '⚠ N\'oubliez pas : supprimez <code>install.php</code> de votre serveur après l\'installation.',
+        'security_note'         => '✅ <code>install.php</code> a été automatiquement supprimé de votre serveur.',
+        'footer_note_label'     => 'Note de sécurité :',
+        'footer_note'           => '<code>install.php</code> se supprime automatiquement après l\'installation. S\'il est encore présent, supprimez-le manuellement.',
         'summary_password'      => 'Hacher votre mot de passe et écrire <code>admin-credentials.php</code>',
         'summary_rename'        => 'Renommer le dossier admin (le nouveau nom est sauvegardé dans config.json — aucun patch de fichiers)',
         'summary_settings'      => 'Écrire les paramètres dans <code>config.json</code>',
@@ -198,8 +200,9 @@ $i18n = [
         'success_desc'          => 'Su sitio ha sido configurado correctamente.',
         'success_admin'         => 'Panel de administración:',
         'success_redirect'      => 'Redirigiendo en %ss…',
-        'security_note'         => '⚠ Aviso de seguridad: elimine <code>install.php</code> de su servidor.',
-        'footer_note'           => '⚠ Recuerde: elimine <code>install.php</code> de su servidor tras la instalación.',
+        'security_note'         => '✅ <code>install.php</code> ha sido eliminado automáticamente de su servidor.',
+        'footer_note_label'     => 'Nota de seguridad:',
+        'footer_note'           => '<code>install.php</code> se elimina automáticamente tras la instalación. Si todavía está presente, elimínelo manualmente.',
         'summary_password'      => 'Cifrar su contraseña y escribir <code>admin-credentials.php</code>',
         'summary_rename'        => 'Renombrar la carpeta admin (el nuevo nombre se guarda en config.json — sin parcheo de archivos)',
         'summary_settings'      => 'Escribir la configuración en <code>config.json</code>',
@@ -616,49 +619,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $denyAll = "<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n"
                  . "<IfModule !mod_authz_core.c>\n    Deny from all\n</IfModule>\n";
 
-        // Deny-all protection on data, bckps, private.
-        // Always (re)write the file so an upgrade or partial install gets the
-        // correct content even if the directory already existed.
-        foreach (['data', 'bckps', 'private'] as $d) {
+        // Deny-all on all directories that must never be served over HTTP.
+        // Always (re)write so a reinstall or upgrade gets the correct content
+        // even if the directory already existed without a .htaccess.
+        foreach (['data', 'bckps', 'private', 'cache', 'lang', 'core'] as $d) {
             $dp = __DIR__ . '/' . $d;
             if (!is_dir($dp)) @mkdir($dp, 0755, true);
             if (is_dir($dp)) file_put_contents($dp . '/.htaccess', $denyAll);
         }
 
-        // Create /plugins/ — no deny-all needed at root level (plugin PHP endpoints
-        // must remain publicly accessible). Individual plugin data/ and private/
-        // subfolders get their own .htaccess when created at runtime.
-        $pluginsDir = __DIR__ . '/plugins';
-        if (!is_dir($pluginsDir)) @mkdir($pluginsDir, 0755, true);
-        // Protect plugins.json (activation registry) from direct HTTP access.
-        $pluginsHtaccess = $pluginsDir . '/.htaccess';
-        if (!file_exists($pluginsHtaccess)) {
-            file_put_contents($pluginsHtaccess,
-                "<FilesMatch \"^plugins\\.json$\">\n" .
-                "    <IfModule mod_authz_core.c>\n    Require all denied\n    </IfModule>\n" .
-                "    <IfModule !mod_authz_core.c>\n    Deny from all\n    </IfModule>\n" .
-                "</FilesMatch>\n"
-            );
+        // Admin sub-directories: includes and templates are PHP includes only;
+        // drafts and cache hold internal JSON — none should be reachable directly.
+        foreach (['includes', 'templates', 'drafts', 'cache'] as $sub) {
+            $sp = $dstAdminPath . '/' . $sub;
+            if (is_dir($sp)) file_put_contents($sp . '/.htaccess', $denyAll);
         }
 
-        // Create /files/ and block PHP execution inside it.
-        // Media files (images, documents) continue to be served normally.
+        // /plugins/ root: deny-all is NOT appropriate (plugin PHP endpoints must
+        // remain publicly reachable). Only plugins.json is blocked via FilesMatch.
+        // Always rewrite so the rule survives manual deletions.
+        $pluginsDir = __DIR__ . '/plugins';
+        if (!is_dir($pluginsDir)) @mkdir($pluginsDir, 0755, true);
+        file_put_contents($pluginsDir . '/.htaccess',
+            "<FilesMatch \"^plugins\\.json$\">\n" .
+            "    <IfModule mod_authz_core.c>\n        Require all denied\n    </IfModule>\n" .
+            "    <IfModule !mod_authz_core.c>\n        Deny from all\n    </IfModule>\n" .
+            "</FilesMatch>\n"
+        );
+
+        // /files/: block PHP execution, media files served normally.
         $filesDir = __DIR__ . '/files';
         if (!is_dir($filesDir)) @mkdir($filesDir, 0755, true);
-        $filesHtaccess = $filesDir . '/.htaccess';
-        if (!file_exists($filesHtaccess)) {
-            $filesHta = "# Block PHP execution inside /files/ — media files are served normally.\n"
-                      . "<FilesMatch \\.php[s5]?\$>\n"
-                      . "    <IfModule mod_authz_core.c>\n"
-                      . "        Require all denied\n"
-                      . "    </IfModule>\n"
-                      . "    <IfModule !mod_authz_core.c>\n"
-                      . "        Order allow,deny\n"
-                      . "        Deny from all\n"
-                      . "    </IfModule>\n"
-                      . "</FilesMatch>\n";
-            file_put_contents($filesHtaccess, $filesHta);
-        }
+        file_put_contents($filesDir . '/.htaccess',
+            "# Block PHP execution inside /files/ — media files are served normally.\n"
+            . "<FilesMatch \\.php[s5]?\$>\n"
+            . "    <IfModule mod_authz_core.c>\n        Require all denied\n    </IfModule>\n"
+            . "    <IfModule !mod_authz_core.c>\n        Order allow,deny\n        Deny from all\n    </IfModule>\n"
+            . "</FilesMatch>\n"
+        );
 
         // Step 5 — Lock the installer
         file_put_contents(__DIR__ . '/install.lock', json_encode(
@@ -691,8 +689,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= __i('page_title') ?></title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.bunny.net">
+<link href="https://fonts.bunny.net/css?family=inter:300,400,500,600,700&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -704,12 +702,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     --bg-light: #e8eef2;
     --bg-dark: #1a2432; --border: rgba(255,255,255,.1);
     --radius: 8px; --radius-sm: 4px;
-    --font: Helvetica, sans-serif; --font-head: "Saira Condensed", sans-serif;
+    --font: 'Inter', Helvetica, sans-serif; --font-head: 'Inter', Helvetica, sans-serif;
 }
 body { font-family: var(--font); background: var(--bg-dark); color: var(--text-light); line-height: 1.6; min-height: 100vh; padding: 40px 16px 80px; }
 .installer-wrap { max-width: 760px; margin: 0 auto; }
 .installer-header { text-align: center; margin-bottom: 40px; }
-.logo { font-family: var(--font-head); font-size: 2.2rem; font-weight: 700; color: #fff; }
+.logo { font-family: var(--font-head); font-size: 1.8rem; font-weight: 700; letter-spacing: -0.03em; color: #fff; }
 .logo span { color: var(--primary); }
 .installer-header > p { color: var(--text-muted); margin-top: 6px; font-size: .95rem; }
 .lang-switcher { display: flex; justify-content: center; gap: 8px; margin-top: 14px; }
@@ -729,6 +727,10 @@ body { font-family: var(--font); background: var(--bg-dark); color: var(--text-l
 label { display: block; font-size: .875rem; font-weight: 600; color: #fff; margin-bottom: 6px; }
 label .opt { font-weight: 400; color: var(--text-muted); font-size: .8rem; }
 input[type="text"], input[type="email"], input[type="password"], select { width: 100%; background: var(--sec-dark); border: 1px solid rgba(255,255,255,.15); border-radius: var(--radius-sm); color: #fff; padding: 9px 12px; font-size: .9rem; font-family: var(--font); outline: none; transition: border-color .2s; }
+.pw-wrap { position: relative; }
+.pw-wrap input { padding-right: 38px; }
+.pw-toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 0; line-height: 0; transition: color .15s; }
+.pw-toggle:hover { color: #fff; }
 input:focus, select:focus { border-color: var(--primary); }
 select option { background: var(--secondary); }
 .help-text { margin-top: 5px; font-size: .8rem; color: var(--text-muted); }
@@ -742,7 +744,7 @@ select option { background: var(--secondary); }
 .msg-success { background: var(--primary-light); border-left: 4px solid var(--primary); color: #1b5e20; border-radius: var(--radius-sm); padding: 24px 28px; text-align: center; }
 .msg-success h3 { font-size: 1.3rem; margin-bottom: 8px; } .msg-success p { margin-bottom: 4px; }
 .msg-success a { color: var(--primary-dark); font-weight: 700; }
-.btn-install { display: block; width: 100%; padding: 14px; background: var(--primary); color: #fff; border: none; border-radius: var(--radius); font-family: var(--font-head); font-size: 1.15rem; font-weight: 700; letter-spacing: .5px; cursor: pointer; transition: background .2s; text-transform: uppercase; }
+.btn-install { display: block; width: 100%; padding: 14px; background: var(--primary); color: #fff; border: none; border-radius: var(--radius); font-family: var(--font-head); font-size: 1rem; font-weight: 600; letter-spacing: .02em; cursor: pointer; transition: background .2s; }
 .btn-install:hover { background: var(--primary-dark); }
 .btn-install:disabled { background: var(--text-muted); cursor: not-allowed; }
 .installer-footer { text-align: center; color: var(--text-muted); font-size: .82rem; margin-top: 24px; }
@@ -779,7 +781,7 @@ select option { background: var(--secondary); }
             <p style="margin-top:12px;font-size:.85rem;color:#388e3c;"><?= sprintf(__i('success_redirect'), '<span id="cd">5</span>') ?></p>
         </div>
     </div>
-    <div class="installer-footer"><strong><?= __i('security_note') ?></strong></div>
+    <div class="installer-footer"><?= __i('security_note') ?></div>
     <script>
         var n = 5, el = document.getElementById('cd');
         setInterval(function() { n--; if (el) el.textContent = n; if (n <= 0) window.location.href = '<?= htmlspecialchars($redirectUrl) ?>'; }, 1000);
@@ -894,7 +896,7 @@ select option { background: var(--secondary); }
             <div class="form-row">
                 <div class="form-group">
                     <label for="password"><?= __i('lbl_password') ?></label>
-                    <input type="password" id="password" name="password" required autocomplete="new-password">
+                    <div class="pw-wrap"><input type="password" id="password" name="password" required autocomplete="new-password"><button type="button" class="pw-toggle" aria-label="Show password" onclick="togglePw('password',this)"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
                     <div class="pw-rules">
                         <span class="pw-rule" id="r-len"><?= __i('rule_length') ?></span>
                         <span class="pw-rule" id="r-up"><?= __i('rule_upper') ?></span>
@@ -904,7 +906,7 @@ select option { background: var(--secondary); }
                 </div>
                 <div class="form-group">
                     <label for="password_confirm"><?= __i('lbl_password_confirm') ?></label>
-                    <input type="password" id="password_confirm" name="password_confirm" required autocomplete="new-password">
+                    <div class="pw-wrap"><input type="password" id="password_confirm" name="password_confirm" required autocomplete="new-password"><button type="button" class="pw-toggle" aria-label="Show password" onclick="togglePw('password_confirm',this)"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
                     <div class="pw-rules">
                         <span class="pw-rule" id="r-match"><?= __i('rule_match') ?></span>
                     </div>
@@ -929,7 +931,7 @@ select option { background: var(--secondary); }
         </button>
     </form>
 
-    <div class="installer-footer"><strong><?= __i('footer_note') ?></strong></div>
+    <div class="installer-footer"><strong><?= __i('footer_note_label') ?></strong> <?= __i('footer_note') ?></div>
 
     <?php endif; ?>
 </div>
@@ -991,6 +993,14 @@ select option { background: var(--secondary); }
     if (pwc) pwc.addEventListener('input', checkPassword);
     checkPassword();
 })();
+
+function togglePw(id, btn) {
+    var inp = document.getElementById(id);
+    if (!inp) return;
+    var isHidden = inp.type === 'password';
+    inp.type = isHidden ? 'text' : 'password';
+    btn.style.opacity = isHidden ? '1' : '0.4';
+}
 </script>
 </body>
 </html>
