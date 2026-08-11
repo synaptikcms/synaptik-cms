@@ -3,6 +3,13 @@
 All notable changes to SynaptikCMS are documented here.  
 
 
+## [1.3.4.3] — 2026-08-11
+
+### Fixed
+- **Installer** — `/core/.htaccess` now correctly allows direct HTTP access to `search.php`, `feed.php`, and `contact-process.php` while blocking all other PHP files. Previously, the installer wrote a blanket deny-all `.htaccess` to `/core/`, which broke front-end search and the RSS feed on every fresh install.
+  - Language dropdown now correctly lists all available locales (EN/FR/ES). The scanner was pointing to `lang/admin/` instead of `lang/front/`, causing only English to appear.
+  - Selected language is now written to both `active_language` and `admin_language` in `config.json`, so front-end and admin panel start in the same language chosen at install time.
+
 ## [1.3.4.2] — 2026-08-10
 
 ### Changed

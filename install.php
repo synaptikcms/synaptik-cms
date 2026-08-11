@@ -372,7 +372,7 @@ function installer_check_requirements(string $root, ?string $adminName): array
 // ─── Detect available CMS languages ──────────────────────────────────────────
 
 $cmsLanguages = [];
-$langDir = __DIR__ . '/lang';
+$langDir = __DIR__ . '/lang/front';
 if (is_dir($langDir)) {
     foreach (glob($langDir . '/*.json') as $langFile) {
         $locale = basename($langFile, '.json');
@@ -569,6 +569,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'active_theme'               => 'default',
             'available_themes'           => $_themes,
             'active_language'            => $language,
+            'admin_language'             => $language,
 
             // Image optimization
             'image_optimization_enabled' => true,
@@ -622,11 +623,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Deny-all on all directories that must never be served over HTTP.
         // Always (re)write so a reinstall or upgrade gets the correct content
         // even if the directory already existed without a .htaccess.
-        foreach (['data', 'bckps', 'private', 'cache', 'lang', 'core'] as $d) {
+        foreach (['data', 'bckps', 'private', 'cache', 'lang'] as $d) {
             $dp = __DIR__ . '/' . $d;
             if (!is_dir($dp)) @mkdir($dp, 0755, true);
             if (is_dir($dp)) file_put_contents($dp . '/.htaccess', $denyAll);
         }
+
+        // /core/: deny all PHP files except the three public endpoints.
+        $coreDir = __DIR__ . '/core';
+        if (!is_dir($coreDir)) @mkdir($coreDir, 0755, true);
+        $coreHtaccess = "<FilesMatch \"^(search|feed|contact-process)\\.php$\">\n"
+            . "    <IfModule mod_authz_core.c>\n        Require all granted\n    </IfModule>\n"
+            . "    <IfModule !mod_authz_core.c>\n        Allow from all\n    </IfModule>\n"
+            . "</FilesMatch>\n\n"
+            . "<FilesMatch \"^(?!(search|feed|contact-process)\\.php$).*\\.php$\">\n"
+            . "    <IfModule mod_authz_core.c>\n        Require all denied\n    </IfModule>\n"
+            . "    <IfModule !mod_authz_core.c>\n        Deny from all\n    </IfModule>\n"
+            . "</FilesMatch>\n";
+        file_put_contents($coreDir . '/.htaccess', $coreHtaccess);
 
         // Admin sub-directories: includes and templates are PHP includes only;
         // drafts and cache hold internal JSON — none should be reachable directly.
