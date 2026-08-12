@@ -1,8 +1,9 @@
 /**
- * Dorian FICHOT
- * v1.3
- * Main script for animations and interactions for any theme
+ * SynaptikCMS main.js
+ * Animations, search, lightbox, syntax highlighting.
  */
+(function () {
+
 const t = (key) => window.CMS_LANG?.[key] ?? key;
 
 // ======== Define code syntax highlighters object =========
@@ -710,41 +711,11 @@ const highlighters = {
 		});
 
 		// ── Resolve CMS base URL ──────────────────────────────────────────────
+		// Uses window.CMS_BASE_URL injected by PHP (render_header_scripts / theme header.php).
+		// Falls back to origin root only when the variable is absent.
 		function getBaseUrl() {
-			const path = window.location.pathname;
-			const baseUrl = window.location.protocol + '//' + window.location.host;
-			let rootPath = '';
-
-			// Special handling for category URLs
-			if (path.includes('/category/')) {
-				rootPath = path.substring(0, path.indexOf('/category/'));
-			} else if (path.match(/\/[^\/]+\/[^\/]+\/?$/)) {
-				// Handle URLs like /category-name/article-name/
-				const firstSlash = path.indexOf('/', 1);
-				if (firstSlash !== -1) {
-					rootPath = path.substring(0, firstSlash);
-				}
-			} else {
-				const contentPatterns = ['/article/', '/page/', '/project/', '/articles/', '/pages/', '/projects/'];
-				let foundPattern = false;
-
-				for (const pattern of contentPatterns) {
-					if (path.includes(pattern)) {
-						rootPath = path.substring(0, path.indexOf(pattern));
-						foundPattern = true;
-						break;
-					}
-				}
-
-				if (!foundPattern) {
-					rootPath = path.includes('.php') ? path.substring(0, path.lastIndexOf('/')) : path;
-				}
-			}
-
-			if (rootPath && !rootPath.startsWith('/')) rootPath = '/' + rootPath;
-			if (rootPath && !rootPath.endsWith('/'))   rootPath += '/';
-
-			return baseUrl + rootPath;
+			if (window.CMS_BASE_URL) return window.CMS_BASE_URL;
+			return window.location.protocol + '//' + window.location.host + '/';
 		}
 
 		// ── Resolve image URL ─────────────────────────────────────────────────
@@ -1332,3 +1303,5 @@ const highlighters = {
 		});
 	});
 })();
+
+})(); // end main.js IIFE

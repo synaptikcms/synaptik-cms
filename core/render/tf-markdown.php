@@ -16,6 +16,18 @@ function _md_to_html(string $md): string
     $md = str_replace("\r\n", "\n", $md);
     $md = str_replace("\r",   "\n", $md);
 
+    // Extract footnote definitions [^n]: text — before any other parsing
+    $footnotes = [];
+    $md = preg_replace_callback(
+        '/^\[\^([^\]]+)\]:\s*(.+)$/m',
+        function ($m) use (&$footnotes) {
+            $footnotes[$m[1]] = $m[2];
+            return '';
+        },
+        $md
+    );
+    $md = trim($md);
+
     // Container directives  :::type [optional title]\n...\n:::
     if (strpos($md, ':::') !== false) {
         $md = preg_replace_callback(
@@ -177,7 +189,25 @@ function _md_to_html(string $md): string
         }
     }
 
-    return strtr($output, $inlineCodes);
+    $output = strtr($output, $inlineCodes);
+
+    // Append footnote list if any definitions were found
+    if ($footnotes) {
+        $currentPath = htmlspecialchars(strtok($_SERVER['REQUEST_URI'] ?? '/', '?'));
+        $output .= '<ol class="md-footnotes">' . "\n";
+        foreach ($footnotes as $key => $text) {
+            $keyEsc  = htmlspecialchars($key);
+            $refId   = 'fn-'    . $keyEsc;
+            $backId  = 'fnref-' . $keyEsc;
+            $output .= '<li id="' . $refId . '">';
+            $output .= _md_inline($text);
+            $output .= ' <a href="' . $currentPath . '#' . $backId . '" class="md-fn-backref" aria-label="back">&#8617;</a>';
+            $output .= "</li>\n";
+        }
+        $output .= '</ol>' . "\n";
+    }
+
+    return $output;
 }
 
 /**
@@ -300,6 +330,34 @@ function _md_inline(string $text): string
     $text = preg_replace('/\*\*(.+?)\*\*|(?<!\w)__(.+?)__(?!\w)/', '<strong>$1$2</strong>', $text);
     $text = preg_replace('/\*(.+?)\*|(?<!\w)_(.+?)_(?!\w)/',       '<em>$1$2</em>',         $text);
     $text = preg_replace('/~~(.+?)~~/',                              '<s>$1</s>',             $text);
+
+    // Footnote references [^1] -> <sup><a href="{url}#fn-1" id="fnref-1">[1]</a></sup>
+    // href must include the current page path because <base href="..."> in the
+    // <head> rebases bare fragment-only hrefs ("#fn-1") to the site root.
+    $currentPath = htmlspecialchars(strtok($_SERVER['REQUEST_URI'] ?? '/', '?'));
+    $text = preg_replace_callback(
+        '/\[\^([^\]]+)\]/',
+        function ($m) use ($currentPath) {
+            $key    = htmlspecialchars($m[1]);
+            $refId  = 'fn-'    . $key;
+            $backId = 'fnref-' . $key;
+            return '<sup><a href="' . $currentPath . '#' . $refId . '" id="' . $backId . '" class="md-fnref">[' . $key . ']</a></sup>';
+        },
+        $text
+    );
+
+    // Superscript ^text^
+    $text = preg_replace('/\^([^\^\s]+)\^/', '<sup>$1</sup>', $text);
+
+    // Autolink bare URLs not already wrapped in an <a> tag or href attribute
+    $text = preg_replace_callback(
+        '/(?<!["\'=>])\b(https?:\/\/[^\s<>"\)\]]+)/',
+        function ($m) {
+            $url = htmlspecialchars($m[1], ENT_QUOTES);
+            return '<a href="' . $url . '" target="_blank" rel="noopener">' . $url . '</a>';
+        },
+        $text
+    );
 
     return $text;
 }

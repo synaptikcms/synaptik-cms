@@ -81,7 +81,7 @@ if (isset($_POST['save_menu'])) {
 	$appSettings['main_menu'] = $menuItems;
 	
 	// Save settings to file
-	$jsonData = json_encode($appSettings, JSON_PRETTY_PRINT);
+	$jsonData = json_encode($appSettings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 	$result = file_put_contents(dirname(__DIR__) . '/config.json', $jsonData);
 	
 	if ($result !== false) {
@@ -268,7 +268,7 @@ if (isset($_POST['save_settings'])) {
 	}
 
 	// Save settings
-	$saveResult = file_put_contents(dirname(__DIR__) . '/config.json', json_encode($appSettings, JSON_PRETTY_PRINT));
+	$saveResult = file_put_contents(dirname(__DIR__) . '/config.json', json_encode($appSettings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 	if ($saveResult === false) {
 		error_log('Failed to save configuration to file: ../config.json');
 		$_SESSION['error'] = __t('settings_save_failed');

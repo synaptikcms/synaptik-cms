@@ -85,8 +85,12 @@ document.addEventListener('DOMContentLoaded', function () {
 			type: 'dropdown', label: '[/]', title: t('editor_shortcodes', 'Shortcodes'),
 			items: [
 				{ label: '📋', title: t('sc_toc',             'Table of contents'),  action: 'sc',       value: '[toc]' },
+				{ label: '&#x2139;', title: t('sc_callout',      'Callout block'),      action: 'callout',  value: '' },
+				{ label: '&#x275D;', title: t('sc_quote',        'Quote'),              action: 'sc-modal', value: 'quote' },
+				{ label: '&#x1F517;', title: t('sc_button',      'Button / CTA'),       action: 'sc-modal', value: 'button' },
 				{ label: '📰', title: t('sc_recent_articles', 'Recent articles'),    action: 'sc-modal', value: 'recent_articles' },
 				{ label: '🗂', title: t('sc_recent_projects', 'Recent projects'),    action: 'sc-modal', value: 'recent_projects' },
+				{ label: '&#x1F3F7;', title: t('sc_articles_by_tag', 'Articles by tag'), action: 'sc-modal', value: 'articles_by_tag' },
 				{ label: '✉', title: t('sc_contact_form',    'Contact form'),        action: 'sc',       value: '[contact_form]' },
 			]
 		},
@@ -252,7 +256,7 @@ document.addEventListener('DOMContentLoaded', function () {
 		if (action === 'gallery')    { _insertGalleryShortcode(); return; }
 		if (action === 'callout')    { _calloutModal(); return; }
 		if (action === 'link')       { _linkModal(); return; }
-		if (action === 'sc-modal')   { _scModal(value); return; }
+		if (action === 'sc-modal')   { _scModal(value);   return; }
 		if (!cmEditor) return;
 		cmEditor.focus();
 		switch (action) {
@@ -425,7 +429,24 @@ document.addEventListener('DOMContentLoaded', function () {
 	// ── Shortcode modals ──────────────────────────────────────────────────────
 	function _scModal(type) {
 		let fields = '', buildSc;
-		if (type === 'recent_articles') {
+		if (type === 'quote') {
+			const uid = 'qt-'+Date.now();
+			fields = `<div class="form-group"><label>${t('sc_quote_author','Author')}</label><input type="text" id="qta-${uid}" placeholder="Hippocrate"></div>
+					  <div class="form-group"><label>${t('sc_content','Content')}</label><textarea id="qtb-${uid}" rows="4" placeholder="${t('sc_quote_ph','Quote text...')}"></textarea></div>`;
+			buildSc = () => { const author=overlay.querySelector('#qta-'+uid).value.trim(),body=overlay.querySelector('#qtb-'+uid).value; return `[quote${author?' author="'+author+'"':''}]${body}[/quote]`; };
+		} else if (type === 'button') {
+			const uid = 'btn-'+Date.now();
+			const styleOpts = ['primary','secondary','outline'].map(s=>`<option value="${s}">${s}</option>`).join('');
+			fields = `<div class="form-group"><label>${t('sc_button_label','Label')}</label><input type="text" id="btnl-${uid}" placeholder="${t('sc_button_label_ph','Click here')}"></div>
+					  <div class="form-group"><label>URL</label><input type="text" id="btnu-${uid}" placeholder="/contact"></div>
+					  <div class="form-group"><label>${t('sc_button_style','Style')}</label><select id="btns-${uid}">${styleOpts}</select></div>`;
+			buildSc = () => `[button url="${overlay.querySelector('#btnu-'+uid).value}" label="${overlay.querySelector('#btnl-'+uid).value}" style="${overlay.querySelector('#btns-'+uid).value}"]`;
+		} else if (type === 'articles_by_tag') {
+			const uid = 'abt-'+Date.now();
+			fields = `<div class="form-group"><label>${t('sc_tag','Tag')}</label><input type="text" id="abtt-${uid}" placeholder="nutrition"></div>
+					  <div class="form-group"><label>${t('sc_limit','Number of articles')}</label><input type="number" id="abtl-${uid}" value="5" min="1" max="20"></div>`;
+			buildSc = () => `[articles_by_tag tag="${overlay.querySelector('#abtt-'+uid).value.trim()}" limit="${overlay.querySelector('#abtl-'+uid).value||5}"]`;
+		} else if (type === 'recent_articles') {
 			const uid = 'rca-'+Date.now();
 			fields = `<div class="form-group"><label>${t('sc_limit','Number of articles')}</label><input type="number" id="scl-${uid}" value="3" min="1" max="20"></div>
 					  <div class="form-group"><label>${t('sc_tag_filter','Tag filter (optional)')}</label><input type="text" id="sct-${uid}" placeholder="tag-slug"></div>

@@ -199,7 +199,7 @@ function render_header_scripts($headerScripts)
             . '" href="' . $base . 'core/feed.php">',
     ];
 
-    $lang = '    <script>window.CMS_LANG = ' . lang_js_bridge() . ';</script>';
+    $lang = '    <script>window.CMS_BASE_URL=' . json_encode($base) . ';window.CMS_LANG=' . lang_js_bridge() . ';</script>';
 
     $themeScript = [];
     $themeScriptPath = $root . '/theme/' . $theme . '/js/script.js';

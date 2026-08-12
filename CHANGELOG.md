@@ -2,13 +2,31 @@
 
 All notable changes to SynaptikCMS are documented here.  
 
+## [1.3.4.4] — 2026-08-12
+
+### Added
+- **Markdown footnotes** — `[^1]` in content now renders as a superscript link (`<sup>[1]</sup>`) that jumps to the matching definition at the bottom of the article. Definitions (`[^1]: Source text`) are collected before parsing, removed from the body, and appended as a numbered `<ol class="md-footnotes">` list with a back-link (↩) per entry. Also added inline superscript syntax: `^text^` → `<sup>text</sup>`.
+
+### Fixed
+- **synaptik-docs theme v1.1.4** — TOC scroll-spy broken in three ways: (1) `docs_extract_toc()` only matched headings that already had an `id`, so articles without the `[toc]` shortcode had no ids on their headings and the scroll-spy tracked nothing — fixed by passing `$renderedContent` by reference and injecting ids on all headings. (2) Duplicate heading titles (e.g. two "Plugins" sections in the same article) generated identical ids; `getElementById` always returned the first one, making the second and any sections between them unhighlightable — fixed by deduplicating with a `-2`, `-3` suffix. (3) `offsetTop` was used for position detection (relative to nearest positioned parent), replaced with `getBoundingClientRect().top` (relative to viewport).
+- **Booking plugin** — PDF recap: long field values now wrap correctly; character-width estimate raised from 0.52 to 0.60 to match real Helvetica metrics, and words longer than the line width are now hard-broken instead of overflowing the margin.
+	- PDF recap: title and submission date were overlapping; cursor now drops `fontSize + gap` after the title instead of a fixed 6pt.
+	- HTTP 500 on form submission: `formbuilder-submit.php` was requiring `functions.php` at the CMS root, which no longer exists since the v1.3.3 core restructure (moved to `/core/`). Removed the core dependency entirely; `config.json` is now read directly via a new `fb_core_config()` helper in `formbuilder-functions.php`, matching the pattern used by all other plugins. Also cleaned up `fb_notify_submission()` in `formbuilder-mail.php` which was using the same broken `function_exists('loadConfig')` guard.
+- **Booking plugin** — Cancellation link in the "request received" email (plain-text path, no custom template) was appearing on the same line as the label text. The URL is now on its own line.
+	- `[button url="..." label="..."]` shortcodes in custom email templates are now converted to inline-styled `<a>` tags compatible with all major email clients.
+	- Default (no custom template) pending and confirmed client emails now send as HTML instead of plain-text, so the cancellation link renders as a proper hyperlink instead of a raw URL.
+	- Dates in client emails are now formatted in the site's active language using the existing translated month names. Previously always rendered in English via PHP's `date()`.
+	- `[button]` shortcode in email templates now accepts an optional `color="#hex"` attribute to set the button background color.
+- **Search overlay** — `getBaseUrl()` in `main.js` was reconstructing the CMS root from `window.location.pathname` using a pattern-matching heuristic that failed on themes with arbitrary page slugs (no `/article/`, `/page/` prefix). Replaced with a direct read of `window.CMS_BASE_URL`, now injected by `render_header_scripts()` for all themes automatically. Fixes 404 errors on `core/search.php` requests.
+- **main.js global scope** — `const t` and `const highlighters` were declared at the top level of `main.js`, causing a `SyntaxError: Identifier 't' has already been declared` crash when any other script on the page declared the same variable name. The entire file is now wrapped in an IIFE.
+- **Markdown editor** - now includes all available shortcodes, similar to the WYSIWYG editor.
 
 ## [1.3.4.3] — 2026-08-11
 
 ### Fixed
 - **Installer** — `/core/.htaccess` now correctly allows direct HTTP access to `search.php`, `feed.php`, and `contact-process.php` while blocking all other PHP files. Previously, the installer wrote a blanket deny-all `.htaccess` to `/core/`, which broke front-end search and the RSS feed on every fresh install.
-  - Language dropdown now correctly lists all available locales (EN/FR/ES). The scanner was pointing to `lang/admin/` instead of `lang/front/`, causing only English to appear.
-  - Selected language is now written to both `active_language` and `admin_language` in `config.json`, so front-end and admin panel start in the same language chosen at install time.
+	- Language dropdown now correctly lists all available locales (EN/FR/ES). The scanner was pointing to `lang/admin/` instead of `lang/front/`, causing only English to appear.
+	- Selected language is now written to both `active_language` and `admin_language` in `config.json`, so front-end and admin panel start in the same language chosen at install time.
 
 ## [1.3.4.2] — 2026-08-10
 

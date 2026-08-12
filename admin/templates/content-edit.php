@@ -525,12 +525,12 @@ if (!$editItem) {
 							<div class="panel-content panel-collapsible">
 								<div class="form-group">
 									<label for="meta_title"><?php _e('meta_title'); ?></label>
-									<input type="text" id="meta_title" name="meta_title" form="content-form" maxlength="60" value="<?php echo htmlspecialchars($editItem['meta_title'] ?? ''); ?>">
+									<input type="text" id="meta_title" name="meta_title" form="content-form" maxlength="80" value="<?php echo htmlspecialchars($editItem['meta_title'] ?? ''); ?>">
 									<p class="help-text"><?php _e('meta_title_help'); ?></p>
 								</div>
 								<div class="form-group">
 									<label for="meta_description"><?php _e('meta_description'); ?></label>
-									<textarea id="meta_description" name="meta_description" form="content-form" rows="3" maxlength="160"><?php echo htmlspecialchars($editItem['meta_description'] ?? ''); ?></textarea>
+									<textarea id="meta_description" name="meta_description" form="content-form" rows="3" maxlength="200"><?php echo htmlspecialchars($editItem['meta_description'] ?? ''); ?></textarea>
 									<p class="help-text"><?php _e('meta_description_help'); ?></p>
 								</div>
 								<div class="form-group">
