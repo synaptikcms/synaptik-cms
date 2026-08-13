@@ -2,7 +2,7 @@
 
 ## MIT License with UI Attribution Requirement
 
-Copyright (c) 2026 - Dorian FICHOT
+Copyright (c) 2026 - Dorian F.
 
 ---
 
