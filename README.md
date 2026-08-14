@@ -282,7 +282,11 @@ Unlike themes, plugins are not tied to the active theme — once activated from 
 
 ## License
 
-MIT — free for personal and commercial use. See [LICENSE.md](LICENSE.md).
+SynaptikCMS Open License — free for personal, educational, and non-profit use.
+Commercial use requires visible attribution ("Powered by SynaptikCMS") in the product UI.
+Direct resale of the software is not permitted without written permission.
+
+See [LICENSE.md](LICENSE.md) for the full terms.
 
 ---
 
