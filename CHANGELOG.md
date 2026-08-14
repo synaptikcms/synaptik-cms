@@ -2,45 +2,76 @@
 
 All notable changes to SynaptikCMS are documented here.  
 
+## [1.3.5] — 2026-08-14
+
+### Security
+- **Security audit** — the security fixes in this release address findings from a full audit of SynaptikCMS 1.3.4.4 conducted by [@treeandcoffee](https://github.com/treeandcoffee). Full credit in `SECURITY.md`.
+- **Password reset — token exposed on screen** — on installs where `mail()` fails, the reset link was shown in the browser response, potentially allowing account takeover without authentication. (`admin/forgot-password.php`)
+- **Password reset — Host header poisoning** — the reset email could be redirected to an attacker-controlled domain via a forged `Host` header. (`admin/forgot-password.php`)
+- **File manager — path traversal via rename/move** — files could be renamed to executable extensions or moved outside the upload directory. Reported independently by [@treeandcoffee](https://github.com/treeandcoffee) and [Dinesh Goud](https://github.com/d1n3sh-0x3). (`admin/file-manager.php`)
+- **Template editor — missing CSRF protection** — a forged request could overwrite active theme files while an admin was logged in. (`admin/template-editor.php`)
+- **Admin credentials — PHP injection via display name** — a backslash in the display name field could corrupt the credentials file and lock out the admin. (`admin/includes/admin-functions.php`, `admin/save-profile.php`)
+- **Front-end path traversal** — a crafted URL slug could be used to read arbitrary data files. (`core/data-layer.php`, `index.php`)
+- **CSRF bypass on destructive admin actions** — delete and purge actions could be triggered without a valid security token. (`admin/index.php`)
+- **Missing CSRF protection on AJAX endpoints** — file upload, autosave, alt-text, sitemap and SEO endpoints accepted state-changing requests without token validation. (`admin/file-upload.php`, `admin/autosave.php`, `admin/alt-text-assistant.php`, `admin/sitemap-generator.php`, `admin/seo-overview.php`)
+- **Session timeout not enforced on all admin pages** — several endpoints bypassed the 2-hour inactivity timeout. (`admin/batch-optimize.php`, `admin/get-files.php`, `admin/preview.php`, `admin/theme-preview.php`, `admin/file-manager.php`, `admin/template-editor.php`)
+- **Session cookies not hardened under PHP-FPM** — `HttpOnly`, `Secure` and `SameSite` flags were only set via `.htaccess`, which has no effect under PHP-FPM. Now enforced in PHP directly. (`admin/includes/session-config.php`)
+- **Login rate limiter — race condition** — concurrent login attempts could bypass the lockout counter. (`admin/auth.php`)
+- **Search endpoint — denial of service** — the public search endpoint had no rate limiting and loaded all content on every request. Rate limit added; only requested content types are now loaded. (`core/search.php`)
+- **Markdown — XSS via crafted links** — link labels and footnote keys were not fully escaped; `javascript:` URLs in links are now blocked. (`core/render/tf-markdown.php`)
+- **Dashboard warning when data directories are publicly accessible** — on servers where `.htaccess` is not enforced (nginx without manual rules), sensitive directories could be publicly readable. The dashboard now shows a warning when this is detected. (`admin/dashboard.php`)
+- **Installer** — `site_url` is now saved to `config.json` at install time, used as the canonical base URL for password reset links. (`install.php`)
+
+### Added
+- `llms.txt` support (spec: https://llmstxt.org/). Accessible at `/llms.txt`, served by `core/llms.php`. Lists published pages and articles with URLs and summaries for LLM indexers. No configuration required. Thanks to [@treeandcoffee](https://github.com/treeandcoffee) for the suggestion.
+
+### Changed
+- **License** — changed from MIT to SynaptikCMS Open License starting from this version. Personal, educational and non-profit use remains free with no conditions beyond copyright notice retention. Commercial use requires visible attribution ("Powered by SynaptikCMS" in the UI). Previous releases remain available under MIT for anyone who obtained them before this version.
+
+### Fixed
+- **Content preview broken after M4 fix** — loading `admin-functions.php` at the top of `preview.php` caused a fatal `sanitizeSlug()` redeclaration when `core/functions.php` was loaded shortly after. Auth check is now inline in `preview.php`, which doesn't need any other admin function. (`admin/preview.php`)
+- **Tag and category pages returning homepage** — tag and category archive pages were falling through to the homepage due to a routing fix applied earlier in this release. (`index.php`)
+- **Drafts — delete actions broken after CSRF hardening** — after adding CSRF token requirements to all destructive actions, delete buttons in the drafts list, content list, categories, and tags were no longer working. (`admin/templates/drafts.php`, `admin/assets/js/common.js`, `admin/assets/js/panel.js`)
+- **Duplicate locale string** — `extensions_no_plugins` was defined twice in `lang/admin/en.json`; the stale first entry has been removed. (`lang/admin/en.json`)
+- **File manager — upload form layout** — the upload panel expanded horizontally during uploads, pushing the folder creation panel off-screen. (`admin/assets/css/admin-filemanager.css`)
+- **Core updater** — `theme/default/` is no longer overwritten during a core update, preserving any customizations to the default theme.
+- **Extension updater** — `theme/default/` can now be updated via the Extensions Manager. (Thanks to [@treeandcoffee](https://github.com/treeandcoffee) for reporting.)
+
+--- 
+
 ## [1.3.4.4] — 2026-08-12
 
 ### Added
-- **Markdown footnotes** — `[^1]` in content now renders as a superscript link (`<sup>[1]</sup>`) that jumps to the matching definition at the bottom of the article. Definitions (`[^1]: Source text`) are collected before parsing, removed from the body, and appended as a numbered `<ol class="md-footnotes">` list with a back-link (↩) per entry. Also added inline superscript syntax: `^text^` → `<sup>text</sup>`.
+- **Markdown footnotes** — `[^1]` markers in content now render as superscript links that jump to numbered footnote definitions at the bottom of the article. Inline superscript syntax also added: `^text^` → `<sup>text</sup>`.
 
 ### Fixed
-- **synaptik-docs theme v1.1.4** — TOC scroll-spy broken in three ways: (1) `docs_extract_toc()` only matched headings that already had an `id`, so articles without the `[toc]` shortcode had no ids on their headings and the scroll-spy tracked nothing — fixed by passing `$renderedContent` by reference and injecting ids on all headings. (2) Duplicate heading titles (e.g. two "Plugins" sections in the same article) generated identical ids; `getElementById` always returned the first one, making the second and any sections between them unhighlightable — fixed by deduplicating with a `-2`, `-3` suffix. (3) `offsetTop` was used for position detection (relative to nearest positioned parent), replaced with `getBoundingClientRect().top` (relative to viewport).
-- **Booking plugin** — PDF recap: long field values now wrap correctly; character-width estimate raised from 0.52 to 0.60 to match real Helvetica metrics, and words longer than the line width are now hard-broken instead of overflowing the margin.
-	- PDF recap: title and submission date were overlapping; cursor now drops `fontSize + gap` after the title instead of a fixed 6pt.
-	- HTTP 500 on form submission: `formbuilder-submit.php` was requiring `functions.php` at the CMS root, which no longer exists since the v1.3.3 core restructure (moved to `/core/`). Removed the core dependency entirely; `config.json` is now read directly via a new `fb_core_config()` helper in `formbuilder-functions.php`, matching the pattern used by all other plugins. Also cleaned up `fb_notify_submission()` in `formbuilder-mail.php` which was using the same broken `function_exists('loadConfig')` guard.
-- **Booking plugin** — Cancellation link in the "request received" email (plain-text path, no custom template) was appearing on the same line as the label text. The URL is now on its own line.
-	- `[button url="..." label="..."]` shortcodes in custom email templates are now converted to inline-styled `<a>` tags compatible with all major email clients.
-	- Default (no custom template) pending and confirmed client emails now send as HTML instead of plain-text, so the cancellation link renders as a proper hyperlink instead of a raw URL.
-	- Dates in client emails are now formatted in the site's active language using the existing translated month names. Previously always rendered in English via PHP's `date()`.
-	- `[button]` shortcode in email templates now accepts an optional `color="#hex"` attribute to set the button background color.
-- **Search overlay** — `getBaseUrl()` in `main.js` was reconstructing the CMS root from `window.location.pathname` using a pattern-matching heuristic that failed on themes with arbitrary page slugs (no `/article/`, `/page/` prefix). Replaced with a direct read of `window.CMS_BASE_URL`, now injected by `render_header_scripts()` for all themes automatically. Fixes 404 errors on `core/search.php` requests.
-- **main.js global scope** — `const t` and `const highlighters` were declared at the top level of `main.js`, causing a `SyntaxError: Identifier 't' has already been declared` crash when any other script on the page declared the same variable name. The entire file is now wrapped in an IIFE.
-- **Markdown editor** - now includes all available shortcodes, similar to the WYSIWYG editor.
+- **Markdown footnotes** — footnote definitions inside fenced code blocks were incorrectly consumed by the footnote parser, causing them to disappear from rendered code examples. (`core/render/tf-markdown.php`)
+- **synaptik-docs theme v1.1.4 — TOC scroll-spy** — three bugs fixed: headings without the `[toc]` shortcode had no anchors and weren't tracked; duplicate heading titles caused incorrect highlighting; scroll position detection was unreliable on some layouts.
+- **Booking plugin** — PDF recap: long values now wrap correctly; title and submission date were overlapping.
+- **Booking plugin** — HTTP 500 on form submission caused by a missing core file reference left over from the v1.3.3 restructure.
+- **Booking plugin** — Several email improvements: cancellation link now on its own line; emails now sent as HTML; dates formatted in the site's active language; `[button]` shortcode now works in email templates and accepts a `color` attribute.
+- **Search overlay** — search requests returned 404 errors on sites with non-standard URL structures. Base URL is now injected directly by the CMS instead of being reconstructed from the current URL.
+- **main.js** — a variable name conflict caused a JavaScript crash when another script on the page used the same variable name. Fixed by wrapping the file in an IIFE.
+- **Markdown editor** — shortcode picker now includes all available shortcodes, matching the WYSIWYG editor.
 
 ## [1.3.4.3] — 2026-08-11
 
 ### Fixed
-- **Installer** — `/core/.htaccess` now correctly allows direct HTTP access to `search.php`, `feed.php`, and `contact-process.php` while blocking all other PHP files. Previously, the installer wrote a blanket deny-all `.htaccess` to `/core/`, which broke front-end search and the RSS feed on every fresh install.
-	- Language dropdown now correctly lists all available locales (EN/FR/ES). The scanner was pointing to `lang/admin/` instead of `lang/front/`, causing only English to appear.
-	- Selected language is now written to both `active_language` and `admin_language` in `config.json`, so front-end and admin panel start in the same language chosen at install time.
+- **Installer** — fresh installs had a broken search endpoint and RSS feed due to an overly restrictive `.htaccess` in `/core/`.
+- **Installer** — language dropdown only showed English; now lists all available locales.
+- **Installer** — selected language is now applied to both the front end and admin panel.
 
 ## [1.3.4.2] — 2026-08-10
 
-### Changed
-- **Analytics plugin v1.0.2** — The overview chart can now switch between Page Views and Unique Visitors. The selected time range is remembered across all analytics tabs.
-- **Installer** — Font switched from (Google Fonts) to Inter (Bunny Fonts).
-    - Password fields now have an eye icon toggle to reveal/hide the value.
-	- Footer and post-install notes now explain that `install.php` self-deletes and advise manual removal only as a fallback, rather than telling users to delete it themselves unconditionally.
-
 ### Added
-- **Markdown nested lists** — Lists in Markdown content now support arbitrary nesting. Indent child items by 2 or more spaces to create sub-levels. Mixed ordered/unordered nesting is supported.
+- **Markdown nested lists** — lists now support arbitrary nesting depth with mixed ordered/unordered levels.
+
+### Changed
+- **Analytics plugin v1.0.2** — overview chart can now switch between Page Views and Unique Visitors; selected time range is remembered across tabs.
+- **Installer** — font switched to Inter via Bunny Fonts; password fields now have a show/hide toggle; install notes clarified.
 
 ### Security
-- Hardened `.htaccess` protection across the CMS core and all plugins. Several internal directories (`/cache/`, `/lang/`, `/core/`, admin sub-directories) were accessible over HTTP and are now deny-all protected. All plugin `data/` and `private/` directories now unconditionally rewrite their `.htaccess` on every activation rather than skipping the write when the file already existed — previously, manually deleting and recreating a data directory left it unprotected until the plugin was deactivated and reactivated. `install.php` updated to provision the correct `.htaccess` for all sensitive directories from the first install.
+- Hardened `.htaccess` protection across core directories, admin sub-directories, and plugin `data/` and `private/` folders. Plugin directories now always rewrite their `.htaccess` on activation, closing a gap where a manually recreated directory would be left unprotected.
 
 ### Fixed
 - **Dashboard** — Media file count now correctly excludes `.htaccess` and dotfiles from `/files/`. Previously, `.htaccess` was counted as a file (showing "1 file" on empty installs), and any stale cache generated in that state would persist for up to 5 minutes. Stale cache cleared on deploy.

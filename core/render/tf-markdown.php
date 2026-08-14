@@ -16,7 +16,26 @@ function _md_to_html(string $md): string
     $md = str_replace("\r\n", "\n", $md);
     $md = str_replace("\r",   "\n", $md);
 
-    // Extract footnote definitions [^n]: text — before any other parsing
+    // -------------------------------------------------------------------------
+    // Step 1 — protect fenced code blocks FIRST so that [^n]: lines inside
+    // them are never mistaken for footnote definitions.
+    // We use a temporary placeholder map keyed by a NUL-delimited token.
+    // -------------------------------------------------------------------------
+    // The fence regex matches N backticks (N >= 3) and requires the closing
+    // fence to use the same number, so a 4-backtick wrapper around a 3-backtick
+    // inner block is handled correctly — matching CommonMark fenced-code rules.
+    $earlyCodeBlocks = [];
+    $md = preg_replace_callback(
+        '/^(`{3,})([^\n]*)\n([\s\S]*?)^\1[ \t]*$/m',
+        function ($m) use (&$earlyCodeBlocks) {
+            $token = "\x00ECODE" . count($earlyCodeBlocks) . "\x00";
+            $earlyCodeBlocks[$token] = $m[0]; // keep raw markdown, restored before main pass
+            return $token . "\n";
+        },
+        $md
+    );
+
+    // Step 2 — extract footnote definitions (now safe: code blocks are opaque)
     $footnotes = [];
     $md = preg_replace_callback(
         '/^\[\^([^\]]+)\]:\s*(.+)$/m',
@@ -26,6 +45,10 @@ function _md_to_html(string $md): string
         },
         $md
     );
+
+    // Step 3 — restore the raw fenced blocks so the main parsing pass can
+    // handle them normally (syntax-highlight, bracket encoding, etc.).
+    $md = strtr($md, $earlyCodeBlocks);
     $md = trim($md);
 
     // Container directives  :::type [optional title]\n...\n:::
@@ -61,13 +84,14 @@ function _md_to_html(string $md): string
         );
     }
 
-    // Protect fenced code blocks — encode brackets so shortcode parsers ignore them
+    // Protect fenced code blocks — encode brackets so shortcode parsers ignore them.
+    // Same N-backtick rule: closing fence must match the opening fence length.
     $codeBlocks = [];
     $md = preg_replace_callback(
-        '/^```([^\n]*)\n([\s\S]*?)^```/m',
+        '/^(`{3,})([^\n]*)\n([\s\S]*?)^\1[ \t]*$/m',
         function ($m) use (&$codeBlocks) {
-            $lang  = htmlspecialchars(trim($m[1]));
-            $code  = htmlspecialchars($m[2]);
+            $lang  = htmlspecialchars(trim($m[2]));
+            $code  = htmlspecialchars($m[3]);
             $code  = str_replace(['[', ']'], ['&#91;', '&#93;'], $code);
             $cls   = $lang ? ' class="language-' . $lang . '"' : '';
             $token = '\x00CODE' . count($codeBlocks) . '\x00';
@@ -77,13 +101,14 @@ function _md_to_html(string $md): string
         $md
     );
 
-    // Protect inline code — same bracket encoding
+    // Protect inline code — handles both single and double backtick spans.
+    // Pattern: N backticks, any content (no newline), same N backticks.
     $inlineCodes = [];
     $md = preg_replace_callback(
-        '/`([^`\n]+)`/',
+        '/(`{1,2})([^`\n]+?)\1/',
         function ($m) use (&$inlineCodes) {
             $token               = '\x00IC' . count($inlineCodes) . '\x00';
-            $content             = htmlspecialchars($m[1]);
+            $content             = htmlspecialchars($m[2]);
             $content             = str_replace(['[', ']'], ['&#91;', '&#93;'], $content);
             $inlineCodes[$token] = '<code>' . $content . '</code>';
             return $token;
@@ -318,8 +343,10 @@ function _md_inline(string $text): string
         '/\[([^\]]+)\]\(([^)]+)\)/',
         function ($m) {
             $target = preg_match('/\{:target="_blank"\}/', $m[2]) ? ' target="_blank" rel="noopener"' : '';
-            $url    = preg_replace('/\{[^}]+\}/', '', $m[2]);
-            return '<a href="' . htmlspecialchars(trim($url)) . '"' . $target . '>' . $m[1] . '</a>';
+            $url    = trim(preg_replace('/\{[^}]+\}/', '', $m[2]));
+            if (preg_match('/^\s*javascript:/i', $url)) $url = '#';
+            $label  = htmlspecialchars($m[1], ENT_QUOTES, 'UTF-8');
+            return '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '"' . $target . '>' . $label . '</a>';
         },
         $text
     );
@@ -334,11 +361,11 @@ function _md_inline(string $text): string
     // Footnote references [^1] -> <sup><a href="{url}#fn-1" id="fnref-1">[1]</a></sup>
     // href must include the current page path because <base href="..."> in the
     // <head> rebases bare fragment-only hrefs ("#fn-1") to the site root.
-    $currentPath = htmlspecialchars(strtok($_SERVER['REQUEST_URI'] ?? '/', '?'));
+    $currentPath = htmlspecialchars(strtok($_SERVER['REQUEST_URI'] ?? '/', '?'), ENT_QUOTES, 'UTF-8');
     $text = preg_replace_callback(
         '/\[\^([^\]]+)\]/',
         function ($m) use ($currentPath) {
-            $key    = htmlspecialchars($m[1]);
+            $key    = htmlspecialchars($m[1], ENT_QUOTES, 'UTF-8');
             $refId  = 'fn-'    . $key;
             $backId = 'fnref-' . $key;
             return '<sup><a href="' . $currentPath . '#' . $refId . '" id="' . $backId . '" class="md-fnref">[' . $key . ']</a></sup>';

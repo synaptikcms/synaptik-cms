@@ -361,7 +361,7 @@ document.addEventListener('DOMContentLoaded', function() {
 					cancelText:  window.t('cancel'),
 					danger:      true,
 					onConfirm:   function() {
-						window.location.href = `index.php?action=delete&type=${type}&index=${index}`;
+					window.location.href = `index.php?action=delete&type=${type}&index=${index}&csrf_token=${encodeURIComponent(window.CMS_CSRF_TOKEN || '')}`;
 					},
 				}
 			);
@@ -382,7 +382,7 @@ document.addEventListener('DOMContentLoaded', function() {
 					cancelText:  window.t('cancel'),
 					danger:      true,
 					onConfirm:   function() {
-						window.location.href = `index.php?action=manage_categories&category_action=delete&slug=${slug}`;
+					window.location.href = `index.php?action=manage_categories&category_action=delete&slug=${slug}&csrf_token=${encodeURIComponent(window.CMS_CSRF_TOKEN || '')}`;
 					},
 				}
 			);
@@ -403,7 +403,7 @@ document.addEventListener('DOMContentLoaded', function() {
 					cancelText:  window.t('cancel'),
 					danger:      true,
 					onConfirm:   function() {
-						window.location.href = `index.php?action=manage_tags&tag_action=delete&slug=${slug}`;
+					window.location.href = `index.php?action=manage_tags&tag_action=delete&slug=${slug}&csrf_token=${encodeURIComponent(window.CMS_CSRF_TOKEN || '')}`;
 					},
 				}
 			);

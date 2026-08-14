@@ -12,6 +12,13 @@ if (!admin_is_logged_in()) {
 	exit;
 }
 
+// CSRF check
+$_csrfToken = $_POST['csrf_token'] ?? (getallheaders()['X-CSRF-Token'] ?? '');
+if (!isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_csrfToken)) {
+	echo json_encode(['error' => 'Invalid security token.']);
+	exit;
+}
+
 // Make sure we have POST data
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 	echo json_encode(['error' => 'Invalid request method']);

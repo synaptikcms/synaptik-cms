@@ -1,12 +1,13 @@
 <?php
 require_once __DIR__ . '/includes/session-config.php';
 session_start();
-if (empty($_SESSION['csrf_token'])) {
-	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-if (!isset($_SESSION['admin'])) {
+require_once 'includes/admin-functions.php';
+if (!admin_is_logged_in()) {
 	header('Location: auth.php');
 	exit;
+}
+if (empty($_SESSION['csrf_token'])) {
+	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
 if (isset($_SESSION['message'])) {
@@ -22,7 +23,6 @@ if (isset($_SESSION['error'])) {
 $action      = $_GET['action'] ?? '';
 $contentType = $_GET['type']   ?? '';
 
-require_once 'includes/admin-functions.php';
 require_once 'image-optimization.php';
 require_once 'progress-helpers.php';
 require_once '../core/data-functions.php';
@@ -491,21 +491,51 @@ function getFileIcon($fileType) {
 }
 
 /**
+ * Verify that a resolved path stays inside the upload base directory.
+ * Returns the real path on success, null on failure.
+ */
+function fm_assert_within_base(string $path, string $base): ?string
+{
+	$realBase = realpath($base);
+	$realPath = realpath($path);
+	if ($realBase === false || $realPath === false) return null;
+	if (strpos($realPath, $realBase . DIRECTORY_SEPARATOR) !== 0
+		&& $realPath !== $realBase) return null;
+	return $realPath;
+}
+
+/**
  * Handle file and folder rename operations.
  */
 function handleRename() {
-	global $baseUploadPath, $currentPath;
+	global $baseUploadPath, $currentPath, $allowedTypes;
 	$itemType     = $_POST['item_type']     ?? '';
 	$originalName = $_POST['original_name'] ?? '';
-	$newName      = $_POST['new_name']      ?? '';
-	if (empty($itemType) || empty($originalName) || empty($newName)) {
+	$newName      = basename($_POST['new_name'] ?? '');
+	if (empty($itemType) || empty($originalName) || $newName === '') {
 		return ['success' => false, 'message' => __t('fm_rename_missing_data')];
 	}
-	$fullPath        = $baseUploadPath . $currentPath;
-	$originalItemPath = rtrim($fullPath, '/') . '/' . $originalName;
-	$newItemPath      = rtrim($fullPath, '/') . '/' . $newName;
-	if (!file_exists($originalItemPath)) {
-		return ['success' => false, 'message' => sprintf(__t('fm_item_not_found'), $originalItemPath)];
+	// For files, re-validate the new extension against the upload whitelist
+	if ($itemType === 'file') {
+		$ext = strtolower(pathinfo($newName, PATHINFO_EXTENSION));
+		if (!in_array($ext, $allowedTypes, true)) {
+			return ['success' => false, 'message' => __t('fm_invalid_request')];
+		}
+	}
+	$dir              = rtrim($baseUploadPath . $currentPath, '/');
+	$originalItemPath = $dir . '/' . basename($originalName);
+	$newItemPath      = $dir . '/' . $newName;
+	// Source must exist and be inside the upload base
+	if (!file_exists($originalItemPath)
+		|| fm_assert_within_base($originalItemPath, $baseUploadPath) === null) {
+		return ['success' => false, 'message' => sprintf(__t('fm_item_not_found'), $originalName)];
+	}
+	// Destination must also stay inside the upload base (pre-check via dirname)
+	$newDirReal  = realpath($dir);
+	$baseReal    = realpath($baseUploadPath);
+	if ($newDirReal === false || $baseReal === false
+		|| strpos($newDirReal, $baseReal) !== 0) {
+		return ['success' => false, 'message' => __t('fm_invalid_request')];
 	}
 	if (file_exists($newItemPath)) {
 		return ['success' => false, 'message' => __t('fm_rename_exists')];
@@ -536,6 +566,10 @@ function handleMove() {
 	}
 	if (!file_exists($targetFolderPath) || !is_dir($targetFolderPath)) {
 		return ['success' => false, 'message' => __t('fm_move_target_not_found')];
+	}
+	// Ensure the resolved target stays inside the upload base
+	if (fm_assert_within_base($targetFolderPath, $baseUploadPath) === null) {
+		return ['success' => false, 'message' => __t('fm_invalid_request')];
 	}
 	$successCount = 0;
 	$failCount    = 0;

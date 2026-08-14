@@ -20,16 +20,14 @@ function admin_verify_csrf(): bool {
 	return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
 }
 
-// Abort with 403 on CSRF failure for state-changing requests
+// Abort with 403 on CSRF failure for state-changing requests.
+// Always rejects when called — the token must be present and valid.
 function admin_csrf_check(): void {
-	if ($_SERVER['REQUEST_METHOD'] === 'POST' || isset($_GET['csrf_token'])) {
-		if (!admin_verify_csrf()) {
-			http_response_code(403);
-			// Re-render the page with an error rather than a blank 403 screen
-			$_SESSION['error'] = 'Security token invalid or expired. Please try again.';
-			header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? 'index.php'));
-			exit;
-		}
+	if (!admin_verify_csrf()) {
+		http_response_code(403);
+		$_SESSION['error'] = 'Security token invalid or expired. Please try again.';
+		header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? 'index.php'));
+		exit;
 	}
 }
 
@@ -110,7 +108,7 @@ $_isDestructiveGet = (
 	($_currentAction === 'delete')
 );
 
-if ($_isDestructiveGet && isset($_GET['csrf_token'])) {
+if ($_isDestructiveGet) {
 	admin_csrf_check();
 }
 

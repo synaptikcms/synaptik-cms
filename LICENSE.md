@@ -1,8 +1,6 @@
-# LICENSE
+## SynaptikCMS Open License with UI Attribution Requirement
 
-## MIT License with UI Attribution Requirement
-
-Copyright (c) 2026 - Dorian FICHOT
+Copyright (c) 2026 - Dorian F.
 
 ---
 
@@ -11,8 +9,9 @@ Copyright (c) 2026 - Dorian FICHOT
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense the Software,
-subject to the following conditions:
+to use, copy, modify, merge, publish, and distribute the Software, subject
+to the following conditions. Direct resale of the Software as a standalone
+product is not permitted without explicit written permission from the author.
 
 ---
 
@@ -26,9 +25,16 @@ copies or substantial portions of the Software.
 **2. Visible attribution in any commercial product (UI Attribution Clause)**
 
 Any person or organization using this Software as part of a product or service
-**for commercial purposes** (i.e. generating revenue, directly or indirectly)
-is required to display the following notice prominently in the user interface
-of said product:
+**for commercial purposes** is required to display the following notice
+prominently in the user interface of said product.
+
+Commercial purposes includes: selling a product or service built with this
+Software, client work billed to a third party, and any website or application
+generating revenue through subscriptions, advertising, or transactions.
+
+It does not include: a personal blog with occasional ad revenue, a portfolio
+site attracting freelance clients, or internal tools not exposed to paying
+customers.
 
 > Powered by **SynaptikCMS** — https://synaptikcms.com
 

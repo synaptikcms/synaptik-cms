@@ -7,10 +7,16 @@ require_once __DIR__ . '/includes/session-config.php';
 session_start();
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-if (!isset($_SESSION['admin']) || $_SESSION['admin'] !== true) {
+// Inline auth check — avoids loading admin-functions.php before core/functions.php
+// which would cause a fatal redeclaration of sanitizeSlug().
+$_preview_timeout = 7200;
+if (empty($_SESSION['admin']) || $_SESSION['admin'] !== true
+	|| (isset($_SESSION['admin_last_activity'])
+		&& (time() - $_SESSION['admin_last_activity']) > $_preview_timeout)) {
 	http_response_code(403);
-	exit(__t('http_access_denied'));
+	exit('Access denied.');
 }
+unset($_preview_timeout);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 	http_response_code(405);

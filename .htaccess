@@ -11,6 +11,9 @@ RewriteRule ^theme-[^/]+/ index.php [QSA,L]
 RewriteRule ^get-files\.php$ file-manager.php?action=get_files [QSA,L]
 RewriteRule ^file-upload\.php$ file-manager.php [QSA,L]
 
+# llms.txt — LLM indexer summary (spec: https://llmstxt.org/)
+RewriteRule ^llms\.txt$ core/llms.php [QSA,L]
+
 # Legacy backward compat: contact-process.php and search.php moved to /core/
 RewriteRule ^contact-process\.php$ core/contact-process.php [QSA,L]
 RewriteRule ^search\.php$ core/search.php [QSA,L]

@@ -7,7 +7,8 @@
 
 /* ── Controls (upload / file) ──────────────────────────────────── */
 .file-manager-controls { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 25px; }
-.upload-form, .folder-form { flex: 1; margin-top: 20px; padding: 20px; background-color: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.upload-form, .folder-form { flex: 1; min-width: 0; min-height: 0; margin-top: 20px; padding: 20px; background-color: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.upload-form { max-width: 60%; }
 .folder-form { max-width: 40%; }
 .folder-form form { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
 .folder-form input[type="text"] { width: 100%; }

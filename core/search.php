@@ -83,31 +83,51 @@ if (mb_strlen($query, 'UTF-8') < 2) {
 	exit;
 }
 
-// ─── Load data — split-file architecture ──────────────────────────────────────
-// Search requires full item content (body search enabled), so we load all items
-// for each requested type. sl_load_all_items() reads individual .json files in
-// index order — only the types actually searched are loaded.
+// ─── Rate limiting (simple per-IP, no external dependency) ──────────────────
+// Max 30 search requests per minute per IP. File-based, purged on expiry.
+$_srRateFile = __DIR__ . '/../private/search_rate.json';
+$_srIpKey    = hash('sha256', $_SERVER['REMOTE_ADDR'] ?? '');
+$_srNow      = time();
+$_srWindow   = 60;   // seconds
+$_srMax      = 30;   // requests per window
 
-$data = sl_build_data_array(['article', 'page', 'project'], true); // true = full items
- 
-if (empty($data)) {
-	http_response_code(500);
-	echo json_encode(['error' => 'Could not read data files'], JSON_UNESCAPED_UNICODE);
+$_srData = [];
+if (file_exists($_srRateFile)) {
+	$_srRaw = @file_get_contents($_srRateFile);
+	if ($_srRaw !== false) $_srData = json_decode($_srRaw, true) ?: [];
+}
+
+$_srEntry = $_srData[$_srIpKey] ?? ['count' => 0, 'window_start' => $_srNow];
+if (($_srNow - $_srEntry['window_start']) >= $_srWindow) {
+	$_srEntry = ['count' => 0, 'window_start' => $_srNow];
+}
+$_srEntry['count']++;
+$_srData[$_srIpKey] = $_srEntry;
+@file_put_contents($_srRateFile, json_encode($_srData), LOCK_EX);
+
+if ($_srEntry['count'] > $_srMax) {
+	http_response_code(429);
+	echo json_encode(['error' => 'Too many requests. Please slow down.'], JSON_UNESCAPED_UNICODE);
 	exit;
 }
- 
-// Expose globally so cleanUrl() / getCategoryPath() can resolve category paths
-$GLOBALS['data'] = $data;
+unset($_srRateFile, $_srIpKey, $_srNow, $_srWindow, $_srMax, $_srData, $_srEntry, $_srRaw);
 
-// ─── Search ───────────────────────────────────────────────────────────────────
-
-$results = [];
+// ─── Load data — only the types actually requested ───────────────────────────
+// Build the type list first so sl_build_data_array() reads only necessary files.
 
 $contentTypes = [];
 if ($searchArticles) $contentTypes[] = 'article';
 if ($searchPages)    $contentTypes[] = 'page';
 if ($searchProjects) $contentTypes[] = 'project';
 if (empty($contentTypes)) $contentTypes = ['article', 'page', 'project'];
+
+// Full items are needed only when content-body search is enabled.
+$data = sl_build_data_array($contentTypes, $searchInContent);
+
+// Expose globally so cleanUrl() / getCategoryPath() can resolve category paths.
+$GLOBALS['data'] = $data;
+
+$results = [];
 
 foreach ($contentTypes as $contentType) {
 	if (!isset($data[$contentType]) || !is_array($data[$contentType])) {

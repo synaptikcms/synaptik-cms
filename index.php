@@ -185,11 +185,14 @@ if (!empty($uriParams["tag"])) {
 	$_GET["tag"] = $uriParams["tag"];
 }
 
-// Initialize variables
-$type = isset($_GET["type"]) ? $_GET["type"] : "";
-$slug = isset($_GET["slug"]) ? $_GET["slug"] : "";
-$category = isset($_GET["category"]) ? $_GET["category"] : "";
-$tag = isset($_GET["tag"]) ? $_GET["tag"] : "";
+// Initialize variables — sanitize all routing inputs before use.
+// $type is already validated by parseRequestUri() which only returns known values;
+// 'tag' and 'category' are valid routing types but not in $contentTypes.
+$_allowedTypes = array_merge($contentTypes, ['tag', 'category', '404']);
+$type     = isset($_GET['type']) ? (in_array($_GET['type'], $_allowedTypes, true) ? $_GET['type'] : '') : '';
+$slug     = isset($_GET['slug'])     ? basename(preg_replace('/[^\p{L}\p{N}\-_\/]/u', '', $_GET['slug'])) : '';
+$category = isset($_GET['category']) ? preg_replace('/[^\p{L}\p{N}\-_]/u', '', $_GET['category']) : '';
+$tag      = isset($_GET['tag'])      ? preg_replace('/[^\p{L}\p{N}\-_]/u', '', $_GET['tag'])      : '';
 
 // ── Step 2: contextual full-item loading ───────────────────────────────────────
 //

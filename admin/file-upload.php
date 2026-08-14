@@ -1,14 +1,19 @@
 <?php
 require_once __DIR__ . '/includes/session-config.php';
 session_start();
-if (empty($_SESSION['csrf_token'])) {
-	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-if (!isset($_SESSION['admin'])) {
-	// Return error if not logged in
+require_once 'includes/admin-functions.php';
+if (!admin_is_logged_in()) {
 	header('HTTP/1.1 403 Forbidden');
 	echo json_encode(['error' => 'Not authorized']);
 	exit;
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+	$_csrfToken = $_POST['csrf_token'] ?? (getallheaders()['X-CSRF-Token'] ?? '');
+	if (!isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_csrfToken)) {
+		header('HTTP/1.1 403 Forbidden');
+		echo json_encode(['error' => 'Invalid security token.']);
+		exit;
+	}
 }
 
 // Include image optimization functions

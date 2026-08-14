@@ -604,6 +604,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // System
             'admin_dir'                  => $adminDir,
+            'site_url'                   => rtrim((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . str_replace($_SERVER['DOCUMENT_ROOT'], '', rtrim(__DIR__, '/')), '/'),
             'timezone'                   => $timezone,
 
             // Branding

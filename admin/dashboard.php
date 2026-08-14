@@ -4,6 +4,43 @@ if (!defined('INCLUDED')) {
 	exit('Direct access to this file is not allowed');
 }
 
+// ── .htaccess protection check ─────────────────────────────────────────────────
+// Verify that sensitive directories are actually blocked by the web server.
+// On nginx without manual location blocks, .htaccess has no effect and these
+// directories would be publicly readable. We probe once per hour and cache
+// the result so it doesn't add latency on every dashboard load.
+$_sb_htaccessWarn = false;
+$_sb_htaccessCache = dirname(__DIR__) . '/cache/htaccess-check.json';
+$_sb_htaccessTtl   = 3600;
+
+if (!file_exists($_sb_htaccessCache) || (time() - filemtime($_sb_htaccessCache)) > $_sb_htaccessTtl) {
+	$_sb_baseUrl = function_exists('admin_site_url') ? rtrim(admin_site_url(), '/') : '';
+	if ($_sb_baseUrl !== '') {
+		$_sb_probeUrl = $_sb_baseUrl . '/data/categories.json';
+		$_sb_blocked  = false;
+		if (function_exists('curl_init')) {
+			$_sb_ch = curl_init($_sb_probeUrl);
+			curl_setopt_array($_sb_ch, [
+				CURLOPT_NOBODY         => true,
+				CURLOPT_RETURNTRANSFER => true,
+				CURLOPT_TIMEOUT        => 3,
+				CURLOPT_SSL_VERIFYPEER => false,
+			]);
+			curl_exec($_sb_ch);
+			$_sb_code = curl_getinfo($_sb_ch, CURLINFO_HTTP_CODE);
+			$_sb_blocked = ($_sb_code === 403 || $_sb_code === 404);
+		}
+		$_sb_htaccessOk = $_sb_blocked;
+		if (is_writable(dirname($_sb_htaccessCache))) {
+			file_put_contents($_sb_htaccessCache, json_encode(['ok' => $_sb_htaccessOk, 'ts' => time()]));
+		}
+		$_sb_htaccessWarn = !$_sb_htaccessOk;
+	}
+} else {
+	$_sb_cached = json_decode(file_get_contents($_sb_htaccessCache), true);
+	$_sb_htaccessWarn = !($_sb_cached['ok'] ?? true);
+}
+
 // ── Media stats — read from cache, rebuild only when stale ───────────────────
 $_sb_mediaCache  = dirname(__DIR__) . '/cache/media-stats.json';
 $_sb_filesDir    = dirname(__DIR__) . '/files';
@@ -144,7 +181,14 @@ function dash_opcache_enabled(): bool {
 		<div class="quick-actions">
 		</div>
 	</div>
-<?php if (!empty($_sb_update)): ?>
+<?php if ($_sb_htaccessWarn): ?>
+	<div class="update-notice" style="border-left-color: var(--danger); background: var(--danger-soft);">
+		<strong><?php echo admin_icon('warning'); ?> <?php _e('dashboard_htaccess_warning_title', 'Security warning: sensitive directories may be publicly accessible'); ?></strong>
+		<?php _e('dashboard_htaccess_warning_desc', 'The /data/ directory returned a 200 response — your web server may not be applying .htaccess rules (common on nginx). Add manual deny rules for /data/, /bckps/, /private/, and /cache/ or move them above the web root.'); ?>
+	</div>
+	<?php endif; ?>
+
+	<?php if (!empty($_sb_update)): ?>
 	<div class="update-notice">
 		<strong><?php echo admin_icon('update'); ?> <?php _e('update_available'); ?></strong>
 		<?php echo __t('update_version'); ?> <b><?php echo htmlspecialchars($_sb_update['version']); ?></b>

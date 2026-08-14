@@ -1,7 +1,8 @@
 <?php
 require_once __DIR__ . '/includes/session-config.php';
 session_start();
-if (!isset($_SESSION['admin'])) {
+require_once('includes/admin-functions.php');
+if (!admin_is_logged_in()) {
 	if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
 		header('Content-Type: application/json');
 		http_response_code(401);
@@ -24,7 +25,6 @@ session_write_close();
 set_time_limit(120);
 ini_set('memory_limit', '256M');
 
-require_once('includes/admin-functions.php');
 require_once('image-optimization.php');
 require_once(dirname(__DIR__) . '/core/data-functions.php');
 require_once(dirname(__DIR__) . '/core/core-functions.php');

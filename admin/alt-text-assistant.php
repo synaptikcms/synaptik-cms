@@ -1,12 +1,11 @@
 <?php
 require_once __DIR__ . '/includes/session-config.php';
 session_start();
-if (!isset($_SESSION['admin'])) {
+require_once 'includes/admin-functions.php';
+if (!admin_is_logged_in()) {
 	header('Location: auth.php');
 	exit;
 }
-
-require_once 'includes/admin-functions.php';
 
 $data        = admin_load_data();
 $appSettings = admin_load_config();
@@ -24,6 +23,12 @@ $appSettings = admin_load_config();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_alt_save'])) {
 	header('Content-Type: application/json');
+
+	$_csrfToken = $_POST['csrf_token'] ?? (getallheaders()['X-CSRF-Token'] ?? '');
+	if (!isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_csrfToken)) {
+		echo json_encode(['ok' => false, 'error' => 'invalid_token']);
+		exit;
+	}
 
 	$allowed_types  = ['article', 'page', 'project'];
 	$allowed_fields = ['alt_text', 'caption'];
@@ -302,6 +307,7 @@ $extraFooterScripts = <<<'JSINLINE'
 		field.classList.add('saving');
 		var body = new URLSearchParams({
 			ajax_alt_save: '1',
+			csrf_token:    window.CMS_CSRF_TOKEN || '',
 			post_type:     card.dataset.postType,
 			post_index:    card.dataset.postIndex,
 			gallery_index: card.dataset.galleryIndex,

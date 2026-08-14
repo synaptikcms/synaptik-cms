@@ -1,12 +1,11 @@
 <?php
 require_once __DIR__ . '/includes/session-config.php';
 session_start();
-if (!isset($_SESSION['admin'])) {
+require_once 'includes/admin-functions.php';
+if (!admin_is_logged_in()) {
     header('Location: auth.php');
     exit;
 }
-
-require_once 'includes/admin-functions.php';
 
 // Get all drafts
 $draftsDir = 'drafts';
@@ -44,6 +43,11 @@ $message = '';
 $error   = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_sitemap'])) {
+    $__tok = $_POST['csrf_token'] ?? '';
+    if (!isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $__tok)) {
+        $error = 'Security token invalid or expired. Please try again.';
+        goto sitemap_render;
+    }
 
     $xml = new DOMDocument('1.0', 'UTF-8');
     $xml->formatOutput = true;
@@ -139,6 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_sitemap'])) 
     }
 }
 
+sitemap_render:
 // Custom format file size function to avoid conflicts
 function sm_format_filesize($bytes) {
     $units = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -185,6 +190,7 @@ ob_start();
                     <div class="form-group">
                         <p><?php _e('sitemap_desc'); ?></p>
                         <form method="post" action="">
+                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
                             <div class="form-group">
                                 <label class="checkbox-label">
                                     <input type="checkbox" name="ping_search_engines" value="1" checked>

@@ -35,6 +35,13 @@ if (!preg_match('/^[a-zA-Z0-9_\-]{3,32}$/', $newUsername)) {
 	echo json_encode(['status' => 'error', 'message' => __t('profile_username_invalid')]);
 	exit;
 }
+if ($newDisplayName !== '' && (mb_strlen($newDisplayName) > 60
+	|| str_contains($newDisplayName, '<') || str_contains($newDisplayName, '>')
+	|| str_contains($newDisplayName, chr(34))
+	|| str_contains($newDisplayName, chr(92)))) {
+	echo json_encode(['status' => 'error', 'message' => __t('profile_display_name_invalid')]);
+	exit;
+}
 if ($newEmail !== '' && !filter_var($newEmail, FILTER_VALIDATE_EMAIL)) {
 	echo json_encode(['status' => 'error', 'message' => __t('profile_email_invalid')]);
 	exit;

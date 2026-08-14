@@ -4,7 +4,7 @@
     Deny from all
 </Files>
 
-# Session security directives — works with both mod_php and PHP-FPM
+# Session security directives (mod_php only — PHP-FPM enforces these via session-config.php)
 <IfModule mod_php.c>
     php_value session.cookie_httponly  1
     php_value session.cookie_samesite  Lax

@@ -2,18 +2,11 @@
 /**
  * forgot-password.php — SynaptikCMS admin password reset request
  *
- * Behaviour:
- *   1. If mail() succeeds → shows "check your inbox".
- *   2. If mail() fails (no local MTA, MAMP, etc.) → shows the reset link
- *      directly on screen as a fallback. Safe for a single-admin CMS: the
- *      admin knows their own email address, and this page is already behind
- *      the admin URL.
- *
  * Email source priority:
- *   1. $admin_email in admin-credentials.php  (installer v2+)
- *   2. contact_email in config.json           (pre-v2 fallback)
+ *   1. $admin_email in admin-credentials.php
+ *   2. contact_email in config.json
  *
- * Token: stored in private/reset_token.json (protected by .htaccess)
+ * Token: stored in private/reset_token.json (.htaccess-protected)
  * TTL  : 15 minutes
  */
 require_once __DIR__ . '/includes/session-config.php';
@@ -47,9 +40,8 @@ if (empty($_SESSION['csrf_token'])) {
 }
 
 // State vars ──────────────────────────────────────────────────────────────────
-$sent        = false;   // show "check your inbox" success screen
-$fallbackUrl = '';      // set when mail() fails — show link on screen instead
-$error       = '';
+$sent  = false;
+$error = '';
 
 // ── Handle POST ───────────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -91,40 +83,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Can't write the token file — abort entirely
                     $error = 'Could not write reset token. Check write permissions on <code>/private/</code>.';
                 } else {
-                    // Build reset URL — points to the CMS root (?reset_token=TOKEN)
-                    // so the admin folder name is never exposed in the email.
-                    // __DIR__ is always the real admin folder on disk.
-                    // dirname(__DIR__) is the CMS root. We derive the public URL
-                    // path from DOCUMENT_ROOT which is always correct.
-                    $settings  = admin_load_config();
-                    $protocol  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-                    $host      = $_SERVER['HTTP_HOST'];
-                    $docRoot   = rtrim($_SERVER['DOCUMENT_ROOT'], '/');
-                    $cmsPath   = str_replace($docRoot, '', rtrim(dirname(__DIR__), '/'));
-                    $resetUrl  = $protocol . '://' . $host . $cmsPath . '/?reset_token=' . urlencode($token);
+                    // Build reset URL from configured site_url to prevent Host header poisoning.
+                    $settings = admin_load_config();
+                    $siteUrl  = rtrim($settings['site_url'] ?? '', '/');
+                    if (empty($siteUrl)) {
+                        // Fallback for unconfigured installs only.
+                        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+                        $docRoot  = rtrim($_SERVER['DOCUMENT_ROOT'], '/');
+                        $cmsPath  = str_replace($docRoot, '', rtrim(dirname(__DIR__), '/'));
+                        $siteUrl  = $protocol . '://' . $_SERVER['HTTP_HOST'] . $cmsPath;
+                    }
+                    $resetUrl = $siteUrl . '/?reset_token=' . urlencode($token);
 
                     // Try to send the email
-                    $siteName = $settings['site_title'] ?? 'SynaptikCMS';
-                    $subject  = '[' . $siteName . '] Password Reset';
-                    $body     = "Hello,\n\n"
-                              . "A password reset was requested for the " . $siteName . " admin account.\n\n"
-                              . "Click the link below to set a new password (valid for 15 minutes):\n\n"
-                              . $resetUrl . "\n\n"
-                              . "If you did not request this, ignore this email.\n\n"
-                              . "— " . $siteName;
-                    $headers  = "From: noreply@" . $host . "\r\n"
-                              . "Reply-To: noreply@" . $host . "\r\n"
-                              . "X-Mailer: SynaptikCMS\r\n"
-                              . "Content-Type: text/plain; charset=UTF-8";
+                    $siteName   = $settings['site_title'] ?? 'SynaptikCMS';
+                    $mailDomain = parse_url($siteUrl, PHP_URL_HOST) ?? 'localhost';
+                    $subject    = '[' . $siteName . '] Password Reset';
+                    $body       = "Hello,\n\n"
+                                . "A password reset was requested for the " . $siteName . " admin account.\n\n"
+                                . "Click the link below to set a new password (valid for 15 minutes):\n\n"
+                                . $resetUrl . "\n\n"
+                                . "If you did not request this, ignore this email.";
+                    $headers    = "From: noreply@" . $mailDomain . "\r\n"
+                                . "Reply-To: noreply@" . $mailDomain . "\r\n"
+                                . "X-Mailer: SynaptikCMS\r\n"
+                                . "Content-Type: text/plain; charset=UTF-8";
 
-                    $mailOk = mail($admin_email, $subject, $body, $headers);
-
-                    if (!$mailOk) {
-                        // mail() failed (no MTA, MAMP, shared host restriction, etc.)
-                        // Show the link directly — safe for a single-admin CMS.
-                        $fallbackUrl = $resetUrl;
-                    }
-
+                    mail($admin_email, $subject, $body, $headers);
+                    // Never expose the result of mail() or the token in the response.
                     $sent = true;
                 }
             }
@@ -167,20 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 0.875rem; margin-bottom: 20px; color: var(--warning-text);
         }
         .notice-warning code { background: var(--surface-3); padding: 1px 4px; border-radius: 3px; }
-        .reset-link-fallback {
-            background: var(--info-soft); border: 1px solid var(--info);
-            border-radius: var(--radius-sm); padding: 14px 16px;
-            margin-top: 16px; font-size: 0.875rem; word-break: break-all;
-        }
-        .reset-link-fallback strong { display: block; margin-bottom: 8px; }
-        .reset-link-fallback a {
-            color: var(--info-text);
-            font-weight: 600;
-        }
-        .reset-link-fallback .expires {
-            display: block; margin-top: 8px;
-            font-size: 0.8rem; color: var(--text-muted);
-        }
+
     </style>
 </head>
 <body style="background-color: var(--surface2);">
@@ -192,24 +165,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php if ($error): ?>
 
         <div class="blockquote error"><?php echo $error; ?></div>
-        <a class="back-link" href="auth.php">
-            <?php echo htmlspecialchars(__t('reset_back_to_login', '← Back to login')); ?>
-        </a>
-
-    <?php elseif ($sent && $fallbackUrl): ?>
-
-        <!-- mail() failed — show the link directly -->
-        <div class="blockquote warning">
-            <strong>⚠ Email could not be sent</strong><br>
-            No mail server is configured on this environment (common on MAMP / local dev).
-        </div>
-        <div class="reset-link-fallback">
-            <strong>Use this one-time link to reset your password:</strong>
-            <a href="<?php echo htmlspecialchars($fallbackUrl); ?>">
-                <?php echo htmlspecialchars($fallbackUrl); ?>
-            </a>
-            <span class="expires">⏱ Expires in 15 minutes. Do not share this link.</span>
-        </div>
         <a class="back-link" href="auth.php">
             <?php echo htmlspecialchars(__t('reset_back_to_login', '← Back to login')); ?>
         </a>

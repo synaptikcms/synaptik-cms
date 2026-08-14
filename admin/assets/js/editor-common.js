@@ -158,6 +158,7 @@ window.EditorCommon = (function () {
 		fd.delete('gallery');
 		fd.delete('gallery_layout');
 		if (_draftId) fd.set('draft_id', _draftId);
+		fd.set('csrf_token', window.CMS_CSRF_TOKEN || '');
 
 		const content  = fd.get('content')  || '';
 		const title    = fd.get('title')    || '';

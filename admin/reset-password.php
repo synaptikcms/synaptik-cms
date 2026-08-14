@@ -85,17 +85,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $admin_email = trim($settings['contact_email'] ?? '');
             }
 
-			$ok = admin_save_credentials([
-             'password_hash' => password_hash($newPassword, PASSWORD_BCRYPT),
-             'email'         => $admin_email,
-            ]);
-
-            if ($ok) {
-            @unlink($tokenFile);
-            $success = true;
+            if (!empty($admin_password) && password_verify($newPassword, $admin_password)) {
+                $error = __t('reset_same_password', 'Your new password must be different from your current password.');
             } else {
-            $error = __t('password_update_failed',
+				$ok = admin_save_credentials([
+                 'password_hash' => password_hash($newPassword, PASSWORD_BCRYPT),
+                 'email'         => $admin_email,
+                ]);
+
+                if ($ok) {
+                @unlink($tokenFile);
+                $success = true;
+                } else {
+                $error = __t('password_update_failed',
 					'Could not save the new password. Check file permissions on admin-credentials.php.');
+                }
             }
         }
     }

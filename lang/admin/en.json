@@ -1159,7 +1159,6 @@
     "admin_language_help": "Language used for the admin panel only. Can differ from the public site language. Falls back to the front-end language if unset.",
     "extensions_title": "Extensions",
     "extensions_desc": "Manage installed plugins. Activating a plugin makes it appear in the sidebar and enables its functionality across the site.",
-    "extensions_no_plugins": "No plugins found. Install a plugin by adding its folder to the CMS root.",
     "extensions_active": "Active",
     "extensions_inactive": "Inactive",
     "extensions_activate": "Activate",
@@ -1192,5 +1191,9 @@
     "extensions_delete_confirm": "Permanently delete the plugin \"%s\" and all its files? This cannot be undone.",
     "extensions_deleted": "Plugin deleted.",
     "extensions_delete_failed": "Could not delete plugin. Deactivate it first, then try again.",
-    "extensions_update_success": "Plugin \"%s\" updated successfully."
+    "extensions_update_success": "Plugin \"%s\" updated successfully.",
+    "reset_same_password": "Your new password must be different from your current password.",
+    "profile_display_name_invalid": "Display name must be 60 characters or fewer and cannot contain < > \" ' or \\",
+    "dashboard_htaccess_warning_title": "Security warning: sensitive directories may be publicly accessible",
+    "dashboard_htaccess_warning_desc": "The /data/ directory returned a 200 response \u2014 your web server may not be applying .htaccess rules (common on nginx without manual configuration). Add location blocks for /data/, /bckps/, /private/, and /cache/, or move them above the web root."
 }

@@ -1,14 +1,14 @@
 <?php
 require_once __DIR__ . '/includes/session-config.php';
 session_start();
-// Generate CSRF token if it doesn't exist
-if (empty($_SESSION['csrf_token'])) {
-	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-if (!isset($_SESSION['admin'])) {
+require_once 'includes/admin-functions.php';
+if (!admin_is_logged_in()) {
 	header('HTTP/1.1 403 Forbidden');
 	echo json_encode(['error' => 'Not authorized']);
 	exit;
+}
+if (empty($_SESSION['csrf_token'])) {
+	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
 // Get the requested path parameter

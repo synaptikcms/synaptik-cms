@@ -9,15 +9,17 @@
 <br>
 
 <img src="https://img.shields.io/badge/PHP-7.4%2B-777bb4?style=flat&logo=php&logoColor=white" height="32">
-<img src="https://img.shields.io/badge/license-MIT-22c55e?style=flat" height="32">
+<img src="https://img.shields.io/github/v/release/synaptikcms/synaptik-cms?style=flat&color=f97316&label=latest" height="32">
+<img src="https://img.shields.io/badge/license-SynaptikCMS%20Open%20License-22c55e?style=flat" height="32">
 <img src="https://img.shields.io/badge/footprint-2MB-14b8a6?style=flat" height="32">
 <img src="https://img.shields.io/badge/no-database-e11d48?style=flat" height="32">
 <img src="https://img.shields.io/badge/zero-dependencies-0ea5e9?style=flat" height="32">
 <img src="https://img.shields.io/github/stars/synaptikcms/synaptik-cms?style=flat&color=f59e0b&label=stars" height="32">
-<img src="https://img.shields.io/github/v/release/synaptikcms/synaptik-cms?style=flat&color=6366f1&label=latest" height="32">
+<img src="https://img.shields.io/github/downloads/synaptikcms/synaptik-cms/total?style=flat&color=8b5cf6&label=downloads" height="32">
+<img src="https://img.shields.io/github/downloads-pre/synaptikcms/synaptik-cms/latest/total?style=flat&color=6366f1&label=downloads%40latest" height="32">
 <br><br>
 
-[Live Demo](https://synaptikcms.com/live-demo/) · [Download Themes](https://synaptikcms.com/themes/) · [Download Plugins](https://synaptikcms.com/plugins/) · [Documentation](https://synaptikcms.com/docs/) · [Changelog](CHANGELOG.md) · [Report a Bug](https://github.com/synaptikcms/synaptik-cms/issues)
+[Live Demo](https://demo.synaptikcms.com/) · [Download Themes](https://synaptikcms.com/themes/) · [Download Plugins](https://synaptikcms.com/plugins/) · [Documentation](https://docs.synaptikcms.com/) · [Changelog](CHANGELOG.md) · [Report a Bug](https://github.com/synaptikcms/synaptik-cms/issues)
 <br><br>
 
 ![Dashboard](.github/assets/dashboard-light.png)
@@ -34,7 +36,7 @@
 
 SynaptikCMS is a flat-file content management system built in PHP. Content is stored as individual JSON files — no database engine, no configuration overhead, no moving parts.
 
-It was built for developers, designers, artists, creative professionals, writers, bloggers, or anyone who want a CMS that is fast by default, easy to deploy anywhere, and simple enough to theme from scratch without fighting a framework.
+It was built for developers, designers, artists, creative professionals, writers, bloggers, or anyone who wants a CMS that is fast by default, easy to deploy anywhere, and simple enough to theme from scratch without fighting a framework.
 
 **Installed footprint: ~2MB.** Zero runtime dependencies beyond PHP.
 
@@ -73,7 +75,7 @@ No composer. No npm. No database setup.
 **That's it.** You're running.
 <br><br>
 
-> ⚠️ Always run `install.php` before using the CMS. See the [installation guide](https://synaptikcms.com/docs/getting-started/#toc-installation) for details.
+> ⚠️ Always run `install.php` before using the CMS. See the [installation guide](https://docs.synaptikcms.com/getting-started/#toc-installation) for details.
 <br><br>
 
 **Note:** The default install package ships only with the default theme. You can download clean, beautiful and responsive free themes for your Synaptik installation on the [Official Website's Themes Page](https://synaptikcms.com/themes/).
@@ -95,7 +97,8 @@ If you wish to extend the functionalities of your CMS, official plugins can be f
 - **Shortcodes** — `[toc]`, `[gallery]`, `[callout]`, `[quote]`, `[button]`, `[recent_articles]`, `[recent_projects]`, `[articles_by_tag]`, `[contact_form]`
 
 ### Admin Panel
-- **Media Manager** — upload, browse, rename, move with drag and drop, batch compression
+- **Media Manager** — upload, browse, rename, move with drag and drop, optional automatic compression/resizing upon upload
+- **Batch Image Optimizer** — batch compression and resizing of images in user-chosen folders
 - **Menu Builder** — drag and drop custom navigation, nested items, external links
 - **Template Editor** — live-edit your active theme files with automatic backup before each save
 - **SEO Overview** — audit meta titles, descriptions and keywords across all content in one view
@@ -112,7 +115,7 @@ If you wish to extend the functionalities of your CMS, official plugins can be f
 - Theme upload via ZIP with validation
 - Theme manager with activate and delete
 - Ships with default theme: `Mono`. More themes can be downloaded at [https://synaptikcms.com/themes/](https://synaptikcms.com/themes/)
-- Full theme developer documentation at [https://synaptikcms.com/docs/theming/theming-guide/](https://synaptikcms.com/docs/theming/theming-guide/)
+- Full theme developer documentation at [https://docs.synaptikcms.com/theming/theming-guide/](https://docs.synaptikcms.com/theming/theming-guide/)
 
 ### Plugins
 - Self-contained extensions under `/plugins/` — own routing, data storage, and admin screens, with zero core file edits required
@@ -120,7 +123,7 @@ If you wish to extend the functionalities of your CMS, official plugins can be f
 - Install by uploading a `.zip` from **Admin → Tools → Extensions**, activate and deactivate with one click
 - Activation state tracked separately from installation — deactivating a plugin preserves its data
 - Official plugins can be downloaded at [https://synaptikcms.com/plugins/](https://synaptikcms.com/plugins/)
-- Full plugin developer documentation at [https://synaptikcms.com/docs/tools/plugin-system/](https://synaptikcms.com/docs/tools/plugin-system/)
+- Full plugin developer documentation at [https://docs.synaptikcms.com/tools/plugin-system/](https://docs.synaptikcms.com/tools/plugin-system/)
 
 ### SEO and Performance
 - Meta title, description, keywords per content item
@@ -273,7 +276,7 @@ plugins/
     └── my-plugin-init.php
 ```
 
-Unlike themes, plugins are not tied to the active theme — once activated from **Admin → Tools → Extensions**, a plugin runs regardless of which theme is in use, and can register its own admin sidebar entry and full admin page rendered inside the standard admin layout. See the [plugin system documentation](https://synaptikcms.com/docs/tools/plugin-system/) for the full developer reference: the plugin API, admin page rendering, front-end shortcode integration, session reuse, CSRF, i18n, and how to package a plugin for distribution.
+Unlike themes, plugins are not tied to the active theme — once activated from **Admin → Tools → Extensions**, a plugin runs regardless of which theme is in use, and can register its own admin sidebar entry and full admin page rendered inside the standard admin layout. See the [plugin system documentation](https://docs.synaptikcms.com/tools/plugin-system/) for the full developer reference: the plugin API, admin page rendering, front-end shortcode integration, session reuse, CSRF, i18n, and how to package a plugin for distribution.
 
 ---
 

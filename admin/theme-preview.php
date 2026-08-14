@@ -18,7 +18,8 @@ require_once __DIR__ . '/includes/session-config.php';
 session_start();
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-if (!isset($_SESSION['admin']) || $_SESSION['admin'] !== true) {
+require_once __DIR__ . '/includes/admin-functions.php';
+if (!admin_is_logged_in()) {
     http_response_code(403);
     exit('Access denied.');
 }

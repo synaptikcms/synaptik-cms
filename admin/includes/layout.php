@@ -248,6 +248,7 @@ $_sb_version     = (is_array($_sb_versionData) && !empty($_sb_versionData['versi
 		</div><!-- /.admin-main -->
 	</div><!-- /.admin-container -->
 
+	<script>window.CMS_CSRF_TOKEN = <?php echo json_encode($_SESSION['csrf_token'] ?? ''); ?>;</script>
 	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
 	<script src="assets/js/common.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/common.js'); ?>"></script>

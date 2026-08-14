@@ -111,8 +111,6 @@ function _admin_check_extension_updates(string $type): array {
 	$updates = [];
 	foreach (scandir($scanDir) as $slug) {
 		if ($slug === '.' || $slug === '..' || $slug[0] === '.') continue;
-		if ($isTheme && $slug === 'default') continue; // never offered for update — ships with core
-
 		$manifestPath = $scanDir . '/' . $slug . '/' . $manifest;
 		if (!file_exists($manifestPath)) continue;
 
@@ -156,7 +154,7 @@ function admin_apply_extension_update(string $type, string $slug): array {
 
 	$isTheme = ($type === 'theme');
 	$slug    = preg_replace('/[^a-z0-9_\-]/', '', strtolower($slug));
-	if ($slug === '' || ($isTheme && $slug === 'default')) {
+	if ($slug === '') {
 		return ['success' => false, 'error' => __t('ext_update_invalid_slug', 'Invalid theme/plugin identifier.')];
 	}
 

@@ -916,7 +916,7 @@ function initContentListPagination() {
 					cancelText:  window.CMS_LANG?.cancel || 'Cancel',
 					danger: true,
 					onConfirm: function() {
-						window.location.href = 'index.php?action=delete&type=' + encodeURIComponent(type) + '&index=' + encodeURIComponent(index);
+					window.location.href = 'index.php?action=delete&type=' + encodeURIComponent(type) + '&index=' + encodeURIComponent(index) + '&csrf_token=' + encodeURIComponent(window.CMS_CSRF_TOKEN || '');
 					}
 				}
 			);

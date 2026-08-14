@@ -207,6 +207,7 @@ function sl_index_path(string $type): string
 
 function sl_item_path(string $type, string $fileSlug): string
 {
+    $fileSlug = basename($fileSlug);
     return sl_data_dir() . '/' . sl_type_dir($type) . '/' . $fileSlug . '.json';
 }
 
@@ -340,7 +341,9 @@ function sl_load_item_by_slug(string $type, string $effectiveSlug): ?array
         return sl_load_item($type, sl_file_slug($entry));
     }
 
-    return sl_load_item($type, $effectiveSlug);
+    // No index entry — content does not exist. The raw slug is never used
+    // as a filesystem path to prevent directory traversal on the front end.
+    return null;
 }
 
 /**

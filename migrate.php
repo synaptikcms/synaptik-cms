@@ -9,6 +9,8 @@
  *
  *   v1.3.4.1 — plugin-upload.php and theme-upload.php merged into extension-upload.php.
  *
+ *   v1.3.5 — site_url added to config.json for canonical password reset URLs.
+ *
  * Runs automatically on the first page load after each update. Cleans up
  * legacy files left at the CMS root. Deletes itself once all migrations
  * are complete — zero residual code in the codebase.
@@ -17,6 +19,7 @@
  *   - settings.json present at root  → v1.3.3 migration pending
  *   - feed.php or search.php present at root → v1.3.4 migration pending
  *   - plugin-upload.php or theme-upload.php present in /admin/ → v1.3.4.1 migration pending
+ *   - site_url missing from config.json → v1.3.5 migration pending
  */
 
 $__mRoot            = __DIR__;
@@ -39,7 +42,17 @@ $__mHasLegacyUpload = file_exists($__mRoot . '/' . $__mAdminDirEarly . '/plugin-
                    || file_exists($__mRoot . '/' . $__mAdminDirEarly . '/theme-upload.php');
 unset($__mCf, $__mCfPath, $__mCfData, $__mAdminDirEarly);
 
-if (!$__mHasLegacyConfig && !$__mHasLegacyRoot && !$__mHasLegacyUpload) {
+// v1.3.5: check if site_url is missing from config.json
+$__mNeedsSiteUrl = false;
+if (file_exists($__mRoot . '/config.json')) {
+    $__mCfCheck = json_decode(file_get_contents($__mRoot . '/config.json'), true);
+    if (is_array($__mCfCheck) && empty($__mCfCheck['site_url'])) {
+        $__mNeedsSiteUrl = true;
+    }
+    unset($__mCfCheck);
+}
+
+if (!$__mHasLegacyConfig && !$__mHasLegacyRoot && !$__mHasLegacyUpload && !$__mNeedsSiteUrl) {
     // All migrations already applied — self-destruct.
     @unlink(__FILE__);
     return;
@@ -112,13 +125,8 @@ if ($__mHasLegacyConfig) {
     $__mNewConfig = $__mRoot . '/config.json';
 
     if (!file_exists($__mNewConfig)) {
-        // Normal path: plain filesystem rename, no JSON parsing.
-        // All site settings (including the custom menu) are preserved as-is.
         rename($__mOldConfig, $__mNewConfig);
     } else {
-        // config.json already exists — merge rather than silently discard.
-        // settings.json values take priority (it holds the live configuration).
-        // settings.json is only removed if the merged write succeeds.
         $__mOldRaw  = file_get_contents($__mOldConfig);
         $__mOldData = $__mOldRaw !== false ? json_decode($__mOldRaw, true) : null;
         if (is_array($__mOldData)) {
@@ -156,10 +164,29 @@ if ($__mHasLegacyConfig) {
     }
 }
 
-// ── 4. Self-destruct ─────────────────────────────────────────────────────────
+// ── 4. Add site_url to config.json (v1.3.5) ──────────────────────────────────
+if ($__mNeedsSiteUrl) {
+    $__mConfigPath = $__mRoot . '/config.json';
+    $__mConfigData = json_decode(file_get_contents($__mConfigPath), true) ?: [];
+    $__mProtocol   = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $__mHost       = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $__mDocRoot    = rtrim($_SERVER['DOCUMENT_ROOT'] ?? '', '/');
+    $__mCmsPath    = $__mDocRoot !== '' ? str_replace($__mDocRoot, '', rtrim($__mRoot, '/')) : '';
+    $__mConfigData['site_url'] = rtrim($__mProtocol . '://' . $__mHost . $__mCmsPath, '/');
+    $__mTmp = $__mConfigPath . '.tmp';
+    if (file_put_contents($__mTmp, json_encode($__mConfigData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)) !== false) {
+        rename($__mTmp, $__mConfigPath);
+    } else {
+        error_log('[SynaptikCMS migrate.php] Failed to write site_url to config.json — check file permissions.');
+    }
+    unset($__mConfigPath, $__mConfigData, $__mProtocol, $__mHost, $__mDocRoot, $__mCmsPath, $__mTmp);
+}
+
+// ── 5. Self-destruct ─────────────────────────────────────────────────────────
 @unlink(__FILE__);
 
-unset($__mRoot, $__mHasLegacyConfig, $__mHasLegacyRoot, $__mHasLegacyUpload, $__mLegacyFiles, $__mLegacyAdminFiles,
+unset($__mRoot, $__mHasLegacyConfig, $__mHasLegacyRoot, $__mHasLegacyUpload, $__mNeedsSiteUrl,
+      $__mLegacyFiles, $__mLegacyAdminFiles,
       $__mOldConfig, $__mNewConfig, $__mOldRaw, $__mOldData,
       $__mNewRaw, $__mNewData, $__mMerged, $__mWriteOk,
       $__mOldRegistry, $__mNewRegistry);

@@ -9,7 +9,7 @@ require_once dirname(__DIR__) . '/includes/backup-functions.php';
 $root      = dirname(dirname(__DIR__));
 $_upd_info = admin_check_for_update();
 
-$_skipPrefixes = ['__MACOSX/', 'data/', 'files/', 'bckps/', 'cache/', 'private/', 'admin/cache/', 'admin/drafts/'];
+$_skipPrefixes = ['__MACOSX/', 'data/', 'files/', 'bckps/', 'cache/', 'private/', 'admin/cache/', 'admin/drafts/', 'theme/default/'];
 $_skipFiles    = ['.DS_Store', 'config.json', 'install.lock', 'install.php', 'admin/admin-credentials.php'];
 
 // Sweep orphaned tmp-update-* directories left behind by a previous update

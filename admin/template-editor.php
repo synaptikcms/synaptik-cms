@@ -1,12 +1,15 @@
 <?php
 require_once __DIR__ . '/includes/session-config.php';
 session_start();
-if (!isset($_SESSION['admin'])) {
+require_once 'includes/admin-functions.php';
+if (!admin_is_logged_in()) {
     header('Location: auth.php');
     exit;
 }
 
-require_once 'includes/admin-functions.php';
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 
 $siteRoot    = dirname(__DIR__);
 $settings    = json_decode(file_get_contents($siteRoot . '/config.json'), true);
@@ -43,6 +46,16 @@ $activeFile = theme_editor_resolve_path($themeDir, $requestedFile);
 // A backup filename must not collide across files with the same basename in
 // different folders (e.g. partials/article-card.php vs page-templates/article-card.php).
 $backupKey = $activeFile ? str_replace('/', '__', $requestedFile) : '';
+
+// CSRF check — applies to every POST action on this page
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!isset($_POST['csrf_token'])
+        || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        $error = __t('auth_csrf_error', 'Invalid security token. Please try again.');
+        // Block all POST processing below by clearing the method
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+    }
+}
 
 // Save
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['file_content'])
@@ -290,6 +303,7 @@ ob_start();
     <p><?php _e('te_editor_desc'); ?><br><?php _e('te_editor_backup_desc'); ?></p>
 </div>
 <form method="post" action="template-editor.php?file=<?php echo urlencode($requestedFile); ?>" id="template-editor-form">
+    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
     <input type="hidden" name="theme_file" value="<?php echo htmlspecialchars($requestedFile); ?>">
     <div class="te-editor-wrap">
         <div class="editor-main" id="editor-wrap">

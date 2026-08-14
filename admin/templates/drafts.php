@@ -130,6 +130,12 @@ document.getElementById('batch-delete-btn')?.addEventListener('click', function(
 	}
 	const form = document.getElementById('batch-delete-form');
 	form.innerHTML = '';
+	// Re-add CSRF token first
+	const csrfInput = document.createElement('input');
+	csrfInput.type = 'hidden';
+	csrfInput.name = 'csrf_token';
+	csrfInput.value = window.CMS_CSRF_TOKEN || '';
+	form.appendChild(csrfInput);
 	Array.from(selectedDrafts).forEach(draftId => {
 		const input = document.createElement('input');
 		input.type = 'hidden';
@@ -140,7 +146,9 @@ document.getElementById('batch-delete-btn')?.addEventListener('click', function(
 	window.showModal(
 		_drafts_i18n.deleteDraftsConfirm.replace('%d', selectedDrafts.size),
 		_drafts_i18n.confirmBatchDeletion,
-		{ showCancel: true, confirmText: _drafts_i18n.delete, cancelText: _drafts_i18n.cancel, danger: true, onConfirm: () => form.submit() }
+		{ showCancel: true, confirmText: _drafts_i18n.delete, cancelText: _drafts_i18n.cancel, danger: true, onConfirm: () => {
+			form.submit();
+		}}
 	);
 });
 
@@ -152,17 +160,17 @@ document.querySelectorAll('.delete-draft-btn').forEach(button => {
 			_drafts_i18n.deleteDraftConfirm.replace('%s', title),
 			_drafts_i18n.confirmDeletion,
 			{ showCancel: true, confirmText: _drafts_i18n.delete, cancelText: _drafts_i18n.cancel, danger: true,
-			  onConfirm: () => window.location.href = 'index.php?action=drafts&draft_action=delete&id=' + encodeURIComponent(draftId) }
+			  onConfirm: () => window.location.href = 'index.php?action=drafts&draft_action=delete&id=' + encodeURIComponent(draftId) + '&csrf_token=' + encodeURIComponent(window.CMS_CSRF_TOKEN || '') }
 		);
 	});
 });
 
 document.getElementById('purge-all-btn')?.addEventListener('click', function() {
-	showModal(
-		_drafts_i18n.purgeAllConfirm.replace('%d', <?php echo count($drafts); ?>),
-		_drafts_i18n.purgeAllDrafts,
-		{ showCancel: true, confirmText: _drafts_i18n.deleteAll, cancelText: _drafts_i18n.cancel, danger: true,
-		  onConfirm: () => window.location.href = 'index.php?action=drafts&draft_action=purge_all' }
-	);
+showModal(
+_drafts_i18n.purgeAllConfirm.replace('%d', <?php echo count($drafts); ?>),
+_drafts_i18n.purgeAllDrafts,
+{ showCancel: true, confirmText: _drafts_i18n.deleteAll, cancelText: _drafts_i18n.cancel, danger: true,
+onConfirm: () => window.location.href = 'index.php?action=drafts&draft_action=purge_all&csrf_token=' + encodeURIComponent(window.CMS_CSRF_TOKEN || '') }
+);
 });
 </script>

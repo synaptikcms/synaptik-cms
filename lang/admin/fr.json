@@ -1191,5 +1191,9 @@
   "extensions_delete_confirm": "Supprimer définitivement le plugin \"%s\" et tous ses fichiers ? Cette action est irréversible.",
   "extensions_deleted": "Plugin supprimé.",
   "extensions_delete_failed": "Impossible de supprimer le plugin. Désactivez-le d'abord, puis réessayez.",
-  "extensions_update_success": "Plugin \"%s\" mis à jour avec succès."
+  "extensions_update_success": "Plugin \"%s\" mis à jour avec succès.",
+  "reset_same_password": "Votre nouveau mot de passe doit être différent du mot de passe actuel.",
+  "profile_display_name_invalid": "Le nom affiché doit faire 60 caractères maximum et ne peut pas contenir < > \" ' ou \\",
+  "dashboard_htaccess_warning_title": "Avertissement sécurité : les répertoires sensibles sont peut-être accessibles publiquement",
+  "dashboard_htaccess_warning_desc": "Le répertoire /data/ a retourné une réponse 200 — votre serveur web n'applique peut-être pas les règles .htaccess (courant sur nginx sans configuration manuelle). Ajoutez des blocs d'interdiction pour /data/, /bckps/, /private/ et /cache/, ou déplacez-les hors de la racine web."
 }

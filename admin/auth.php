@@ -52,20 +52,26 @@ $ipKey   = hash('sha256', $ip);
 // Retained: currently locked IPs, recently unlocked (within 24 h — preserves
 // the re-lock penalty for persistent attackers), and IPs accumulating attempts.
 $rateData = [];
-if (file_exists($rateFile)) {
-	$_raw     = file_get_contents($rateFile);
-	$_decoded = ($_raw !== false) ? json_decode($_raw, true) : null;
+$_lockFp  = null;
+if (!file_exists($rateFile)) {
+	// Create the file so we can lock it on first request
+	@file_put_contents($rateFile, '{}', LOCK_EX);
+}
+$_lockFp = @fopen($rateFile, 'c+');
+if ($_lockFp) {
+	flock($_lockFp, LOCK_EX);
+	$_raw     = stream_get_contents($_lockFp);
+	$_decoded = ($_raw !== false && $_raw !== '') ? json_decode($_raw, true) : null;
 	if (is_array($_decoded)) {
 		foreach ($_decoded as $_k => $_entry) {
 			$_expiry = (int)($_entry['lockout_until'] ?? 0);
 			if ($_expiry > $now) {
-				$rateData[$_k] = $_entry; // actively locked
+				$rateData[$_k] = $_entry;
 			} elseif ($_expiry > 0 && ($now - $_expiry) < 86400) {
-				$rateData[$_k] = $_entry; // recently unlocked — keep re-lock penalty
+				$rateData[$_k] = $_entry;
 			} elseif ($_expiry === 0 && ($_entry['attempts'] ?? 0) > 0) {
-				$rateData[$_k] = $_entry; // accumulating attempts, not yet locked
+				$rateData[$_k] = $_entry;
 			}
-			// else: clean or fully stale — drop it
 		}
 	}
 }
@@ -85,19 +91,24 @@ if ($lockData['lockout_until'] > $now) {
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_locked) {
-	if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+	if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
 		$error = __t('auth_csrf_error');
 	} else {
 		$username = trim($_POST['username'] ?? '');
 		$password = $_POST['password'] ?? '';
 
-		// Both username and password must match
 		$usernameOk = hash_equals($stored_username, $username);
 
 		if ($usernameOk && $hashed_password && password_verify($password, $hashed_password)) {
-			// Reset lockout on success — remove entry from centralized file
 			unset($rateData[$ipKey]);
-			@file_put_contents($rateFile, json_encode($rateData), LOCK_EX);
+			if ($_lockFp) {
+				ftruncate($_lockFp, 0);
+				rewind($_lockFp);
+				fwrite($_lockFp, json_encode($rateData));
+				flock($_lockFp, LOCK_UN);
+				fclose($_lockFp);
+				$_lockFp = null;
+			}
 
 			$_SESSION['admin']               = true;
 			$_SESSION['admin_last_activity']  = time();
@@ -120,9 +131,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_locked) {
 				$error = str_replace('%d', $remaining_attempts, __t('auth_invalid_creds'));
 			}
 			$rateData[$ipKey] = $lockData;
-			@file_put_contents($rateFile, json_encode($rateData), LOCK_EX);
+			if ($_lockFp) {
+				ftruncate($_lockFp, 0);
+				rewind($_lockFp);
+				fwrite($_lockFp, json_encode($rateData));
+				flock($_lockFp, LOCK_UN);
+				fclose($_lockFp);
+				$_lockFp = null;
+			}
 		}
 	}
+}
+
+// Release lock if still held (no POST, or locked-out request)
+if ($_lockFp) {
+	flock($_lockFp, LOCK_UN);
+	fclose($_lockFp);
 }
 
 $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
