@@ -1195,5 +1195,11 @@
   "reset_same_password": "Votre nouveau mot de passe doit être différent du mot de passe actuel.",
   "profile_display_name_invalid": "Le nom affiché doit faire 60 caractères maximum et ne peut pas contenir < > \" ' ou \\",
   "dashboard_htaccess_warning_title": "Avertissement sécurité : les répertoires sensibles sont peut-être accessibles publiquement",
-  "dashboard_htaccess_warning_desc": "Le répertoire /data/ a retourné une réponse 200 — votre serveur web n'applique peut-être pas les règles .htaccess (courant sur nginx sans configuration manuelle). Ajoutez des blocs d'interdiction pour /data/, /bckps/, /private/ et /cache/, ou déplacez-les hors de la racine web."
+  "dashboard_htaccess_warning_desc": "Le répertoire /data/ a retourné une réponse 200 — votre serveur web n'applique peut-être pas les règles .htaccess (courant sur nginx sans configuration manuelle). Ajoutez des blocs d'interdiction pour /data/, /bckps/, /private/ et /cache/, ou déplacez-les hors de la racine web.",
+  "zip_val_traversal": "Chemin non sécurisé dans l'archive : \"%s\".",
+  "zip_val_htaccess": "Fichier interdit dans l'archive : \"%s\".",
+  "zip_val_ext_forbidden": "Extension \".%s\" interdite dans l'archive (fichier : \"%s\").",
+  "ext_update_url_not_allowed": "L'URL de téléchargement de cette mise à jour pointe vers un hôte non autorisé. Mise à jour annulée.",
+  "restore_zip_traversal": "L'archive de sauvegarde contient un chemin non sécurisé et ne peut pas être restaurée.",
+  "restore_zip_forbidden_file": "L'archive de sauvegarde contient un type de fichier interdit et ne peut pas être restaurée."
 }

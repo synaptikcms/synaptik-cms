@@ -36,9 +36,9 @@ if (!preg_match('/^[a-zA-Z0-9_\-]{3,32}$/', $newUsername)) {
 	exit;
 }
 if ($newDisplayName !== '' && (mb_strlen($newDisplayName) > 60
-	|| str_contains($newDisplayName, '<') || str_contains($newDisplayName, '>')
-	|| str_contains($newDisplayName, chr(34))
-	|| str_contains($newDisplayName, chr(92)))) {
+	|| strpos($newDisplayName, '<') !== false || strpos($newDisplayName, '>') !== false
+	|| strpos($newDisplayName, chr(34)) !== false
+	|| strpos($newDisplayName, chr(92)) !== false)) {
 	echo json_encode(['status' => 'error', 'message' => __t('profile_display_name_invalid')]);
 	exit;
 }

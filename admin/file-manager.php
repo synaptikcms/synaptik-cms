@@ -463,7 +463,8 @@ if (!function_exists('formatFileSize')) {
 }
 
 function getPublicUrl($path, $file) {
-	$baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'];
+	$host    = preg_replace('/[^a-zA-Z0-9.:\-\[\]]/', '', $_SERVER['HTTP_HOST'] ?? '');
+	$baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . $host;
 	$baseDir = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');
 	if (!empty($path)) { $path = rtrim($path, '/') . '/'; }
 	return $baseUrl . $baseDir . '/files/' . $path . $file;

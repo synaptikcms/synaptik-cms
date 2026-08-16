@@ -77,7 +77,7 @@ $_cl_items        = $_cl_use_ajax
 	<input type="hidden" name="batch_action" value="delete">
 	<input type="hidden" name="content_type" value="<?php echo $contentType; ?>">
 	<input type="hidden" name="selected_items" id="selected-items-input" value="">
-	<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
+	<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token'] ?? ''); ?>">
 </form>
 
 <div class="content-list-header">
@@ -111,19 +111,19 @@ $_cl_json_categories = json_encode($_cl_categories, JSON_HEX_TAG | JSON_HEX_AMP 
 ?>
 
 <script id="cl-data" type="application/json"
-	data-type="<?php echo htmlspecialchars($contentType); ?>"
+	data-type="<?php echo hsc($contentType); ?>"
 	data-edit-base="index.php?action=edit&amp;type=<?php echo urlencode($contentType); ?>&amp;index="
-	data-type-label="<?php echo htmlspecialchars(__t('type_' . $contentType)); ?>"
-	data-i18n-edit="<?php echo htmlspecialchars(__t('edit')); ?>"
-	data-i18n-view="<?php echo htmlspecialchars(__t('view')); ?>"
-	data-i18n-duplicate="<?php echo htmlspecialchars(__t('duplicate', 'Duplicate')); ?>"
-	data-i18n-delete="<?php echo htmlspecialchars(__t('delete')); ?>"
+	data-type-label="<?php echo hsc(__t('type_' . $contentType)); ?>"
+	data-i18n-edit="<?php echo hsc(__t('edit')); ?>"
+	data-i18n-view="<?php echo hsc(__t('view')); ?>"
+	data-i18n-duplicate="<?php echo hsc(__t('duplicate', 'Duplicate')); ?>"
+	data-i18n-delete="<?php echo hsc(__t('delete')); ?>"
 	data-duplicate-base="index.php?action=duplicate&amp;type=<?php echo urlencode($contentType); ?>&amp;index="
-	data-i18n-no-date="<?php echo htmlspecialchars(__t('no_date')); ?>"
-	data-i18n-no-tags="<?php echo htmlspecialchars(__t('no_tags')); ?>"
-	data-i18n-uncategorized="<?php echo htmlspecialchars(__t('uncategorized')); ?>"
-	data-i18n-scheduled="<?php echo htmlspecialchars(__t('scheduled')); ?>"
-	data-i18n-searching="<?php echo htmlspecialchars(__t('searching', 'Searching…')); ?>"
+	data-i18n-no-date="<?php echo hsc(__t('no_date')); ?>"
+	data-i18n-no-tags="<?php echo hsc(__t('no_tags')); ?>"
+	data-i18n-uncategorized="<?php echo hsc(__t('uncategorized')); ?>"
+	data-i18n-scheduled="<?php echo hsc(__t('scheduled')); ?>"
+	data-i18n-searching="<?php echo hsc(__t('searching', 'Searching…')); ?>"
 	data-total="<?php echo $_cl_total; ?>"
 	data-use-ajax="<?php echo $_cl_use_ajax ? '1' : '0'; ?>"
 	data-ajax-url="list-content.php"
@@ -141,7 +141,7 @@ $_cl_json_categories = json_encode($_cl_categories, JSON_HEX_TAG | JSON_HEX_AMP 
 		<select id="category-filter">
 			<option value=""><?php _e('all_categories'); ?></option>
 			<?php foreach ($_cl_categories as $_cat): ?>
-			<option value="<?php echo htmlspecialchars($_cat); ?>"><?php echo htmlspecialchars($_cat); ?></option>
+			<option value="<?php echo hsc($_cat); ?>"><?php echo hsc($_cat); ?></option>
 			<?php endforeach; ?>
 		</select>
 	</div>

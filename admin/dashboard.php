@@ -177,7 +177,7 @@ function dash_opcache_enabled(): bool {
 
 <div class="dashboard-container">
 	<div class="dashboard-header">
-		<h2><?php _e('dashboard_greeting'); ?>, <span><?php echo htmlspecialchars(admin_get_display_name()); ?>!</span></h2>
+		<h2><?php _e('dashboard_greeting'); ?>, <span><?php echo hsc(admin_get_display_name()); ?>!</span></h2>
 		<div class="quick-actions">
 		</div>
 	</div>
@@ -191,12 +191,12 @@ function dash_opcache_enabled(): bool {
 	<?php if (!empty($_sb_update)): ?>
 	<div class="update-notice">
 		<strong><?php echo admin_icon('update'); ?> <?php _e('update_available'); ?></strong>
-		<?php echo __t('update_version'); ?> <b><?php echo htmlspecialchars($_sb_update['version']); ?></b>
+		<?php echo __t('update_version'); ?> <b><?php echo hsc($_sb_update['version']); ?></b>
 		<?php if (!empty($_sb_update['notes'])): ?>
-			— <?php echo htmlspecialchars($_sb_update['notes']); ?>
+			— <?php echo hsc($_sb_update['notes']); ?>
 		<?php endif; ?>
 		<?php if (!empty($_sb_update['changelog_url'])): ?>
-			<a href="<?php echo htmlspecialchars($_sb_update['changelog_url']); ?>" target="_blank" rel="noopener"><?php _e('update_changelog_link'); ?></a>
+			<a href="<?php echo hsc($_sb_update['changelog_url']); ?>" target="_blank" rel="noopener"><?php _e('update_changelog_link'); ?></a>
 		<?php endif; ?>
 		<a href="index.php?action=update"><?php _e('update_apply_btn'); ?> →</a>
 	</div>
@@ -218,13 +218,13 @@ function dash_opcache_enabled(): bool {
 	<div class="dashboard-news">
 		<h3><?php _e('news_feed'); ?></h3>
 		<?php foreach ($_sb_news as $_n): ?>
-		<div class="news-item news-item--<?php echo htmlspecialchars($_n['type'] ?? 'info'); ?>">
-			<span class="news-date"><?php echo htmlspecialchars($_n['date'] ?? ''); ?></span>
+		<div class="news-item news-item--<?php echo hsc($_n['type'] ?? 'info'); ?>">
+			<span class="news-date"><?php echo hsc($_n['date'] ?? ''); ?></span>
 			<span class="news-message">
-				<?php echo nl2br(htmlspecialchars($_n['message'] ?? '')); ?>
+				<?php echo nl2br(hsc($_n['message'] ?? '')); ?>
 				<?php if (!empty($_n['url'])): ?>
-					<a href="<?php echo htmlspecialchars($_n['url']); ?>" target="_blank" rel="noopener">
-						<?php echo htmlspecialchars($_n['url_label'] ?? 'Learn more'); ?>
+					<a href="<?php echo hsc($_n['url']); ?>" target="_blank" rel="noopener">
+						<?php echo hsc($_n['url_label'] ?? 'Learn more'); ?>
 					</a>
 				<?php endif; ?>
 			</span>
@@ -341,8 +341,8 @@ function dash_opcache_enabled(): bool {
 						<div class="activity-item">
 							<?php if (!empty($item['image'])): ?>
 							<div class="mini-preview">
-								<img src="<?php echo '../' . htmlspecialchars($item['image']); ?>"
-								     alt="<?php echo htmlspecialchars($item['title']); ?>"
+								<img src="<?php echo '../' . hsc($item['image']); ?>"
+								     alt="<?php echo hsc($item['title']); ?>"
 								     loading="lazy">
 							</div>
 							<?php else: ?>
@@ -361,7 +361,7 @@ function dash_opcache_enabled(): bool {
 								<div class="activity-title">
 									<a class="edit-list-link"
 									   href="index.php?action=edit&type=<?php echo $item['type']; ?>&index=<?php echo $item['index']; ?>">
-										<?php echo htmlspecialchars($item['title']); ?>
+									   <?php echo hsc($item['title']); ?>
 									</a>
 								</div>
 								<div class="activity-meta">

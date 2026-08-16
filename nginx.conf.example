@@ -1,0 +1,129 @@
+# SynaptikCMS — sample nginx configuration
+#
+# Copy and adapt this file to your server block. Replace:
+#   - /var/www/yoursite   with the absolute path to your CMS root
+#   - yoursite.com        with your actual domain
+#
+# The critical sections are the deny blocks for sensitive directories.
+# Without them, /data/, /bckps/, /private/ and /cache/ are publicly readable,
+# since nginx does not process .htaccess files.
+
+server {
+    listen 80;
+    server_name yoursite.com www.yoursite.com;
+    return 301 https://yoursite.com$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name yoursite.com;
+
+    root /var/www/yoursite;
+    index index.php;
+
+    # ── Sensitive directories — never serve over HTTP ─────────────────────────
+    location ~ ^/(data|bckps|private|cache|lang)(/|$) {
+        deny all;
+        return 403;
+    }
+
+    # ── Admin sub-directories — PHP includes, never served directly ───────────
+    location ~ ^/[^/]+/(includes|templates|drafts|cache)(/|$) {
+        deny all;
+        return 403;
+    }
+
+    # ── Block PHP execution in /files/ — media files served normally ──────────
+    location ~* ^/files/.*\.php[s5]?$ {
+        deny all;
+        return 403;
+    }
+
+    # ── Block direct access to sensitive files ────────────────────────────────
+    location ~ /(config\.json|admin-credentials\.php|plugins\.json|install\.lock)$ {
+        deny all;
+        return 403;
+    }
+
+    # ── Block dotfiles ────────────────────────────────────────────────────────
+    location ~ /\. {
+        deny all;
+        return 403;
+    }
+
+    # ── core/ directory — only allow the three public PHP endpoints ───────────
+    location ~ ^/core/(?!(search|feed|contact-process|llms)\.php$).*\.php$ {
+        deny all;
+        return 403;
+    }
+
+    # ── llms.txt — rewrite to core/llms.php ──────────────────────────────────
+    location = /llms.txt {
+        rewrite ^ /core/llms.php last;
+    }
+
+    # ── Legacy redirects (search and contact-process moved to /core/) ─────────
+    location = /search.php {
+        rewrite ^ /core/search.php last;
+    }
+    location = /contact-process.php {
+        rewrite ^ /core/contact-process.php last;
+    }
+
+    # ── Plugin data/private directories — deny before the PHP handler sees them ─
+    # .htaccess has no effect on nginx; plugins rely on it for protection.
+    # See: synaptikcms-1_3_6v2-review-EN.md Q3
+    location ~ ^/plugins/[^/]+/(data|private)(/|$) {
+        deny all;
+        return 403;
+    }
+    location ~ ^/plugins/[^/]+/(admin|vendor|includes)/ {
+        deny all;
+        return 403;
+    }
+
+    # ── /plugins/ root slug — route to CMS router ────────────────────────────
+    location ~ ^/plugins/?$ {
+        rewrite ^ /index.php last;
+    }
+
+    # ── Main router — send all non-file, non-directory requests to index.php ──
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    # ── PHP-FPM ───────────────────────────────────────────────────────────────
+    location ~ \.php$ {
+        try_files $uri =404;
+        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock; # adjust to your PHP version
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    # ── Static assets — long cache, no PHP ───────────────────────────────────
+    location ~* \.(css|js|woff2?|ttf|otf|eot|svg|ico|png|jpe?g|gif|webp)$ {
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        # Security headers repeated here: add_header in a location block replaces
+        # all inherited directives from the parent server block (nginx quirk).
+        # Keep in sync with the server-block headers below and with .htaccess.
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.hcaptcha.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.googletagmanager.com; frame-src https://newassets.hcaptcha.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.bunny.net https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://fonts.bunny.net https://cdn.jsdelivr.net; img-src 'self' data: blob: https://img.shields.io; connect-src 'self' https://hcaptcha.com https://api.hcaptcha.com https://www.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net; frame-ancestors 'self';" always;
+        access_log off;
+    }
+
+    # ── Security headers ──────────────────────────────────────────────────────
+    # CSP mirrors .htaccess exactly. If you change one, change the other.
+    # hCaptcha requires: js.hcaptcha.com (script-src), newassets.hcaptcha.com (frame-src),
+    #   hcaptcha.com + api.hcaptcha.com (connect-src). Removing them breaks the contact form.
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.hcaptcha.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.googletagmanager.com; frame-src https://newassets.hcaptcha.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.bunny.net https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://fonts.bunny.net https://cdn.jsdelivr.net; img-src 'self' data: blob: https://img.shields.io; connect-src 'self' https://hcaptcha.com https://api.hcaptcha.com https://www.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net; frame-ancestors 'self';" always;
+}

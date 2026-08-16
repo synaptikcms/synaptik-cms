@@ -1195,5 +1195,11 @@
   "reset_same_password": "Tu nueva contraseña debe ser diferente de la contraseña actual.",
   "profile_display_name_invalid": "El nombre mostrado debe tener 60 caracteres o menos y no puede contener < > \" ' o \\",
   "dashboard_htaccess_warning_title": "Aviso de seguridad: los directorios sensibles pueden ser de acceso público",
-  "dashboard_htaccess_warning_desc": "El directorio /data/ devolvió una respuesta 200 — es posible que su servidor web no aplique las reglas .htaccess (habitual en nginx sin configuración manual). Añada bloques de denegación para /data/, /bckps/, /private/ y /cache/, o muévalos fuera de la raíz web."
+  "dashboard_htaccess_warning_desc": "El directorio /data/ devolvió una respuesta 200 — es posible que su servidor web no aplique las reglas .htaccess (habitual en nginx sin configuración manual). Añada bloques de denegación para /data/, /bckps/, /private/ y /cache/, o muévalos fuera de la raíz web.",
+  "zip_val_traversal": "Ruta no segura en el archivo: \"%s\".",
+  "zip_val_htaccess": "Archivo prohibido en el archivo ZIP: \"%s\".",
+  "zip_val_ext_forbidden": "Extensión \".%s\" prohibida en el archivo (fichero: \"%s\").",
+  "ext_update_url_not_allowed": "La URL de descarga de esta actualización apunta a un host no permitido. Actualización cancelada.",
+  "restore_zip_traversal": "El archivo de copia de seguridad contiene una ruta no segura y no puede restaurarse.",
+  "restore_zip_forbidden_file": "El archivo de copia de seguridad contiene un tipo de archivo prohibido y no puede restaurarse."
 }

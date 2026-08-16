@@ -128,14 +128,14 @@ uasort($tagsAlpha, fn($a, $b) => strcasecmp($a['name'], $b['name']));
 		</thead>
 		<tbody>
 			<?php foreach ($tags as $slug => $tag): ?>
-			<tr data-orphan="<?php echo $tag['count'] === 0 ? '1' : '0'; ?>" data-slug="<?php echo htmlspecialchars($slug); ?>">
+			<tr data-orphan="<?php echo $tag['count'] === 0 ? '1' : '0'; ?>" data-slug="<?php echo hsc($slug); ?>">
 				<td>
-					<?php echo htmlspecialchars($tag['name']); ?>
+					<?php echo hsc($tag['name']); ?>
 					<?php if ($tag['count'] === 0): ?>
 						<span class="badge-orphan" title="<?php _e('orphan_tag_title'); ?>"><?php _e('orphan'); ?></span>
 					<?php endif; ?>
 				</td>
-				<td><code class="slug-display"><?php echo htmlspecialchars($slug); ?></code></td>
+				<td><code class="slug-display"><?php echo hsc($slug); ?></code></td>
 				<td>
 					<?php if ($tag['count'] > 0): ?>
 						<span class="count-link"
@@ -143,7 +143,7 @@ uasort($tagsAlpha, fn($a, $b) => strcasecmp($a['name'], $b['name']));
 								$types = array_unique(array_column($tag['items'], 'type'));
 								echo count($types) === 1 ? $types[0] : 'article';
 							?>"
-							data-items="<?php echo htmlspecialchars(json_encode($tag['items'])); ?>">
+							data-items="<?php echo hsc(json_encode($tag['items'])); ?>">
 							<?php echo $tag['count']; ?>
 						</span>
 					<?php else: ?>
@@ -153,10 +153,10 @@ uasort($tagsAlpha, fn($a, $b) => strcasecmp($a['name'], $b['name']));
 				<td>
 					<a href="#" style="margin:0;" class="table-btn edit-btn small edit-tag"
 						data-slug="<?php echo $slug; ?>"
-						data-name="<?php echo htmlspecialchars($tag['name']); ?>"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg><?php _e('edit'); ?></a>
+						data-name="<?php echo hsc($tag['name']); ?>"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg><?php _e('edit'); ?></a>
 					<a href="#" style="margin:0;" class="table-btn delete-btn small danger delete-tag"
 						data-slug="<?php echo $slug; ?>"
-						data-name="<?php echo htmlspecialchars($tag['name']); ?>"><svg width="14" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></a>
+						data-name="<?php echo hsc($tag['name']); ?>"><svg width="14" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></a>
 				</td>
 			</tr>
 			<?php endforeach; ?>

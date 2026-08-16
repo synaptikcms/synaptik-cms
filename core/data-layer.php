@@ -101,8 +101,8 @@ function _sl_persistent_get(string $key)
     $raw = file_get_contents($file);
     if ($raw === false) return null;
 
-    $data = @unserialize($raw);
-    return ($data !== false) ? $data : null;
+    $data = json_decode($raw, true);
+    return is_array($data) ? $data : null;
 }
 
 /**
@@ -127,7 +127,7 @@ function _sl_persistent_set(string $key, $value): void
     if (is_writable($dir)) {
         $tmp  = _sl_cache_file($key) . '.tmp';
         $file = _sl_cache_file($key);
-        if (file_put_contents($tmp, serialize($value), LOCK_EX) !== false) {
+        if (file_put_contents($tmp, json_encode($value), LOCK_EX) !== false) {
             rename($tmp, $file);
         }
     }

@@ -2,40 +2,66 @@
 
 All notable changes to SynaptikCMS are documented here.  
 
+## [1.3.6] — 2026-08-16
+
+This update makes the CMS more secure and the admin much faster.
+
+### Added
+- **Nginx sample config** — sample `nginx.conf.example` for nginx servers: directory deny rules for sensitive paths, security headers (CSP, X-Frame-Options, etc.), static asset caching, and plugin data directory protection (`.htaccess` has no effect on nginx).
+- **Third-party scripts** — added integrity checks on all externally loaded libraries. Also fixed a missing CDN entry in the Content Security Policy that was silently blocking the template editor.
+
+### Changed
+- **PHP minimum requirement** — raised from 7.4 to 8.3.
+
+### Fixed
+- **Markdown editor** — "open in new tab" links were broken in Markdown mode.
+- **Admin content list** — on large sites the list was loading the full body text of every item on every page load, causing 10+ second load times. Now instant regardless of item count.
+- **Admin sidebar** — sidebar layout was compressing when many items were visible (e.g. multiple plugins installed + accordion open); sidebar now scrolls correctly without visual glitches on desktop.
+- **llms.txt** — returned a 403 error on Apache installs.
+
+### Security
+Thanks to [@treeandcoffee](https://github.com/treeandcoffee) for the continued security review.
+- **ZIP validator** — uploaded archives (themes, plugins, backup restores) are now validated before extraction: path traversal, null bytes, absolute paths, and dangerous extensions are all rejected. The backup restore path and automatic extension updates had no validation at all in previous versions. Download URLs for automatic updates are also restricted to known hosts.
+- **Output escaping** — introduced `hsc()`, a project-wide escaping helper enforcing `ENT_QUOTES` and `UTF-8` consistently. Migrated the entire admin panel, including the two unauthenticated pages (password reset and forgot password).
+- **Subresource Integrity** — all externally loaded libraries now include integrity hashes.
+- **Plugin directory** — the plugins folder no longer exposes its contents on servers with directory listing enabled.
+- **PHP minimum version** — raised to 8.3. The previous stated minimum (7.4) was broken in practice since 1.3.5: profile saving and extension updates would crash silently on PHP 7.4.
+- **Theme loading** — a malicious theme could redirect template loading to an unintended file. Fixed.
+- **File cache** — the internal cache used a format vulnerable to PHP object injection. Replaced with JSON.
+- **File manager** — the host header used to build file URLs was not sanitised, allowing header injection.
+
+---
+
 ## [1.3.5] — 2026-08-14
 
 ### Security
-- **Security audit** — the security fixes in this release address findings from a full audit of SynaptikCMS 1.3.4.4 conducted by [@treeandcoffee](https://github.com/treeandcoffee). Full credit in `SECURITY.md`.
-- **Password reset — token exposed on screen** — on installs where `mail()` fails, the reset link was shown in the browser response, potentially allowing account takeover without authentication. (`admin/forgot-password.php`)
-- **Password reset — Host header poisoning** — the reset email could be redirected to an attacker-controlled domain via a forged `Host` header. (`admin/forgot-password.php`)
-- **File manager — path traversal via rename/move** — files could be renamed to executable extensions or moved outside the upload directory. Reported independently by [@treeandcoffee](https://github.com/treeandcoffee) and [Dinesh Goud](https://github.com/d1n3sh-0x3). (`admin/file-manager.php`)
-- **Template editor — missing CSRF protection** — a forged request could overwrite active theme files while an admin was logged in. (`admin/template-editor.php`)
-- **Admin credentials — PHP injection via display name** — a backslash in the display name field could corrupt the credentials file and lock out the admin. (`admin/includes/admin-functions.php`, `admin/save-profile.php`)
-- **Front-end path traversal** — a crafted URL slug could be used to read arbitrary data files. (`core/data-layer.php`, `index.php`)
-- **CSRF bypass on destructive admin actions** — delete and purge actions could be triggered without a valid security token. (`admin/index.php`)
-- **Missing CSRF protection on AJAX endpoints** — file upload, autosave, alt-text, sitemap and SEO endpoints accepted state-changing requests without token validation. (`admin/file-upload.php`, `admin/autosave.php`, `admin/alt-text-assistant.php`, `admin/sitemap-generator.php`, `admin/seo-overview.php`)
-- **Session timeout not enforced on all admin pages** — several endpoints bypassed the 2-hour inactivity timeout. (`admin/batch-optimize.php`, `admin/get-files.php`, `admin/preview.php`, `admin/theme-preview.php`, `admin/file-manager.php`, `admin/template-editor.php`)
-- **Session cookies not hardened under PHP-FPM** — `HttpOnly`, `Secure` and `SameSite` flags were only set via `.htaccess`, which has no effect under PHP-FPM. Now enforced in PHP directly. (`admin/includes/session-config.php`)
-- **Login rate limiter — race condition** — concurrent login attempts could bypass the lockout counter. (`admin/auth.php`)
-- **Search endpoint — denial of service** — the public search endpoint had no rate limiting and loaded all content on every request. Rate limit added; only requested content types are now loaded. (`core/search.php`)
-- **Markdown — XSS via crafted links** — link labels and footnote keys were not fully escaped; `javascript:` URLs in links are now blocked. (`core/render/tf-markdown.php`)
-- **Dashboard warning when data directories are publicly accessible** — on servers where `.htaccess` is not enforced (nginx without manual rules), sensitive directories could be publicly readable. The dashboard now shows a warning when this is detected. (`admin/dashboard.php`)
-- **Installer** — `site_url` is now saved to `config.json` at install time, used as the canonical base URL for password reset links. (`install.php`)
+- **Security audit** — full audit of version 1.3.4.4 conducted by [@treeandcoffee](https://github.com/treeandcoffee). Full credit in `SECURITY.md`.
+- **Password reset** — the reset link could be exposed in the browser if the server's mail function fails, and the reset email could be hijacked via a forged Host header.
+- **File manager** — files could be renamed to dangerous extensions or moved outside the upload directory. Reported by [@treeandcoffee](https://github.com/treeandcoffee) and [Dinesh Goud](https://github.com/d1n3sh-0x3).
+- **Template editor** — a forged request could overwrite active theme files while an admin was logged in.
+- **Admin credentials** — a backslash in the display name field could corrupt the credentials file and lock out the admin.
+- **Front-end routing** — a crafted URL could be used to read arbitrary data files.
+- **Admin actions** — delete and purge actions could be triggered without a valid security token.
+- **AJAX endpoints** — file upload, autosave, and several other endpoints accepted requests without security token validation.
+- **Session timeout** — several admin pages bypassed the 2-hour inactivity timeout.
+- **Session cookies** — security flags were only set via Apache config, with no effect on PHP-FPM servers. Now enforced in PHP directly.
+- **Login rate limiter** — concurrent login attempts could bypass the lockout counter.
+- **Search endpoint** — no rate limiting; all content was loaded on every request regardless of what was searched.
+- **Markdown links** — link labels and footnote keys were not fully escaped; `javascript:` URLs in links are now blocked.
+- **Data directories exposed on nginx** — the dashboard now warns when `/data/` is publicly accessible (common on nginx without manual config).
 
 ### Added
-- `llms.txt` support (spec: https://llmstxt.org/). Accessible at `/llms.txt`, served by `core/llms.php`. Lists published pages and articles with URLs and summaries for LLM indexers. No configuration required. Thanks to [@treeandcoffee](https://github.com/treeandcoffee) for the suggestion.
-
-### Changed
-- **License** — changed from MIT to SynaptikCMS Open License starting from this version. Personal, educational and non-profit use remains free with no conditions beyond copyright notice retention. Commercial use requires visible attribution ("Powered by SynaptikCMS" in the UI). Previous releases remain available under MIT for anyone who obtained them before this version.
+- `llms.txt` support (spec: https://llmstxt.org/). Accessible at `/llms.txt`. Lists published pages and articles for LLM indexers. Thanks to [@treeandcoffee](https://github.com/treeandcoffee) for the suggestion.
+- `site_url` saved to `config.json` at install time for reliable password reset links. Existing installs can populate it via `migrate.php`.
 
 ### Fixed
-- **Content preview broken after M4 fix** — loading `admin-functions.php` at the top of `preview.php` caused a fatal `sanitizeSlug()` redeclaration when `core/functions.php` was loaded shortly after. Auth check is now inline in `preview.php`, which doesn't need any other admin function. (`admin/preview.php`)
-- **Tag and category pages returning homepage** — tag and category archive pages were falling through to the homepage due to a routing fix applied earlier in this release. (`index.php`)
-- **Drafts — delete actions broken after CSRF hardening** — after adding CSRF token requirements to all destructive actions, delete buttons in the drafts list, content list, categories, and tags were no longer working. (`admin/templates/drafts.php`, `admin/assets/js/common.js`, `admin/assets/js/panel.js`)
-- **Duplicate locale string** — `extensions_no_plugins` was defined twice in `lang/admin/en.json`; the stale first entry has been removed. (`lang/admin/en.json`)
-- **File manager — upload form layout** — the upload panel expanded horizontally during uploads, pushing the folder creation panel off-screen. (`admin/assets/css/admin-filemanager.css`)
-- **Core updater** — `theme/default/` is no longer overwritten during a core update, preserving any customizations to the default theme.
-- **Extension updater** — `theme/default/` can now be updated via the Extensions Manager. (Thanks to [@treeandcoffee](https://github.com/treeandcoffee) for reporting.)
+- **Content preview** — broken after the 1.3.5 security fixes due to a function redeclaration.
+- **Tag and category pages** — were falling through to the homepage after a routing fix applied in the same release.
+- **Draft delete buttons** — stopped working after CSRF hardening was applied.
+- **Duplicate locale string** — `extensions_no_plugins` was defined twice in `lang/admin/en.json`.
+- **File manager upload panel** — expanded horizontally during uploads, pushing the folder panel off-screen.
+- **Core updater** — `theme/default/` is no longer overwritten during a core update.
+- **Extension updater** — `theme/default/` can now be updated via the Extensions Manager. (Thanks [@treeandcoffee](https://github.com/treeandcoffee).)
 
 --- 
 

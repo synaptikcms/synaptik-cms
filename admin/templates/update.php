@@ -259,33 +259,33 @@ if (file_exists($_vPath)) {
 
 	<?php else: ?>
 		<div class="site-settings-section">
-			<h3><?php _e('update_available'); ?> — <?php echo htmlspecialchars($_upd_info['version']); ?></h3>
+			<h3><?php _e('update_available'); ?> — <?php echo hsc($_upd_info['version']); ?></h3>
 			<div class="form-group">
 				<div style="display:grid;gap:10px;max-width:520px;margin-bottom:20px;">
 					<div style="display:flex;gap:12px;">
 						<span style="color:var(--text-muted);min-width:140px;"><?php _e('update_current_version'); ?></span>
-						<strong><?php echo htmlspecialchars($_localVersion); ?></strong>
+						<strong><?php echo hsc($_localVersion); ?></strong>
 					</div>
 					<div style="display:flex;gap:12px;">
 						<span style="color:var(--text-muted);min-width:140px;"><?php _e('update_available_version'); ?></span>
-						<strong style="color:var(--primary);"><?php echo htmlspecialchars($_upd_info['version']); ?></strong>
+						<strong style="color:var(--primary);"><?php echo hsc($_upd_info['version']); ?></strong>
 					</div>
 					<?php if (!empty($_upd_info['released'])): ?>
 					<div style="display:flex;gap:12px;">
 						<span style="color:var(--text-muted);min-width:140px;"><?php _e('update_release_date'); ?></span>
-						<span><?php echo htmlspecialchars($_upd_info['released']); ?></span>
+						<span><?php echo hsc($_upd_info['released']); ?></span>
 					</div>
 					<?php endif; ?>
 					<?php if (!empty($_upd_info['notes'])): ?>
 					<div style="display:flex;gap:12px;">
 						<span style="color:var(--text-muted);min-width:140px;"><?php _e('update_release_notes'); ?></span>
-						<span><?php echo htmlspecialchars($_upd_info['notes']); ?></span>
+						<span><?php echo hsc($_upd_info['notes']); ?></span>
 					</div>
 					<?php endif; ?>
 					<?php if (!empty($_upd_info['changelog_url'])): ?>
 					<div style="display:flex;gap:12px;">
 						<span style="min-width:140px;"></span>
-						<a href="<?php echo htmlspecialchars($_upd_info['changelog_url']); ?>" target="_blank" rel="noopener"><?php _e('update_changelog_link'); ?> →</a>
+						<a href="<?php echo hsc($_upd_info['changelog_url']); ?>" target="_blank" rel="noopener"><?php _e('update_changelog_link'); ?> →</a>
 					</div>
 					<?php endif; ?>
 				</div>
@@ -300,7 +300,7 @@ if (file_exists($_vPath)) {
 				<?php else: ?>
 					<div class="message warning"><?php _e('update_no_zip'); ?>
 						<?php if (!empty($_upd_info['download_url'])): ?>
-							<br><a href="<?php echo htmlspecialchars($_upd_info['download_url']); ?>" target="_blank" rel="noopener" style="margin-top:6px;display:inline-block;"><?php _e('download'); ?> →</a>
+							<br><a href="<?php echo hsc($_upd_info['download_url']); ?>" target="_blank" rel="noopener" style="margin-top:6px;display:inline-block;"><?php _e('download'); ?> →</a>
 						<?php endif; ?>
 					</div>
 				<?php endif; ?>

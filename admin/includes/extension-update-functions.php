@@ -151,6 +151,7 @@ function _admin_check_extension_updates(string $type): array {
  */
 function admin_apply_extension_update(string $type, string $slug): array {
 	require_once __DIR__ . '/backup-functions.php';
+	require_once __DIR__ . '/zip-validation.php';
 
 	$isTheme = ($type === 'theme');
 	$slug    = preg_replace('/[^a-z0-9_\-]/', '', strtolower($slug));
@@ -172,6 +173,9 @@ function admin_apply_extension_update(string $type, string $slug): array {
 	$downloadUrl = $entry['download_url'];
 	if (strtolower(substr($downloadUrl, -4)) !== '.zip') {
 		return ['success' => false, 'error' => __t('update_no_zip')];
+	}
+	if (!zip_url_is_allowed($downloadUrl)) {
+		return ['success' => false, 'error' => __t('ext_update_url_not_allowed')];
 	}
 
 	$destDir = $root . '/' . ($isTheme ? 'theme' : 'plugins') . '/' . $slug;
@@ -228,8 +232,9 @@ function admin_apply_extension_update(string $type, string $slug): array {
 			: __t('update_failed_download')];
 	}
 
-	// ── Validate — the ZIP must contain the expected manifest ─────────────────
+	// ── Validate — manifest + full entry scan (path traversal, extensions) ─────
 	$manifestName = $isTheme ? 'theme.json' : 'plugin.json';
+	$allowedExt   = ['php','css','js','json','html','htm','svg','png','jpg','jpeg','webp','gif','ico','woff','woff2','ttf','eot','otf','txt','md'];
 	$zip = new ZipArchive();
 	if ($zip->open($releaseZip) !== true) {
 		@unlink($releaseZip);
@@ -240,6 +245,12 @@ function admin_apply_extension_update(string $type, string $slug): array {
 		$zip->close();
 		@unlink($releaseZip);
 		return ['success' => false, 'error' => __t('update_failed_invalid')];
+	}
+	$valResult = zip_validate_entries($zip, $allowedExt, $isTheme ? [] : ['']);
+	if (!$valResult['ok']) {
+		$zip->close();
+		@unlink($releaseZip);
+		return ['success' => false, 'error' => $valResult['error']];
 	}
 	$zip->close();
 

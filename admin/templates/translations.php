@@ -59,8 +59,8 @@ if (is_dir($_scopeDir)) {
 			<label for="trl-locale"><?php _e('translations_locale'); ?></label>
 			<select id="trl-locale" class="form-control">
 				<?php foreach ($availableLocales as $_code => $_label): ?>
-				<option value="<?php echo htmlspecialchars($_code); ?>"<?php echo $_code === $locale ? ' selected' : ''; ?>>
-					<?php echo htmlspecialchars($_label); ?> (<?php echo htmlspecialchars($_code); ?>)
+				<option value="<?php echo hsc($_code); ?>"<?php echo $_code === $locale ? ' selected' : ''; ?>>
+					<?php echo hsc($_label); ?> (<?php echo hsc($_code); ?>)
 				</option>
 				<?php endforeach; ?>
 			</select>
@@ -76,7 +76,7 @@ if (is_dir($_scopeDir)) {
 
 <!-- ══════════════════ Filter + stats bar ══════════════════ -->
 <div class="trl-statusbar">
-	<input type="search" id="trl-filter" class="form-control" placeholder="<?php echo htmlspecialchars(__t('translations_filter_placeholder')); ?>" autocomplete="off">
+	<input type="search" id="trl-filter" class="form-control" placeholder="<?php echo hsc(__t('translations_filter_placeholder')); ?>" autocomplete="off">
 	<div class="trl-stats">
 		<span class="trl-stat trl-stat--total">
 			<strong id="trl-stat-total">0</strong> <?php _e('translations_stat_total'); ?>
@@ -143,7 +143,7 @@ if (is_dir($_scopeDir)) {
 			<div class="form-group">
 				<label for="trl-new-label"><?php _e('translations_new_label'); ?></label>
 				<input type="text" id="trl-new-label" class="form-control"
-					placeholder="<?php echo htmlspecialchars(__t('translations_new_label_ph')); ?>" maxlength="50" autocomplete="off">
+					placeholder="<?php echo hsc(__t('translations_new_label_ph')); ?>" maxlength="50" autocomplete="off">
 				<p class="help-text"><?php _e('translations_new_label_help'); ?></p>
 			</div>
 

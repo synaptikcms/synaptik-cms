@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['plugin_action'])) {
 	} elseif ($_POST['plugin_action'] === 'update' && $slug !== '') {
 		$result = admin_apply_extension_update('plugin', $slug);
 		if ($result['success']) {
-			$_SESSION['message'] = sprintf(__t('extensions_update_success', 'Plugin "%s" updated successfully.'), htmlspecialchars($slug));
+			$_SESSION['message'] = sprintf(__t('extensions_update_success', 'Plugin "%s" updated successfully.'), hsc($slug));
 		} else {
 			$_SESSION['error'] = $result['error'] ?? __t('update_failed_apply');
 		}
@@ -67,7 +67,7 @@ $pluginUpdates = admin_check_plugin_updates();
 			<p style="color:var(--danger-text);"><?php _e('extensions_upload_no_ziparchive'); ?></p>
 		<?php else: ?>
 			<form method="POST" action="extension-upload.php" enctype="multipart/form-data" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-				<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
+				<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token'] ?? ''); ?>">
 				<input type="hidden" name="_type" value="plugin">
 				<input type="file" name="plugin_zip" accept=".zip" required style="flex:1; max-width:500px;">
 				<button type="submit" class="btn btn-outline"><?php echo admin_icon('upload'); ?> <?php _e('extensions_upload_btn'); ?></button>
@@ -89,41 +89,41 @@ $pluginUpdates = admin_check_plugin_updates();
 
 		<div class="theme-card-body">
 			<div class="theme-card-name">
-				<?php echo htmlspecialchars($plugin['name'] ?? $slug); ?>
+				<?php echo hsc($plugin['name'] ?? $slug); ?>
 				<?php if ($plugin['active']): ?>
 				<span class="theme-badge-active"><?php _e('extensions_active', 'Active'); ?></span>
 				<?php endif; ?>
 				<?php if (isset($pluginUpdates[$slug])): ?>
-				<span class="theme-badge-update" title="<?php echo htmlspecialchars(sprintf(__t('theme_update_available_title', 'Version %s available'), $pluginUpdates[$slug]['remote_version'])); ?>"><?php _e('theme_update_badge', 'Update available'); ?></span>
+				<span class="theme-badge-update" title="<?php echo hsc(sprintf(__t('theme_update_available_title', 'Version %s available'), $pluginUpdates[$slug]['remote_version'])); ?>"><?php _e('theme_update_badge', 'Update available'); ?></span>
 				<?php endif; ?>
 			</div>
 
 			<?php if (!empty($plugin['author']) || !empty($plugin['version'])): ?>
 			<div class="theme-card-meta">
 				<?php if (!empty($plugin['author'])): ?>
-					<?php _e('theme_manager_by'); ?> <?php echo htmlspecialchars($plugin['author']); ?>
+					<?php _e('theme_manager_by'); ?> <?php echo hsc($plugin['author']); ?>
 				<?php endif; ?>
 				<?php if (!empty($plugin['version'])): ?>
-					&nbsp;·&nbsp; v<?php echo htmlspecialchars($plugin['version']); ?>
+					&nbsp;·&nbsp; v<?php echo hsc($plugin['version']); ?>
 				<?php endif; ?>
 			</div>
 			<?php endif; ?>
 
 			<?php if (!empty($plugin['description'])): ?>
-			<div class="theme-card-desc"><?php echo htmlspecialchars($plugin['description']); ?></div>
+			<div class="theme-card-desc"><?php echo hsc($plugin['description']); ?></div>
 			<?php endif; ?>
 
-			<div class="theme-card-meta" style="font-family: monospace; font-size: 0.78em;"><?php echo htmlspecialchars($slug); ?></div>
+			<div class="theme-card-meta" style="font-family: monospace; font-size: 0.78em;"><?php echo hsc($slug); ?></div>
 
 			<div class="theme-card-actions">
 				<?php if ($plugin['active']): ?>
-				<button type="button" class="btn btn-outline btn-sm" onclick="confirmPluginAction('deactivate', '<?php echo htmlspecialchars($slug, ENT_QUOTES); ?>')"><?php _e('extensions_deactivate'); ?></button>
+				<button type="button" class="btn btn-outline btn-sm" onclick="confirmPluginAction('deactivate', '<?php echo hsc($slug, ENT_QUOTES); ?>')"><?php _e('extensions_deactivate'); ?></button>
 				<?php else: ?>
-				<button type="button" class="btn btn-primary btn-sm" onclick="confirmPluginAction('activate', '<?php echo htmlspecialchars($slug, ENT_QUOTES); ?>')"><?php _e('extensions_activate'); ?></button>
-				<button type="button" class="btn btn-danger btn-sm" onclick="confirmPluginDelete('<?php echo htmlspecialchars($slug, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($plugin['name'] ?? $slug, ENT_QUOTES); ?>')"><?php _e('extensions_delete'); ?></button>
+				<button type="button" class="btn btn-primary btn-sm" onclick="confirmPluginAction('activate', '<?php echo hsc($slug, ENT_QUOTES); ?>')"><?php _e('extensions_activate'); ?></button>
+				<button type="button" class="btn btn-danger btn-sm" onclick="confirmPluginDelete('<?php echo hsc($slug, ENT_QUOTES); ?>', '<?php echo hsc($plugin['name'] ?? $slug, ENT_QUOTES); ?>')"><?php _e('extensions_delete'); ?></button>
 				<?php endif; ?>
 				<?php if (isset($pluginUpdates[$slug])): ?>
-				<button type="button" class="btn btn-primary btn-sm" onclick="confirmPluginUpdate('<?php echo htmlspecialchars($slug, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($plugin['name'] ?? $slug, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pluginUpdates[$slug]['remote_version'], ENT_QUOTES); ?>')"><?php echo admin_icon('update'); ?> <?php _e('theme_update_btn', 'Update'); ?></button>
+				<button type="button" class="btn btn-primary btn-sm" onclick="confirmPluginUpdate('<?php echo hsc($slug, ENT_QUOTES); ?>', '<?php echo hsc($plugin['name'] ?? $slug, ENT_QUOTES); ?>', '<?php echo hsc($pluginUpdates[$slug]['remote_version'], ENT_QUOTES); ?>')"><?php echo admin_icon('update'); ?> <?php _e('theme_update_btn', 'Update'); ?></button>
 				<?php endif; ?>
 			</div>
 		</div>
@@ -134,14 +134,14 @@ $pluginUpdates = admin_check_plugin_updates();
 
 <!-- Hidden activate/deactivate form — submitted programmatically -->
 <form id="plugin-toggle-form" method="POST" action="index.php?action=plugins" style="display:none;">
-	<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
+	<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token'] ?? ''); ?>">
 	<input type="hidden" name="plugin_action" id="plugin-toggle-action" value="">
 	<input type="hidden" name="slug" id="plugin-toggle-slug" value="">
 </form>
 
 <!-- Hidden delete form — submitted programmatically -->
 <form id="plugin-delete-form" method="POST" action="index.php?action=plugins" style="display:none;">
-	<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
+	<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token'] ?? ''); ?>">
 	<input type="hidden" name="plugin_action" value="delete">
 	<input type="hidden" name="slug" id="plugin-delete-slug" value="">
 </form>

@@ -128,7 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars(__t('reset_page_title', 'Password Reset')); ?> — SynaptikCMS</title>
+    <title><?php echo hsc(__t('reset_page_title', 'Password Reset')); ?> — SynaptikCMS</title>
     <script>
     (function() {
         try {
@@ -159,24 +159,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body style="background-color: var(--surface2);">
 <div class="login-container">
     <div class="login-header">
-        <h1><?php echo htmlspecialchars(__t('reset_send_link_heading', 'Forgot your password?')); ?></h1>
+        <h1><?php echo hsc(__t('reset_send_link_heading', 'Forgot your password?')); ?></h1>
     </div>
 
     <?php if ($error): ?>
 
         <div class="blockquote error"><?php echo $error; ?></div>
         <a class="back-link" href="auth.php">
-            <?php echo htmlspecialchars(__t('reset_back_to_login', '← Back to login')); ?>
+            <?php echo hsc(__t('reset_back_to_login', '← Back to login')); ?>
         </a>
 
     <?php elseif ($sent): ?>
 
         <div class="blockquote success" style="text-align:center;">
-            <strong><?php echo htmlspecialchars(__t('reset_inbox_title', 'Check your inbox.')); ?></strong><br>
-            <?php echo htmlspecialchars(__t('reset_inbox_detail', 'If that address is registered, a reset link has been sent. It expires in 15 minutes.')); ?>
+            <strong><?php echo hsc(__t('reset_inbox_title', 'Check your inbox.')); ?></strong><br>
+            <?php echo hsc(__t('reset_inbox_detail', 'If that address is registered, a reset link has been sent. It expires in 15 minutes.')); ?>
         </div>
         <a class="back-link" href="auth.php">
-            <?php echo htmlspecialchars(__t('reset_back_to_login', '← Back to login')); ?>
+            <?php echo hsc(__t('reset_back_to_login', '← Back to login')); ?>
         </a>
 
     <?php else: ?>
@@ -190,24 +190,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <form class="login-form" method="POST" action="">
             <input type="hidden" name="csrf_token"
-                   value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+                   value="<?php echo hsc($_SESSION['csrf_token']); ?>">
 
             <label for="email">
-                <?php echo htmlspecialchars(__t('reset_email_label', 'Admin email address')); ?>
+                <?php echo hsc(__t('reset_email_label', 'Admin email address')); ?>
             </label>
             <input type="email" id="email" name="email"
                    placeholder="you@example.com" required autofocus autocomplete="email">
             <p class="help-text">
-                <?php echo htmlspecialchars(__t('reset_email_help', "We'll send a one-time reset link to this address.")); ?>
+                <?php echo hsc(__t('reset_email_help', "We'll send a one-time reset link to this address.")); ?>
             </p>
 
             <button type="submit" class="btn btn-primary btn-lg btn-block login-button">
-                <?php echo htmlspecialchars(__t('reset_send_btn', 'Send reset link')); ?>
+                <?php echo hsc(__t('reset_send_btn', 'Send reset link')); ?>
             </button>
         </form>
 
         <a class="back-link" href="auth.php">
-            <?php echo htmlspecialchars(__t('reset_back_to_login', '← Back to login')); ?>
+            <?php echo hsc(__t('reset_back_to_login', '← Back to login')); ?>
         </a>
 
     <?php endif; ?>

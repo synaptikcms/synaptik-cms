@@ -78,7 +78,7 @@ $i18n = [
         'err_folder_exists'     => 'A folder named "%s" already exists. Choose a different name.',
         'err_rename_failed'     => 'Could not rename the admin folder. Check filesystem write permissions.',
         'err_credentials'       => 'Could not write admin-credentials.php. Check folder permissions.',
-        'req_php'               => 'PHP version',
+        'req_php'               => 'PHP version (8.3+)',
         'req_json'              => 'JSON extension',
         'req_password_hash'     => 'password_hash()',
         'req_admin_folder'      => 'Admin folder',
@@ -152,7 +152,7 @@ $i18n = [
         'err_folder_exists'     => 'Un dossier nommé "%s" existe déjà. Choisissez un autre nom.',
         'err_rename_failed'     => 'Impossible de renommer le dossier admin. Vérifiez les permissions du système de fichiers.',
         'err_credentials'       => 'Impossible d\'écrire admin-credentials.php. Vérifiez les permissions du dossier.',
-        'req_php'               => 'Version PHP',
+        'req_php'               => 'Version PHP (8.3+)',
         'req_json'              => 'Extension JSON',
         'req_password_hash'     => 'password_hash()',
         'req_admin_folder'      => 'Dossier admin',
@@ -226,7 +226,7 @@ $i18n = [
         'err_folder_exists'     => 'Ya existe una carpeta llamada "%s". Elija otro nombre.',
         'err_rename_failed'     => 'No se pudo renombrar la carpeta admin. Compruebe los permisos del sistema de archivos.',
         'err_credentials'       => 'No se pudo escribir admin-credentials.php. Compruebe los permisos de la carpeta.',
-        'req_php'               => 'Versión PHP',
+        'req_php'               => 'Versión PHP (8.3+)',
         'req_json'              => 'Extensión JSON',
         'req_password_hash'     => 'password_hash()',
         'req_admin_folder'      => 'Carpeta admin',
@@ -341,10 +341,10 @@ function installer_detect_admin(): ?string
 function installer_check_requirements(string $root, ?string $adminName): array
 {
     $checks = [];
-    $phpOk  = version_compare(PHP_VERSION, '7.4.0', '>=');
+    $phpOk  = version_compare(PHP_VERSION, '8.3.0', '>=');
 
     $checks[] = ['label' => __i('req_php'),           'status' => $phpOk ? 'ok' : 'error',
-                 'detail' => PHP_VERSION . ($phpOk ? '' : ' — PHP 7.4+ required')];
+    'detail' => PHP_VERSION . ($phpOk ? '' : ' — PHP 8.3+ required')];
     $checks[] = ['label' => __i('req_json'),          'status' => function_exists('json_encode')    ? 'ok' : 'error',
                  'detail' => function_exists('json_encode')    ? 'Available' : 'Missing'];
     $checks[] = ['label' => __i('req_password_hash'), 'status' => function_exists('password_hash') ? 'ok' : 'error',
@@ -633,11 +633,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // /core/: deny all PHP files except the three public endpoints.
         $coreDir = __DIR__ . '/core';
         if (!is_dir($coreDir)) @mkdir($coreDir, 0755, true);
-        $coreHtaccess = "<FilesMatch \"^(search|feed|contact-process)\\.php$\">\n"
+        $coreHtaccess = "<FilesMatch \"^(search|feed|contact-process|llms)\\.php$\">\n"
             . "    <IfModule mod_authz_core.c>\n        Require all granted\n    </IfModule>\n"
             . "    <IfModule !mod_authz_core.c>\n        Allow from all\n    </IfModule>\n"
             . "</FilesMatch>\n\n"
-            . "<FilesMatch \"^(?!(search|feed|contact-process)\\.php$).*\\.php$\">\n"
+            . "<FilesMatch \"^(?!(search|feed|contact-process|llms)\\.php$).*\\.php$\">\n"
             . "    <IfModule mod_authz_core.c>\n        Require all denied\n    </IfModule>\n"
             . "    <IfModule !mod_authz_core.c>\n        Deny from all\n    </IfModule>\n"
             . "</FilesMatch>\n";
@@ -656,6 +656,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pluginsDir = __DIR__ . '/plugins';
         if (!is_dir($pluginsDir)) @mkdir($pluginsDir, 0755, true);
         file_put_contents($pluginsDir . '/.htaccess',
+            "Options -Indexes\n\n" .
             "<FilesMatch \"^plugins\\.json$\">\n" .
             "    <IfModule mod_authz_core.c>\n        Require all denied\n    </IfModule>\n" .
             "    <IfModule !mod_authz_core.c>\n        Deny from all\n    </IfModule>\n" .

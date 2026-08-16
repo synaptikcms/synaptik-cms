@@ -21,6 +21,7 @@ session_start();
 
 define('INCLUDED', true);
 require_once __DIR__ . '/includes/admin-functions.php';
+require_once __DIR__ . '/includes/zip-validation.php';
 require_once dirname(__DIR__) . '/core/plugin-api.php';
 
 // ── Resolve type early so redirects are correct ───────────────────────────────
@@ -86,7 +87,7 @@ $destRoot = $isTheme
 // .htaccess is allowed for plugins only (they protect their data/ and private/ folders).
 // Themes must never ship .htaccess files.
 $allowedExt = ['php','css','js','json','html','htm','svg','png','jpg','jpeg','webp','gif','ico','woff','woff2','ttf','eot','otf','txt','md'];
-$allowedExt_htaccess = !$isTheme; // true for plugins, false for themes
+$allowedExt_htaccess = $isTheme ? [] : ['']; // plugins: allowed anywhere; themes: never
 
 // ── 1. File present ───────────────────────────────────────────────────────────
 if (empty($_FILES[$fileKey])) {
@@ -144,49 +145,24 @@ if ($zipOpenResult !== true) {
 }
 
 // ── 8. Scan entries ───────────────────────────────────────────────────────────
-$extRoot        = null;
-$hasManifest    = false;
+$extRoot     = null;
+$hasManifest = false;
 
+$valResult = zip_validate_entries($zip, $allowedExt, $allowedExt_htaccess);
+if (!$valResult['ok']) {
+    $zip->close();
+    ext_upload_error($valResult['error']);
+}
+
+// Locate manifest separately (zip_validate_entries does not need to know about it)
 for ($i = 0; $i < $zip->numFiles; $i++) {
-    $entry = $zip->getNameIndex($i);
-
-    // Path traversal
-    if (strpos($entry, '..') !== false || strpos($entry, chr(0)) !== false) {
-        $zip->close();
-        ext_upload_error(sprintf(__t('theme_upload_path_traversal', 'Unsafe path in ZIP: "%s".'), htmlspecialchars($entry)));
-    }
-
-    // macOS metadata
-    if (strpos($entry, '__MACOSX/') === 0 || basename($entry) === '.DS_Store') continue;
-
-    // Directory entries
-    if (substr($entry, -1) === '/') continue;
-
+    $entry    = $zip->getNameIndex($i);
     $baseName = basename($entry);
-
-    // .htaccess and .user.ini: allowed for plugins (security files), blocked for themes
-    if (in_array($baseName, ['.htaccess', '.user.ini'], true)) {
-        if (!$allowedExt_htaccess) {
-            $zip->close();
-            // Re-use theme_upload_ext_forbidden which expects (ext, filepath)
-            ext_upload_error(sprintf(__t('theme_upload_ext_forbidden', 'Forbidden extension: .%s (file: %s).'), ltrim(strrchr($baseName, '.'), '.'), htmlspecialchars($entry)));
-        }
-        continue; // plugins: allowed, skip extension check
-    }
-
-    $ext = strtolower(pathinfo($entry, PATHINFO_EXTENSION));
-    if ($ext === '') continue; // skip other dotfiles
-
-    if (!in_array($ext, $allowedExt, true)) {
-        $zip->close();
-        ext_upload_error(sprintf(__t('theme_upload_ext_forbidden', 'Forbidden extension: .%s (file: %s).'), htmlspecialchars($ext), htmlspecialchars($entry)));
-    }
-
-    // Locate manifest
     if ($baseName === $manifest) {
-        $dir      = dirname($entry);
-        $extRoot  = ($dir === '.' || $dir === '') ? '' : rtrim($dir, '/') . '/';
+        $dir     = dirname($entry);
+        $extRoot = ($dir === '.' || $dir === '') ? '' : rtrim($dir, '/') . '/';
         $hasManifest = true;
+        break;
     }
 }
 

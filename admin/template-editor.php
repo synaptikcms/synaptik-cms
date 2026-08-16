@@ -66,11 +66,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['file_content'])
         $newContent = $_POST['file_content'];
         $backupFile = $backupDir . $backupKey . '-' . date('Ymd-His') . '.bak';
         if (!copy($activeFile, $backupFile)) {
-            $error = __t('te_save_backup_failed') . ' <code>' . htmlspecialchars($backupDir) . '</code>.';
+            $error = __t('te_save_backup_failed') . ' <code>' . hsc($backupDir) . '</code>';
         } elseif (file_put_contents($activeFile, $newContent) !== false) {
-            $message = __t('te_save_success') . ' <code>' . htmlspecialchars(basename($backupFile)) . '</code>';
+            $message = __t('te_save_success') . ' <code>' . hsc(basename($backupFile)) . '</code>';
         } else {
-            $error = __t('te_save_write_failed') . ' <code>' . htmlspecialchars($activeFile) . '</code>.';
+            $error = __t('te_save_write_failed') . ' <code>' . hsc($activeFile) . '</code>';
         }
     }
 }
@@ -89,8 +89,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['restore_backup'])) {
             $safetyBackup = $backupDir . $backupKey . '-pre-restore-' . date('Ymd-His') . '.bak';
             copy($activeFile, $safetyBackup);
             if (copy($fullBackupPath, $activeFile)) {
-                $message = __t('te_restore_success_prefix') . ' <code>' . htmlspecialchars($backupToRestore) . '</code>. '
-                         . __t('te_restore_success_suffix') . ' <code>' . htmlspecialchars(basename($safetyBackup)) . '</code>.';
+                $message = __t('te_restore_success_prefix') . ' <code>' . hsc($backupToRestore) . '</code>. '
+                         . __t('te_restore_success_suffix') . ' <code>' . hsc(basename($safetyBackup)) . '</code>';
             } else {
                 $error = __t('te_restore_failed');
             }
@@ -105,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_backup'])) {
     if (strpos($backupToDelete, $backupKey . '-') !== 0 || !file_exists($fullDeletePath)) {
         $error = __t('te_backup_not_found');
     } elseif (unlink($fullDeletePath)) {
-        $message = __t('te_backup_deleted_prefix') . ' <code>' . htmlspecialchars($backupToDelete) . '</code> '
+        $message = __t('te_backup_deleted_prefix') . ' <code>' . hsc($backupToDelete) . '</code> '
                  . __t('te_backup_deleted_suffix') . '.';
     } else {
         $error = __t('te_backup_delete_failed');
@@ -145,9 +145,9 @@ if ($activeFile && is_dir($backupDir)) {
 $pageTitle = __t('template_editor_title');
 
 $extraHead = <<<HTML
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" integrity="sha384-zaeBlB/vwYsDRSlFajnDd7OydJ0cWk+c2OWybl3eSUf6hW2EbhlCsQPqKr3gkznT" crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css" integrity="sha384-ccdJwIIg/K0Ab6aXF4MPACh7ckk61tvQFTrfkhXZEALgAETURNZIAuQLcS/aPbrM" crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.css" integrity="sha384-MomRjC6IKuGHk2XIFKXAwFx0gytd6+ZsF9pnFM3JWZV5izBqPgoLapxRqG1h5IKm" crossorigin="anonymous">
 <link rel="stylesheet" href="assets/css/admin-content.css">
 <style>
 .te-editor-wrap {
@@ -296,15 +296,15 @@ ob_start();
 <?php if ($activeFile === null): ?>
     <div class="message error">
         <strong><?php _e('te_no_file_found'); ?></strong><br>
-        <?php _e('te_active_theme'); ?> <code><?php echo htmlspecialchars($activeTheme); ?></code>
+        <?php _e('te_active_theme'); ?> <code><?php echo hsc($activeTheme); ?></code>
     </div>
 <?php endif; ?>
 <div class="alt-text-container">
     <p><?php _e('te_editor_desc'); ?><br><?php _e('te_editor_backup_desc'); ?></p>
 </div>
 <form method="post" action="template-editor.php?file=<?php echo urlencode($requestedFile); ?>" id="template-editor-form">
-    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
-    <input type="hidden" name="theme_file" value="<?php echo htmlspecialchars($requestedFile); ?>">
+    <input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token']); ?>">
+    <input type="hidden" name="theme_file" value="<?php echo hsc($requestedFile); ?>">
     <div class="te-editor-wrap">
         <div class="editor-main" id="editor-wrap">
             <div class="editor-toolbar">
@@ -312,12 +312,12 @@ ob_start();
                     <?php foreach ($fileGroups as $groupLabel => $files): ?>
                         <?php if ($groupLabel === ''): ?>
                             <?php foreach ($files as $f): ?>
-                                <option value="<?php echo htmlspecialchars($f); ?>" <?php echo ($f === $requestedFile) ? 'selected' : ''; ?>><?php echo htmlspecialchars($f); ?></option>
+                                <option value="<?php echo hsc($f); ?>" <?php echo ($f === $requestedFile) ? 'selected' : ''; ?>><?php echo hsc($f); ?></option>
                             <?php endforeach; ?>
                         <?php else: ?>
-                            <optgroup label="<?php echo htmlspecialchars($groupLabel); ?>">
+                            <optgroup label="<?php echo hsc($groupLabel); ?>">
                                 <?php foreach ($files as $f): ?>
-                                    <option value="<?php echo htmlspecialchars($f); ?>" <?php echo ($f === $requestedFile) ? 'selected' : ''; ?>><?php echo htmlspecialchars(basename($f)); ?></option>
+                                    <option value="<?php echo hsc($f); ?>" <?php echo ($f === $requestedFile) ? 'selected' : ''; ?>><?php echo hsc(basename($f)); ?></option>
                                 <?php endforeach; ?>
                             </optgroup>
                         <?php endif; ?>
@@ -331,7 +331,7 @@ ob_start();
                     <?php _e('last_modified'); ?> <?php echo $activeFile ? date('M j, Y H:i', filemtime($activeFile)) : '—'; ?>
                 </span>
             </div>
-            <textarea id="te-textarea" name="file_content"><?php echo htmlspecialchars($fileContent); ?></textarea>
+            <textarea id="te-textarea" name="file_content"><?php echo hsc($fileContent); ?></textarea>
         </div>
 
         <div class="editor-panel">
@@ -378,10 +378,10 @@ ob_start();
                 <ul class="backup-list">
                     <?php foreach ($backups as $b): ?>
                         <li>
-                            <span class="backup-name"><?php echo htmlspecialchars($b['name']); ?></span>
+                            <span class="backup-name"><?php echo hsc($b['name']); ?></span>
                             <span class="backup-meta"><?php echo $b['modified']; ?> &nbsp;·&nbsp; <?php echo $b['size']; ?> KB</span>
-                            <button type="button" class="btn-restore" data-backup="<?php echo htmlspecialchars($b['name']); ?>"><?php _e('restore'); ?></button>
-                            <button type="button" class="btn-delete-backup" data-backup="<?php echo htmlspecialchars($b['name']); ?>"><?php _e('delete'); ?></button>
+                            <button type="button" class="btn-restore" data-backup="<?php echo hsc($b['name']); ?>"><?php _e('restore'); ?></button>
+                            <button type="button" class="btn-delete-backup" data-backup="<?php echo hsc($b['name']); ?>"><?php _e('delete'); ?></button>
                         </li>
                     <?php endforeach; ?>
                 </ul>
@@ -393,19 +393,19 @@ ob_start();
 $pageContent = ob_get_clean();
 
 $extraFooterScripts = <<<HTML
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/php/php.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/comment/comment.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/search.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js" integrity="sha384-ZYmwuq4n2gOcNxMSiJ6jyTj+BbIrilr7p6dlq6q5nmSWKmsH9UU4K1qqjycMkfmR" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js" integrity="sha384-fpeIC2FZuPmw7mIsTvgB5BNc8QVxQC/nWg2W+CgPYOAiBiYVuHe2E8HiTWHBMIJQ" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js" integrity="sha384-g0o+WW9mdIxA7LaaCKTkRm0M5TVT+Bb4s9eocxPsI2G0Xm0POG9iD6G6qP1IIsfS" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js" integrity="sha384-xPpkMo5nDgD98fIcuRVYhxkZV6/9Y4L8s3p0J5c4MxgJkyKJ8BJr+xfRkq7kn6Tw" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js" integrity="sha384-xYIbc5F55vPi7pb/lUnFj3wu24HlpAMZdtBHkNrb2YhPzJV3pX7+eqXT2PXSNMrw" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js" integrity="sha384-o9m634t2Hy35pPNKd9Xe16ntbSw11jCOuKPDrzQGXI8k87L2JZthaA3rwmJjnF7Z" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/php/php.min.js" integrity="sha384-1FUwPY2kaZKXw258/9CYBSS+zcc3CPggxE1zLjmYYiOdkcOw3KcXH5VNJWWbjw2U" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js" integrity="sha384-LjCI3E8qhhxXZvu7+FCvqx9eZYSowFvuJ7z54KsgI/BDPGKEuysqCg/vYiKHvC4Y" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js" integrity="sha384-69mJoUoPPF/C7qPs6lLjvXvrt6w225+rmxWqGO3a1glVjITdnnwPQOtG9FRTd2Ni" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/comment/comment.min.js" integrity="sha384-B6Af6BES5glvxvAPc9Vrl9t1lHx1k3iL8AcT1XmsmlEVZudSW8E+8CA1TxVbdQbj" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/search.min.js" integrity="sha384-v64L7YTJ/ullw5v36qIJcvWAxuEnRGu9E326vUV3Ro7sx4HCZHIDTphKO53htazT" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js" integrity="sha384-ILkploZWukdp1VMmzMnE+32H0mgy2e+w29evc4grALGOqIRGBgbBGrwkX7a6zK7y" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.js" integrity="sha384-3COleknUtlGKoEOR9Wm7WKVRyS6ljwYU2x1ebD8nd6ujaLMqwY+q3F8+yDcefbXr" crossorigin="anonymous"></script>
 <script>
 (function () {
     const t = (k, fb) => window.CMS_LANG?.[k] ?? fb ?? k;

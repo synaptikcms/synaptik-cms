@@ -181,6 +181,7 @@ function render_header_scripts($headerScripts)
 
     $system = [
         '<base href="' . htmlspecialchars($base) . '">',
+        '    <meta name="generator" content="SynaptikCMS — https://synaptikcms.com">',
         // synaptikCSS.php bundles search/shortcodes/gallery CSS — none of these
         // are critical above-the-fold on most pages, so load it non-blocking.
         // The `media="print"` trick lets the browser fetch it without blocking

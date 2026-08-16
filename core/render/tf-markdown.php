@@ -308,6 +308,29 @@ function _md_render_list(array $lines, int &$i, int $n, int $indent, string $tag
 }
 
 /**
+ * Allow-list URL sanitizer for Markdown links.
+ * Strips control characters (browsers strip them before scheme evaluation),
+ * then permits only safe schemes and relative targets.
+ * Everything else becomes '#'.
+ */
+function _md_sanitize_url(string $url): string
+{
+    // Strip control characters (U+0000–U+001F) that browsers ignore in schemes
+    $url = preg_replace('/[\x00-\x1F]+/', '', $url);
+    $url = trim($url);
+    if ($url === '') return '#';
+
+    // Extract scheme (everything before the first ':')
+    if (preg_match('/^([a-zA-Z][a-zA-Z0-9+\-.]*):/', $url, $m)) {
+        $scheme = strtolower($m[1]);
+        if (!in_array($scheme, ['http', 'https', 'mailto', 'tel'], true)) return '#';
+    }
+    // No scheme: relative path, #anchor, or protocol-relative //host — all safe
+
+    return $url;
+}
+
+/**
  * Process inline Markdown: images, links, bold, italic, strikethrough.
  * CMS shortcodes are preserved intact.
  */
@@ -344,7 +367,7 @@ function _md_inline(string $text): string
         function ($m) {
             $target = preg_match('/\{:target="_blank"\}/', $m[2]) ? ' target="_blank" rel="noopener"' : '';
             $url    = trim(preg_replace('/\{[^}]+\}/', '', $m[2]));
-            if (preg_match('/^\s*javascript:/i', $url)) $url = '#';
+            $url    = _md_sanitize_url($url);
             $label  = htmlspecialchars($m[1], ENT_QUOTES, 'UTF-8');
             return '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '"' . $target . '>' . $label . '</a>';
         },

@@ -34,16 +34,16 @@ if (!$editItem) {
 			
 						<!-- Title Field -->
 						<div class="title-container">
-							<input type="text" id="title" name="title" class="title-input" placeholder="<?php _e('add_title'); ?>" value="<?php echo htmlspecialchars($editItem['title']); ?>" required>
+							<input type="text" id="title" name="title" class="title-input" placeholder="<?php _e('add_title'); ?>" value="<?php echo hsc($editItem['title'] ?? ''); ?>" required>
 						</div>
 			
 						<!-- Format state synced to topbar switcher via JS (see _initFormatTabs below) -->
 						<?php $currentFormat = $editItem['content_format'] ?? 'html'; ?>
-						<input type="hidden" id="content-format" name="content_format" form="content-form" value="<?php echo htmlspecialchars($currentFormat); ?>">
+						<input type="hidden" id="content-format" name="content_format" form="content-form" value="<?php echo hsc($currentFormat); ?>">
 			
 						<!-- Content Editor -->
 						<div class="content-container">
-							<textarea id="content" name="content" rows="20" required><?php echo htmlspecialchars($editItem['content'] ?? ''); ?></textarea>
+							<textarea id="content" name="content" rows="20" required><?php echo hsc($editItem['content'] ?? ''); ?></textarea>
 						</div>
 			
 						<?php if ($contentType === 'article'): ?>
@@ -51,7 +51,7 @@ if (!$editItem) {
 						<div class="editor-section">
 							<div class="form-group">
 								<label for="summary"><?php _e('article_summary_label', 'Short summary'); ?></label>
-								<textarea id="summary" name="summary" rows="3" placeholder="<?php echo htmlspecialchars(__t('article_summary_placeholder', 'Write a short summary displayed in article listings…')); ?>"><?php echo htmlspecialchars($editItem['summary'] ?? ''); ?></textarea>
+								<textarea id="summary" name="summary" rows="3" placeholder="<?php echo hsc(__t('article_summary_placeholder', 'Write a short summary displayed in article listings…')); ?>"><?php echo hsc($editItem['summary'] ?? ''); ?></textarea>
 								<p class="help-text"><?php _e('article_summary_help', 'Replaces the auto-generated excerpt in article cards. Leave empty to use the content excerpt.'); ?></p>
 							</div>
 						</div>
@@ -88,7 +88,7 @@ if (!$editItem) {
 												]];
 											}
 											foreach ($editGalleries as $gIdx => $gallery):
-												$gLabel  = htmlspecialchars($gallery['label'] ?? __t('gallery_default_label', 'Gallery ' . ($gIdx + 1)));
+												$gLabel  = hsc($gallery['label'] ?? __t('gallery_default_label', 'Gallery ' . ($gIdx + 1)));
 												$gLayout = $gallery['layout'] ?? 'grid';
 												$gImages = $gallery['images'] ?? [];
 											?>
@@ -114,11 +114,11 @@ if (!$editItem) {
 														$imgUrl = (strpos($imgSrc, 'files/') === 0) ? '../' . $imgSrc : '../files/' . $imgSrc;
 													?>
 										<div class="gallery-item" data-index="<?php echo $imgIdx; ?>">
-											<img src="<?php echo htmlspecialchars($imgUrl); ?>" alt="<?php _e('galleries'); ?>">
+											<img src="<?php echo hsc($imgUrl); ?>" alt="<?php _e('galleries'); ?>">
 											<div class="gallery-item-controls">
-												<input type="hidden" name="galleries[<?php echo $gIdx; ?>][images][<?php echo $imgIdx; ?>][src]" value="<?php echo htmlspecialchars($imgSrc); ?>">
-												<input type="text" name="galleries[<?php echo $gIdx; ?>][images][<?php echo $imgIdx; ?>][caption]" value="<?php echo htmlspecialchars(admin_decode_html($image['caption'] ?? '')); ?>" placeholder="<?php _e('caption'); ?>">
-												<input type="text" name="galleries[<?php echo $gIdx; ?>][images][<?php echo $imgIdx; ?>][alt_text]" value="<?php echo htmlspecialchars(admin_decode_html($image['alt_text'] ?? '')); ?>" placeholder="<?php _e('alt_text'); ?>">
+												<input type="hidden" name="galleries[<?php echo $gIdx; ?>][images][<?php echo $imgIdx; ?>][src]" value="<?php echo hsc($imgSrc); ?>">
+												<input type="text" name="galleries[<?php echo $gIdx; ?>][images][<?php echo $imgIdx; ?>][caption]" value="<?php echo hsc(admin_decode_html($image['caption'] ?? '')); ?>" placeholder="<?php _e('caption'); ?>">
+												<input type="text" name="galleries[<?php echo $gIdx; ?>][images][<?php echo $imgIdx; ?>][alt_text]" value="<?php echo hsc(admin_decode_html($image['alt_text'] ?? '')); ?>" placeholder="<?php _e('alt_text'); ?>">
 												<button type="button" class="remove-named-gallery-item">✕</button>
 											</div>
 										</div>
@@ -133,7 +133,7 @@ if (!$editItem) {
 				</div>
 				<!-- Sidebar -->
 				<div class="editor-sidebar-wrap">
-					<button type="button" id="sidebar-toggle-handle" class="sidebar-toggle-handle" title="<?php echo htmlspecialchars(__t('toggle_sidebar', 'Toggle sidebar')); ?>" aria-label="<?php echo htmlspecialchars(__t('toggle_sidebar', 'Toggle sidebar')); ?>">
+					<button type="button" id="sidebar-toggle-handle" class="sidebar-toggle-handle" title="<?php echo hsc(__t('toggle_sidebar', 'Toggle sidebar')); ?>" aria-label="<?php echo hsc(__t('toggle_sidebar', 'Toggle sidebar')); ?>">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="14" y1="4" x2="14" y2="20"/></svg>
 					</button>
 				<aside class="editor-sidebar">
@@ -161,27 +161,27 @@ if (!$editItem) {
 							$_edit_time   = admin_extract_time($_edit_stored) ?: '';
 							$_edit_dt_val = $_edit_date . ($_edit_time ? 'T' . $_edit_time : 'T00:00');
 							?>
-								<input type="datetime-local" id="publish_datetime" name="publish_datetime" form="content-form" value="<?php echo htmlspecialchars($_edit_dt_val); ?>">
+								<input type="datetime-local" id="publish_datetime" name="publish_datetime" form="content-form" value="<?php echo hsc($_edit_dt_val); ?>">
 								<input type="hidden" id="date" name="date" form="content-form" value="">
 								<input type="hidden" id="time" name="time" form="content-form" value="">
 							</div>
 							<div class="form-group" style="margin-bottom: 15px;">
 								<label for="publish_at"><span class="label-icon">🕐</span> <?php _e('schedule_publish'); ?></label>
 								<?php if (($editItem['status'] ?? 'published') === 'scheduled'): ?>
-								<div class="badge badge-scheduled" style="margin-bottom:8px;">🕐 <?php _e('scheduled_for'); ?> <?php echo htmlspecialchars($editItem['publish_at'] ?? ''); ?></div>
+								<div class="badge badge-scheduled" style="margin-bottom:8px;">🕐 <?php _e('scheduled_for'); ?> <?php echo hsc($editItem['publish_at'] ?? ''); ?></div>
 								<?php endif; ?>
-								<input type="datetime-local" id="publish_at" name="publish_at" form="content-form" value="<?php echo !empty($editItem['publish_at']) ? htmlspecialchars(str_replace(' ', 'T', $editItem['publish_at'])) : ''; ?>">
+								<input type="datetime-local" id="publish_at" name="publish_at" form="content-form" value="<?php echo !empty($editItem['publish_at']) ? hsc(str_replace(' ', 'T', $editItem['publish_at'])) : ''; ?>">
 								<p class="help-text"><?php _e('schedule_help'); ?></p>
 							</div>
 							<?php if (!empty($editItem['last_modified'])): ?>
 							<div class="form-group" style="margin-bottom: 15px;">
 								<label><span class="label-icon">🕒</span> <?php _e('last_modified'); ?></label>
-								<div class="meta-value"><?php echo admin_format_date($editItem['last_modified']); ?><?php $lmTime = admin_format_time($editItem['last_modified']); if ($lmTime): ?><span class="meta-time"> - <?php echo htmlspecialchars($lmTime); ?></span><?php endif; ?></div>
+								<div class="meta-value"><?php echo admin_format_date($editItem['last_modified']); ?><?php $lmTime = admin_format_time($editItem['last_modified']); if ($lmTime): ?><span class="meta-time"> - <?php echo hsc($lmTime); ?></span><?php endif; ?></div>
 							</div>
 							<?php endif; ?>
 							<div class="form-group">
 								<label for="custom_slug">🔗 <?php _e('custom_url_slug'); ?></label>
-								<input type="text" id="custom_slug" name="custom_slug" form="content-form" value="<?php echo htmlspecialchars($editItem['custom_slug'] ?? ''); ?>" placeholder="<?php _e('slug_autogenerate_placeholder'); ?>">
+								<input type="text" id="custom_slug" name="custom_slug" form="content-form" value="<?php echo hsc($editItem['custom_slug'] ?? ''); ?>" placeholder="<?php _e('slug_autogenerate_placeholder'); ?>">
 								<p class="help-text"><?php _e('slug_help'); ?></p>
 							</div>
 						</div>
@@ -236,16 +236,16 @@ if (!$editItem) {
 								$_catDisplayVal = $data['categories'][$_cs]['name'] ?? $editItem['category'];
 							}
 							?>
-							<input type="text" id="category" name="category" form="content-form" placeholder="<?php _e('type_or_select'); ?>" value="<?php echo htmlspecialchars($_catDisplayVal); ?>" list="category-datalist">
+							<input type="text" id="category" name="category" form="content-form" placeholder="<?php _e('type_or_select'); ?>" value="<?php echo hsc($_catDisplayVal); ?>" list="category-datalist">
 									<datalist id="category-datalist">
 									<option value=""><?php _e('no_category'); ?></option>
-									<?php foreach ($existingCategories as $slug => $name): ?><option value="<?php echo htmlspecialchars($name); ?>"><?php endforeach; ?>
+									<?php foreach ($existingCategories as $slug => $name): ?><option value="<?php echo hsc($name); ?>"><?php endforeach; ?>
 									</datalist>
 									<button type="button" class="btn btn-outline btn-sm" onclick="toggleSuggestions('category-suggestions')"><?php _e('browse_all'); ?></button>
 									</div>
 									<div id="category-suggestions" class="suggestions-box" style="display:none;">
 									<span class="item-badge category-badge" data-value=""><?php _e('no_category'); ?></span>
-									<?php foreach ($existingCategories as $slug => $name): ?><span class="item-badge category-badge" data-value="<?php echo htmlspecialchars($name); ?>"><?php echo htmlspecialchars($name); ?></span><?php endforeach; ?>
+									<?php foreach ($existingCategories as $slug => $name): ?><span class="item-badge category-badge" data-value="<?php echo hsc($name); ?>"><?php echo hsc($name); ?></span><?php endforeach; ?>
 									</div>
 								<?php endif; ?>
 								<div class="form-group">
@@ -260,11 +260,11 @@ if (!$editItem) {
 								}
 							}
 							?>
-							<input type="text" id="tags" name="tags" form="content-form" placeholder="<?php _e('tags_placeholder'); ?>" value="<?php echo htmlspecialchars(implode(', ', $_tagDisplayVals)); ?>">
+							<input type="text" id="tags" name="tags" form="content-form" placeholder="<?php _e('tags_placeholder'); ?>" value="<?php echo hsc(implode(', ', $_tagDisplayVals)); ?>">
 									<button type="button" class="btn btn-outline btn-sm" onclick="toggleSuggestions('tag-suggestions')"><?php _e('browse_all'); ?></button>
 								</div>
 								<div id="tag-suggestions" class="suggestions-box" style="display:none;">
-								<?php foreach ($existingTags as $slug => $name): ?><span class="item-badge tag-badge" data-value="<?php echo htmlspecialchars($name); ?>"><?php echo htmlspecialchars($name); ?></span><?php endforeach; ?>
+								<?php foreach ($existingTags as $slug => $name): ?><span class="item-badge tag-badge" data-value="<?php echo hsc($name); ?>"><?php echo hsc($name); ?></span><?php endforeach; ?>
 								</div>
 								<label class="checkbox-label">
 									<input type="checkbox" name="show_tags_at_bottom" form="content-form" <?php echo isset($editItem['show_tags_at_bottom']) && $editItem['show_tags_at_bottom'] ? 'checked' : ''; ?>>
@@ -284,7 +284,7 @@ if (!$editItem) {
 								<label><?php _e('page_template_label'); ?></label>
 								<select id="page_template" name="page_template" form="content-form">
 								<?php foreach ($pageTemplates as $tplKey => $tplName): ?>
-								<option value="<?php echo htmlspecialchars($tplKey); ?>" <?php echo $selectedTemplate === $tplKey ? 'selected' : ''; ?>><?php echo htmlspecialchars($tplName); ?></option>
+								<option value="<?php echo hsc($tplKey); ?>" <?php echo $selectedTemplate === $tplKey ? 'selected' : ''; ?>><?php echo hsc($tplName); ?></option>
 								<?php endforeach; ?>
 								</select>
 							<p class="help-text"><?php _e('page_template_help'); ?></p>
@@ -333,7 +333,7 @@ if (!$editItem) {
 							?>
 									<?php if ($featuredCleanPath): ?>
 									<div id="featured-image-preview" style="margin-top:10px;">
-										<img src="<?php echo htmlspecialchars($featuredDisplayUrl); ?>" alt="" class="featured-preview">
+										<img src="<?php echo hsc($featuredDisplayUrl); ?>" alt="" class="featured-preview">
 										<button type="button" class="remove-featured-image"><?php _e('remove_image'); ?></button>
 									</div>
 									<?php else: ?>
@@ -345,7 +345,7 @@ if (!$editItem) {
 									<input type="file" id="image" name="image" form="content-form" accept="image/*" style="width:100%;">
 									<button type="button" id="select-featured-image" class="btn btn-outline btn-sm" style="margin-top:10px;"><?php _e('select_from_files'); ?></button>
 									<p class="help-text"><?php _e('upload_or_select'); ?></p>
-									<input type="hidden" id="selected-image-path" name="selected_image_path" form="content-form" value="<?php echo htmlspecialchars($selectedImagePathValue); ?>">
+									<input type="hidden" id="selected-image-path" name="selected_image_path" form="content-form" value="<?php echo hsc($selectedImagePathValue); ?>">
 								</div>
 							</div>
 						</div>
@@ -364,13 +364,13 @@ if (!$editItem) {
 								</label>
 								<div id="ri-selected"></div>
 								<div style="position:relative;margin-top:10px;">
-									<input type="text" id="ri-search" placeholder="<?php echo htmlspecialchars(__t('related_content_search_ph')); ?>" autocomplete="off" style="width:100%;box-sizing:border-box;">
+									<input type="text" id="ri-search" placeholder="<?php echo hsc(__t('related_content_search_ph')); ?>" autocomplete="off" style="width:100%;box-sizing:border-box;">
 									<div id="ri-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;
 										background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);
 										max-height:350px;overflow-y:auto;box-shadow:var(--shadow-md);"></div>
 								</div>
 								<p class="help-text" style="margin-top:8px;"><?php _e('related_content_help'); ?></p>
-								<input type="hidden" id="ri-data" name="related_items" form="content-form" value="<?php echo htmlspecialchars(json_encode($_ri_edit, JSON_UNESCAPED_UNICODE)); ?>">
+								<input type="hidden" id="ri-data" name="related_items" form="content-form" value="<?php echo hsc(json_encode($_ri_edit, JSON_UNESCAPED_UNICODE)); ?>">
 							</div>
 						</div>
 			
@@ -525,21 +525,21 @@ if (!$editItem) {
 							<div class="panel-content panel-collapsible">
 								<div class="form-group">
 									<label for="meta_title"><?php _e('meta_title'); ?></label>
-									<input type="text" id="meta_title" name="meta_title" form="content-form" maxlength="80" value="<?php echo htmlspecialchars($editItem['meta_title'] ?? ''); ?>">
+									<input type="text" id="meta_title" name="meta_title" form="content-form" maxlength="80" value="<?php echo hsc($editItem['meta_title'] ?? ''); ?>">
 									<p class="help-text"><?php _e('meta_title_help'); ?></p>
 								</div>
 								<div class="form-group">
 									<label for="meta_description"><?php _e('meta_description'); ?></label>
-									<textarea id="meta_description" name="meta_description" form="content-form" rows="3" maxlength="200"><?php echo htmlspecialchars($editItem['meta_description'] ?? ''); ?></textarea>
+									<textarea id="meta_description" name="meta_description" form="content-form" rows="3" maxlength="200"><?php echo hsc($editItem['meta_description'] ?? ''); ?></textarea>
 									<p class="help-text"><?php _e('meta_description_help'); ?></p>
 								</div>
 								<div class="form-group">
 									<label for="meta_keywords"><?php _e('meta_keywords'); ?></label>
-									<input type="text" id="meta_keywords" name="meta_keywords" form="content-form" value="<?php echo htmlspecialchars($editItem['meta_keywords'] ?? ''); ?>">
+									<input type="text" id="meta_keywords" name="meta_keywords" form="content-form" value="<?php echo hsc($editItem['meta_keywords'] ?? ''); ?>">
 								</div>
 								<div class="form-group">
 									<label for="canonical_url"><?php _e('canonical_url'); ?></label>
-									<input type="url" id="canonical_url" name="canonical_url" form="content-form" value="<?php echo htmlspecialchars($editItem['canonical_url'] ?? ''); ?>">
+									<input type="url" id="canonical_url" name="canonical_url" form="content-form" value="<?php echo hsc($editItem['canonical_url'] ?? ''); ?>">
 								</div>
 								<div class="form-group">
 									<label for="schema_type"><?php _e('schema_type'); ?></label>
@@ -555,20 +555,20 @@ if (!$editItem) {
 									<h4><?php _e('social_media'); ?></h4>
 									<div class="form-group">
 										<label for="og_title"><?php _e('og_title'); ?></label>
-										<input type="text" id="og_title" name="og_title" form="content-form" value="<?php echo htmlspecialchars($editItem['og_title'] ?? ''); ?>">
+										<input type="text" id="og_title" name="og_title" form="content-form" value="<?php echo hsc($editItem['og_title'] ?? ''); ?>">
 									</div>
 									<div class="form-group">
 										<label for="og_description"><?php _e('og_description'); ?></label>
-										<textarea id="og_description" name="og_description" form="content-form" rows="2"><?php echo htmlspecialchars($editItem['og_description'] ?? ''); ?></textarea>
+										<textarea id="og_description" name="og_description" form="content-form" rows="2"><?php echo hsc($editItem['og_description'] ?? ''); ?></textarea>
 									</div>
 									<div class="form-group" style="text-align:center;">
 										<label><?php _e('social_media_image'); ?></label>
-										<input type="hidden" id="og_image" name="og_image" form="content-form" value="<?php echo htmlspecialchars($editItem['og_image'] ?? ''); ?>">
+										<input type="hidden" id="og_image" name="og_image" form="content-form" value="<?php echo hsc($editItem['og_image'] ?? ''); ?>">
 										<div id="og-image-preview" style="display:none;margin-top:10px;">
 											<?php if (!empty($editItem['og_image'])):
 								$ogUrl = strpos($editItem['og_image'], 'files/') === 0 ? '../' . $editItem['og_image'] : '../files/' . $editItem['og_image'];
 								?>
-											<img src="<?php echo htmlspecialchars($ogUrl); ?>" alt="" style="max-width:100%;border-radius:4px;margin-bottom:10px;">
+											<img src="<?php echo hsc($ogUrl); ?>" alt="" style="max-width:100%;border-radius:4px;margin-bottom:10px;">
 											<button type="button" class="remove-og-image"><?php _e('remove_image'); ?></button>
 											<?php endif; ?>
 										</div>
@@ -589,7 +589,7 @@ if (!$editItem) {
 								<div class="preview-box">
 									<h4><?php _e('google_preview'); ?></h4>
 									<div class="preview-title" id="preview_title"><?php _e('preview_title_placeholder'); ?></div>
-									<div class="preview-url" id="preview_url" data-site-url="<?php echo htmlspecialchars(admin_site_url()); ?>" data-content-type="<?php echo htmlspecialchars($contentType); ?>"></div>
+									<div class="preview-url" id="preview_url" data-site-url="<?php echo hsc(admin_site_url()); ?>" data-content-type="<?php echo hsc($contentType); ?>"></div>
 									<div class="preview-description" id="preview_description"><?php _e('preview_description_placeholder'); ?></div>
 								</div>
 							</div>
@@ -604,12 +604,12 @@ if (!$editItem) {
 							<?php
 									$_cf_saved = $editItem['custom_fields'] ?? [];
 									foreach ($_cf_schema_edit as $cf):
-									$cfKey   = htmlspecialchars($cf['key']   ?? '');
-									$cfLabel = htmlspecialchars($cf['label'] ?? $cfKey);
+									$cfKey   = hsc($cf['key']   ?? '');
+									$cfLabel = hsc($cf['label'] ?? $cfKey);
 									$cfType  = $cf['type'] ?? 'text';
 									$cfReq   = !empty($cf['required']);
 									$cfRaw   = $_cf_saved[$cf['key'] ?? ''] ?? '';
-									$cfVal   = htmlspecialchars($cfRaw);
+									$cfVal   = hsc($cfRaw);
 									$cfName  = 'custom_fields[' . ($cf['key'] ?? '') . ']';
 									?>
 							<div class="form-group" style="margin-bottom:14px;">
@@ -625,7 +625,7 @@ if (!$editItem) {
 								<select id="cf_<?php echo $cfKey; ?>" name="<?php echo $cfName; ?>" form="content-form" <?php echo $cfReq ? 'required' : ''; ?>>
 									<option value=""></option>
 									<?php foreach (array_map('trim', explode(',', $cf['options'])) as $opt): ?>
-									<option value="<?php echo htmlspecialchars($opt); ?>" <?php echo $cfRaw === $opt ? 'selected' : ''; ?>><?php echo htmlspecialchars($opt); ?></option>
+									<option value="<?php echo hsc($opt); ?>" <?php echo $cfRaw === $opt ? 'selected' : ''; ?>><?php echo hsc($opt); ?></option>
 									<?php endforeach; ?>
 								</select>
 								<?php elseif ($cfType === 'number'): ?>

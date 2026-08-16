@@ -1,22 +1,21 @@
 <div align="center">
 
-# If you like the project, please give it a Star! ⭐
+# If you like Synaptik CMS, please give it a Star! ⭐
 
 
 # SynaptikCMS
 
 **A full-featured flat-file PHP CMS built for speed and simplicity. JSON storage, no database, no dependencies — just upload to any server and go.**
-<br>
+<br><br>
 
-<img src="https://img.shields.io/badge/PHP-7.4%2B-777bb4?style=flat&logo=php&logoColor=white" height="32">
+<img src="https://img.shields.io/badge/PHP-8.3%2B-777bb4?style=flat&logo=php&logoColor=white" height="32">
 <img src="https://img.shields.io/github/v/release/synaptikcms/synaptik-cms?style=flat&color=f97316&label=latest" height="32">
-<img src="https://img.shields.io/badge/license-SynaptikCMS%20Open%20License-22c55e?style=flat" height="32">
+<img src="https://img.shields.io/badge/license-MIT-22c55e?style=flat" height="32">
 <img src="https://img.shields.io/badge/footprint-2MB-14b8a6?style=flat" height="32">
 <img src="https://img.shields.io/badge/no-database-e11d48?style=flat" height="32">
 <img src="https://img.shields.io/badge/zero-dependencies-0ea5e9?style=flat" height="32">
 <img src="https://img.shields.io/github/stars/synaptikcms/synaptik-cms?style=flat&color=f59e0b&label=stars" height="32">
-<img src="https://img.shields.io/github/downloads/synaptikcms/synaptik-cms/total?style=flat&color=8b5cf6&label=downloads" height="32">
-<img src="https://img.shields.io/github/downloads-pre/synaptikcms/synaptik-cms/latest/total?style=flat&color=6366f1&label=downloads%40latest" height="32">
+
 <br><br>
 
 [Live Demo](https://demo.synaptikcms.com/) · [Download Themes](https://synaptikcms.com/themes/) · [Download Plugins](https://synaptikcms.com/plugins/) · [Documentation](https://docs.synaptikcms.com/) · [Changelog](CHANGELOG.md) · [Report a Bug](https://github.com/synaptikcms/synaptik-cms/issues)
@@ -57,7 +56,7 @@ It was built for developers, designers, artists, creative professionals, writers
 | Built-in analytics | ✓ plugin | Plugin | Plugin | Plugin | Plugin | Plugin |
 | Composer required | ✗ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | Install footprint | ~2 MB | ~86 MB | ~52 MB | ~20 MB | ~9 MB | ~10 MB |
-| License | MIT free | GPL free | MIT free | Paid | MIT free | MIT free |
+| License | SynaptikCMS OL | GPL free | MIT free | Paid | MIT free | MIT free |
 | Install time | ~2 min | ~10 min | ~5 min | ~5 min | ~3 min | ~5 min |
 
 SynaptikCMS is not trying to replace WordPress at scale. It is the right tool when you want a real admin panel with no database — for portfolios, documentation sites, small business sites, personal blogs or any project where simplicity and load speed matter.
@@ -148,7 +147,7 @@ If you wish to extend the functionalities of your CMS, official plugins can be f
 | Requirement | Minimum | Notes |
 |---|---|---|
 | Web server | Apache 2.2+ | Nginx works but requires manual rewrite config |
-| PHP | **7.4+** | 8.0+ recommended |
+| PHP | **8.3+** | |
 | Database | — | **None required** |
 
 ### PHP Extensions
@@ -196,13 +195,19 @@ RewriteRule ^(.*)$ index.php [QSA,L]
 
 ### Nginx (not officially supported)
 
+A sample configuration is provided in `nginx.conf.example` at the root of the package. The critical sections cover sensitive directory blocks, PHP execution rules, and security headers. Copy and adapt it to your server block. At minimum, you need:
+
 ```nginx
 location / {
     try_files $uri $uri/ /index.php?$query_string;
 }
-location ~ ^/(data|bckps)/ { deny all; }
-location ~ (settings\.json|admin-credentials\.php)$ { deny all; }
+location ~ ^/(data|bckps|private|cache|lang)(/|$) { deny all; }
+location ~ /(config\.json|admin-credentials\.php|plugins\.json|install\.lock)$ { deny all; }
+location ~ ^/plugins/[^/]+/(data|private)(/|$) { deny all; }
+location ~ /\. { deny all; }
 ```
+
+See `nginx.conf.example` for the full recommended configuration including security headers and the `core/` allow-list.
 
 ### Filesystem Permissions
 
@@ -210,7 +215,7 @@ The following paths must be writable by the PHP process:
 
 | Path | Required for |
 |---|---|
-| `/` | `settings.json`, `install.lock` during setup |
+| `/` | `config.json`, `install.lock` during setup |
 | `/data/` | All content read/write |
 | `/files/` | Media uploads |
 | `/bckps/` | Backups, CSRF secret |
@@ -235,7 +240,7 @@ Internet Explorer is not supported.
 ```
 [ ] Apache 2.2+ with mod_rewrite enabled
 [ ] AllowOverride All on the document root
-[ ] PHP 7.4+ (8.0+ recommended)
+[ ] PHP 8.3+
 [ ] Extensions: json, mbstring, hash, session, pcre, filter, fileinfo
 [ ] GD with JPEG and PNG support
 [ ] ZipArchive recommended (theme/plugin upload, auto-updates)

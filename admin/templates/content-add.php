@@ -32,7 +32,7 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 						<div class="title-container">
 							<input type="text" id="title" name="title" class="title-input"
 								placeholder="<?php _e('add_title'); ?>"
-								value="<?php echo isset($_SESSION['form_data']['title']) ? htmlspecialchars($_SESSION['form_data']['title']) : ''; ?>"
+								value="<?php echo isset($_SESSION['form_data']['title']) ? hsc($_SESSION['form_data']['title']) : ''; ?>"
 								required>
 						</div>
 
@@ -41,7 +41,7 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 
 				<!-- Content Editor -->
 				<div class="content-container">
-							<textarea id="content" name="content" rows="20" required><?php echo isset($_SESSION['form_data']['content']) ? htmlspecialchars($_SESSION['form_data']['content']) : ''; ?></textarea>
+							<textarea id="content" name="content" rows="20" required><?php echo isset($_SESSION['form_data']['content']) ? hsc($_SESSION['form_data']['content']) : ''; ?></textarea>
 						</div>
 
 						<?php if ($selectedType === 'article'): ?>
@@ -49,7 +49,7 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 						<div class="editor-section">
 							<div class="form-group">
 								<label for="summary"><?php _e('article_summary_label', 'Short summary'); ?></label>
-								<textarea id="summary" name="summary" rows="3" placeholder="<?php echo htmlspecialchars(__t('article_summary_placeholder', 'Write a short summary displayed in article listings…')); ?>"><?php echo isset($_SESSION['form_data']['summary']) ? htmlspecialchars($_SESSION['form_data']['summary']) : ''; ?></textarea>
+								<textarea id="summary" name="summary" rows="3" placeholder="<?php echo hsc(__t('article_summary_placeholder', 'Write a short summary displayed in article listings…')); ?>"><?php echo isset($_SESSION['form_data']['summary']) ? hsc($_SESSION['form_data']['summary']) : ''; ?></textarea>
 								<p class="help-text"><?php _e('article_summary_help', 'Replaces the auto-generated excerpt in article cards. Leave empty to use the content excerpt.'); ?></p>
 							</div>
 						</div>
@@ -60,7 +60,7 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 						<div class="editor-section">
 							<div class="form-group">
 								<label for="description"><?php _e('short_description'); ?></label>
-								<textarea id="description" name="description" rows="3" placeholder="<?php _e('project_summary_placeholder'); ?>"><?php echo isset($_SESSION['form_data']['description']) ? htmlspecialchars($_SESSION['form_data']['description']) : ''; ?></textarea>
+								<textarea id="description" name="description" rows="3" placeholder="<?php _e('project_summary_placeholder'); ?>"><?php echo isset($_SESSION['form_data']['description']) ? hsc($_SESSION['form_data']['description']) : ''; ?></textarea>
 							</div>
 						</div>
 						<?php endif; ?>
@@ -76,7 +76,7 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 								<?php
 								$sessionGalleries = $_SESSION['form_data']['galleries'] ?? [];
 								foreach ($sessionGalleries as $gIdx => $gallery):
-									$gLabel  = htmlspecialchars($gallery['label'] ?? __t('gallery_default_label', 'Gallery ' . ($gIdx + 1)));
+									$gLabel  = hsc($gallery['label'] ?? __t('gallery_default_label', 'Gallery ' . ($gIdx + 1)));
 									$gLayout = $gallery['layout'] ?? 'grid';
 									$gImages = $gallery['images'] ?? [];
 								?>
@@ -102,11 +102,11 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 											$imgUrl = (strpos($imgSrc, 'files/') === 0) ? '../' . $imgSrc : '../files/' . $imgSrc;
 										?>
 										<div class="gallery-item" data-index="<?php echo $imgIdx; ?>">
-											<img src="<?php echo htmlspecialchars($imgUrl); ?>" alt="">
+											<img src="<?php echo hsc($imgUrl); ?>" alt="">
 											<div class="gallery-item-controls">
-												<input type="hidden" name="galleries[<?php echo $gIdx; ?>][images][<?php echo $imgIdx; ?>][src]"     value="<?php echo htmlspecialchars($imgSrc); ?>">
-												<input type="text"   name="galleries[<?php echo $gIdx; ?>][images][<?php echo $imgIdx; ?>][caption]" value="<?php echo htmlspecialchars(admin_decode_html($image['caption'] ?? '')); ?>" placeholder="<?php _e('caption'); ?>">
-												<input type="text"   name="galleries[<?php echo $gIdx; ?>][images][<?php echo $imgIdx; ?>][alt_text]" value="<?php echo htmlspecialchars(admin_decode_html($image['alt_text'] ?? '')); ?>" placeholder="<?php _e('alt_text'); ?>">
+												<input type="hidden" name="galleries[<?php echo $gIdx; ?>][images][<?php echo $imgIdx; ?>][src]"     value="<?php echo hsc($imgSrc); ?>">
+												<input type="text"   name="galleries[<?php echo $gIdx; ?>][images][<?php echo $imgIdx; ?>][caption]" value="<?php echo hsc(admin_decode_html($image['caption'] ?? '')); ?>" placeholder="<?php _e('caption'); ?>">
+												<input type="text"   name="galleries[<?php echo $gIdx; ?>][images][<?php echo $imgIdx; ?>][alt_text]" value="<?php echo hsc(admin_decode_html($image['alt_text'] ?? '')); ?>" placeholder="<?php _e('alt_text'); ?>">
 												<button type="button" class="remove-named-gallery-item">✕</button>
 											</div>
 										</div>
@@ -122,7 +122,7 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 
 				<!-- Sidebar - Metadata -->
 				<div class="editor-sidebar-wrap">
-					<button type="button" id="sidebar-toggle-handle" class="sidebar-toggle-handle" title="<?php echo htmlspecialchars(__t('toggle_sidebar', 'Toggle sidebar')); ?>" aria-label="<?php echo htmlspecialchars(__t('toggle_sidebar', 'Toggle sidebar')); ?>">
+					<button type="button" id="sidebar-toggle-handle" class="sidebar-toggle-handle" title="<?php echo hsc(__t('toggle_sidebar', 'Toggle sidebar')); ?>" aria-label="<?php echo hsc(__t('toggle_sidebar', 'Toggle sidebar')); ?>">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="14" y1="4" x2="14" y2="20"/></svg>
 					</button>
 				<aside class="editor-sidebar">
@@ -168,7 +168,7 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 				$_add_dt_val = $_add_date . 'T' . $_add_time;
 				?>
 				 <input type="datetime-local" id="publish_datetime" name="publish_datetime" form="content-form"
-				  value="<?php echo htmlspecialchars($_add_dt_val); ?>">
+				  value="<?php echo hsc($_add_dt_val); ?>">
 				<input type="hidden" id="date" name="date" form="content-form" value="">
 				 <input type="hidden" id="time" name="time" form="content-form" value="">
 				 </div>
@@ -178,13 +178,13 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 				 <?php _e('schedule_publish'); ?>
 				</label>
 				 <input type="datetime-local" id="publish_at" name="publish_at" form="content-form"
-				   value="<?php echo isset($_SESSION['form_data']['publish_at']) ? htmlspecialchars(str_replace(' ', 'T', $_SESSION['form_data']['publish_at'])) : ''; ?>">
+				   value="<?php echo isset($_SESSION['form_data']['publish_at']) ? hsc(str_replace(' ', 'T', $_SESSION['form_data']['publish_at'])) : ''; ?>">
 				   <p class="help-text"><?php _e('schedule_help'); ?></p>
 							</div>
 				  <div class="form-group">
 				   <label for="custom_slug">🔗 <?php _e('custom_url_slug'); ?></label>
 				   <input type="text" id="custom_slug" name="custom_slug" form="content-form"
-				    value="<?php echo isset($_SESSION['form_data']['custom_slug']) ? htmlspecialchars($_SESSION['form_data']['custom_slug']) : ''; ?>"
+				    value="<?php echo isset($_SESSION['form_data']['custom_slug']) ? hsc($_SESSION['form_data']['custom_slug']) : ''; ?>"
 				    placeholder="<?php _e('slug_autogenerate_placeholder'); ?>">
 				  <p class="help-text"><?php _e('slug_help'); ?></p>
 				</div>
@@ -235,12 +235,12 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 				   <label><?php _e('category'); ?></label>
 				    <input type="text" id="category" name="category" form="content-form"
 				    placeholder="<?php _e('type_or_select'); ?>"
-				    value="<?php echo isset($_SESSION['form_data']['category']) ? htmlspecialchars($_SESSION['form_data']['category']) : ''; ?>"
+				    value="<?php echo isset($_SESSION['form_data']['category']) ? hsc($_SESSION['form_data']['category']) : ''; ?>"
 				    list="category-datalist">
 				    <datalist id="category-datalist">
 				    <option value=""><?php _e('no_category'); ?></option>
 				    <?php foreach ($existingCategories as $slug => $name): ?>
-				    <option value="<?php echo htmlspecialchars($name); ?>">
+				    <option value="<?php echo hsc($name); ?>">
 				    <?php endforeach; ?>
 				    </datalist>
 				    <button type="button" class="btn btn-outline btn-sm" onclick="toggleSuggestions('category-suggestions')"><?php _e('browse_all'); ?></button>
@@ -248,7 +248,7 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 				    <div id="category-suggestions" class="suggestions-box" style="display: none;">
 				    <span class="item-badge category-badge" data-value=""><?php _e('no_category'); ?></span>
 				    <?php foreach ($existingCategories as $slug => $name): ?>
-				    <span class="item-badge category-badge" data-value="<?php echo htmlspecialchars($name); ?>"><?php echo htmlspecialchars($name); ?></span>
+				    <span class="item-badge category-badge" data-value="<?php echo hsc($name); ?>"><?php echo hsc($name); ?></span>
 				    <?php endforeach; ?>
 				    <?php if (empty($existingCategories)): ?><em class="empty-state"><?php _e('no_categories_yet'); ?></em><?php endif; ?>
 				    </div>
@@ -257,12 +257,12 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 				  <label><?php _e('tags'); ?></label>
 				  <input type="text" id="tags" name="tags" form="content-form"
 				   placeholder="<?php _e('tags_placeholder'); ?>"
-				  value="<?php echo isset($_SESSION['form_data']['tags']) && is_array($_SESSION['form_data']['tags']) ? htmlspecialchars(implode(', ', $_SESSION['form_data']['tags'])) : (isset($_SESSION['form_data']['tags']) ? htmlspecialchars($_SESSION['form_data']['tags']) : ''); ?>">
+				  value="<?php echo isset($_SESSION['form_data']['tags']) && is_array($_SESSION['form_data']['tags']) ? hsc(implode(', ', $_SESSION['form_data']['tags'])) : (isset($_SESSION['form_data']['tags']) ? hsc($_SESSION['form_data']['tags']) : ''); ?>">
 				  <button type="button" class="btn btn-outline btn-sm" onclick="toggleSuggestions('tag-suggestions')"><?php _e('browse_all'); ?></button>
 				 </div>
 				 <div id="tag-suggestions" class="suggestions-box" style="display: none;">
 				 <?php foreach ($existingTags as $slug => $name): ?>
-				 <span class="item-badge tag-badge" data-value="<?php echo htmlspecialchars($name); ?>"><?php echo htmlspecialchars($name); ?></span>
+				 <span class="item-badge tag-badge" data-value="<?php echo hsc($name); ?>"><?php echo hsc($name); ?></span>
 				 <?php endforeach; ?>
 				 <?php if (empty($existingTags)): ?><em class="empty-state"><?php _e('no_tags_yet'); ?></em><?php endif; ?>
 				 </div>
@@ -285,7 +285,7 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 				<label><?php _e('page_template_label'); ?></label>
 				<select name="page_template" form="content-form">
 				<?php foreach ($pageTemplates as $tplKey => $tplName): ?>
-				 <option value="<?php echo htmlspecialchars($tplKey); ?>" <?php echo $selectedTemplate === $tplKey ? 'selected' : ''; ?>><?php echo htmlspecialchars($tplName); ?></option>
+				 <option value="<?php echo hsc($tplKey); ?>" <?php echo $selectedTemplate === $tplKey ? 'selected' : ''; ?>><?php echo hsc($tplName); ?></option>
 				<?php endforeach; ?>
 				</select>
 				  <p class="help-text"><?php _e('page_template_help'); ?></p>
@@ -329,11 +329,11 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 				if (strpos($restoredFeaturedPath, 'files/') === 0) $restoredFeaturedPath = substr($restoredFeaturedPath, 6);
 				 $restoredFeaturedUrl = $restoredFeaturedPath ? '../files/' . ltrim($restoredFeaturedPath, '/') : '';
 				 ?>
-				  <input type="hidden" id="selected-image-path" name="selected_image_path" form="content-form" value="<?php echo htmlspecialchars($restoredFeaturedPath); ?>">
+				  <input type="hidden" id="selected-image-path" name="selected_image_path" form="content-form" value="<?php echo hsc($restoredFeaturedPath); ?>">
 				   <div id="featured-image-preview" style="display:<?php echo $restoredFeaturedPath ? 'block' : 'none'; ?>;margin-top:10px;">
 				     <?php if ($restoredFeaturedPath): ?>
-				     <p style="font-size:.7em;color:var(--text-muted);margin-top:0;"><?php _e('selected'); ?>: <?php echo htmlspecialchars(basename($restoredFeaturedPath)); ?></p>
-										<img src="<?php echo htmlspecialchars($restoredFeaturedUrl); ?>" alt="<?php _e('featured_image'); ?>" class="featured-preview">
+				     <p style="font-size:.7em;color:var(--text-muted);margin-top:0;"><?php _e('selected'); ?>: <?php echo hsc(basename($restoredFeaturedPath)); ?></p>
+										<img src="<?php echo hsc($restoredFeaturedUrl); ?>" alt="<?php _e('featured_image'); ?>" class="featured-preview">
 				     <?php else: ?>
 				     <img src="" alt="<?php _e('featured_image'); ?>" class="featured-preview">
 				    <?php endif; ?>
@@ -356,7 +356,7 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 				    <div id="ri-selected"></div>
 					<div style="position:relative;margin-top:10px;">
 						<input type="text" id="ri-search"
-							placeholder="<?php echo htmlspecialchars(__t('related_content_search_ph')); ?>"
+							placeholder="<?php echo hsc(__t('related_content_search_ph')); ?>"
 							autocomplete="off" style="width:100%;box-sizing:border-box;">
 						<div id="ri-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;
 							background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);
@@ -482,23 +482,23 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 				<div class="form-group">
 				<label for="meta_title"><?php _e('meta_title'); ?></label>
 				 <input type="text" id="meta_title" name="meta_title" form="content-form" maxlength="80"
-				  value="<?php echo isset($_SESSION['form_data']['meta_title']) ? htmlspecialchars($_SESSION['form_data']['meta_title']) : ''; ?>">
+				  value="<?php echo isset($_SESSION['form_data']['meta_title']) ? hsc($_SESSION['form_data']['meta_title']) : ''; ?>">
 				 <p class="help-text"><?php _e('meta_title_help'); ?></p>
 				</div>
 				<div class="form-group">
 				 <label for="meta_description"><?php _e('meta_description'); ?></label>
-				 <textarea id="meta_description" name="meta_description" form="content-form" rows="3" maxlength="200"><?php echo isset($_SESSION['form_data']['meta_description']) ? htmlspecialchars($_SESSION['form_data']['meta_description']) : ''; ?></textarea>
+				 <textarea id="meta_description" name="meta_description" form="content-form" rows="3" maxlength="200"><?php echo isset($_SESSION['form_data']['meta_description']) ? hsc($_SESSION['form_data']['meta_description']) : ''; ?></textarea>
 				 <p class="help-text"><?php _e('meta_description_help'); ?></p>
 				</div>
 				<div class="form-group">
 				 <label for="meta_keywords"><?php _e('meta_keywords'); ?></label>
 				 <input type="text" id="meta_keywords" name="meta_keywords" form="content-form"
-				 value="<?php echo isset($_SESSION['form_data']['meta_keywords']) ? htmlspecialchars($_SESSION['form_data']['meta_keywords']) : ''; ?>">
+				 value="<?php echo isset($_SESSION['form_data']['meta_keywords']) ? hsc($_SESSION['form_data']['meta_keywords']) : ''; ?>">
 				</div>
 				<div class="form-group">
 				 <label for="canonical_url"><?php _e('canonical_url'); ?></label>
 				 <input type="url" id="canonical_url" name="canonical_url" form="content-form"
-				  value="<?php echo isset($_SESSION['form_data']['canonical_url']) ? htmlspecialchars($_SESSION['form_data']['canonical_url']) : ''; ?>">
+				  value="<?php echo isset($_SESSION['form_data']['canonical_url']) ? hsc($_SESSION['form_data']['canonical_url']) : ''; ?>">
 				</div>
 				<div class="form-group">
 				 <label for="schema_type"><?php _e('schema_type'); ?></label>
@@ -515,15 +515,15 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 				 <div class="form-group">
 				  <label for="og_title"><?php _e('og_title'); ?></label>
 				  <input type="text" id="og_title" name="og_title" form="content-form"
-				  value="<?php echo isset($_SESSION['form_data']['og_title']) ? htmlspecialchars($_SESSION['form_data']['og_title']) : ''; ?>">
+				  value="<?php echo isset($_SESSION['form_data']['og_title']) ? hsc($_SESSION['form_data']['og_title']) : ''; ?>">
 				 </div>
 				 <div class="form-group">
 				  <label for="og_description"><?php _e('og_description'); ?></label>
-				  <textarea id="og_description" name="og_description" form="content-form" rows="2"><?php echo isset($_SESSION['form_data']['og_description']) ? htmlspecialchars($_SESSION['form_data']['og_description']) : ''; ?></textarea>
+				  <textarea id="og_description" name="og_description" form="content-form" rows="2"><?php echo isset($_SESSION['form_data']['og_description']) ? hsc($_SESSION['form_data']['og_description']) : ''; ?></textarea>
 				</div>
 				 <div class="form-group" style="text-align:center;">
 				 <label for="og_image"><?php _e('social_media_image'); ?></label>
-				 <input type="hidden" id="og_image" name="og_image" form="content-form" value="<?php echo htmlspecialchars($_SESSION['form_data']['og_image'] ?? ''); ?>">
+				 <input type="hidden" id="og_image" name="og_image" form="content-form" value="<?php echo hsc($_SESSION['form_data']['og_image'] ?? ''); ?>">
 				 <div id="og-image-preview" style="display:none;margin-top:10px;"></div>
 				 <button type="button" id="select-og-image" class="btn btn-outline btn-sm"><?php _e('select_image'); ?></button>
 				 <p class="help-text"><?php _e('og_image_help'); ?></p>
@@ -539,8 +539,8 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 									<h4><?php _e('google_preview'); ?></h4>
 				    <div class="preview-title" id="preview_title"><?php _e('preview_title_placeholder'); ?></div>
 				    <div class="preview-url" id="preview_url"
-				     data-site-url="<?php echo htmlspecialchars(admin_site_url()); ?>"
-				    data-content-type="<?php echo htmlspecialchars($selectedType); ?>"></div>
+				     data-site-url="<?php echo hsc(admin_site_url()); ?>"
+				    data-content-type="<?php echo hsc($selectedType); ?>"></div>
 				  <div class="preview-description" id="preview_description"><?php _e('preview_description_placeholder'); ?></div>
 				 </div>
 				 </div>
@@ -554,11 +554,11 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 					<div class="sidebar-panel">
 						<?php foreach ($_cf_schema_add as $cf): ?>
 						<?php
-						$cfKey   = htmlspecialchars($cf['key']   ?? '');
-						$cfLabel = htmlspecialchars($cf['label'] ?? $cfKey);
+						$cfKey   = hsc($cf['key']   ?? '');
+						$cfLabel = hsc($cf['label'] ?? $cfKey);
 						$cfType  = $cf['type'] ?? 'text';
 						$cfReq   = !empty($cf['required']);
-						$cfVal   = htmlspecialchars($_SESSION['form_data']['custom_fields'][$cf['key'] ?? ''] ?? '');
+						$cfVal   = hsc($_SESSION['form_data']['custom_fields'][$cf['key'] ?? ''] ?? '');
 						$cfName  = 'custom_fields[' . ($cf['key'] ?? '') . ']';
 						?>
 						<div class="form-group" style="margin-bottom:14px;">
@@ -574,7 +574,7 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 							<select id="cf_<?php echo $cfKey; ?>" name="<?php echo $cfName; ?>" form="content-form" <?php echo $cfReq ? 'required' : ''; ?>>
 								<option value=""></option>
 								<?php foreach (array_map('trim', explode(',', $cf['options'])) as $opt): ?>
-								<option value="<?php echo htmlspecialchars($opt); ?>" <?php echo $cfVal === htmlspecialchars($opt) ? 'selected' : ''; ?>><?php echo htmlspecialchars($opt); ?></option>
+								<option value="<?php echo hsc($opt); ?>" <?php echo $cfVal === hsc($opt) ? 'selected' : ''; ?>><?php echo hsc($opt); ?></option>
 								<?php endforeach; ?>
 							</select>
 							<?php elseif ($cfType === 'number'): ?>

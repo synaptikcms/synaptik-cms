@@ -96,7 +96,7 @@ function sb_icon(string $name, string $class = ''): string {
 	if ($_sb_display_name !== ''):
 	?>
 	<div class="sidebar-user">
-		<span id="sidebar-display-name"><?php echo htmlspecialchars($_sb_display_name); ?></span>
+		<span id="sidebar-display-name"><?php echo hsc($_sb_display_name); ?></span>
 	</div>
 	<?php endif; ?>
 
@@ -104,7 +104,7 @@ function sb_icon(string $name, string $class = ''): string {
 	<div class="sidebar-section">
 		<ul>
 			<li>
-				<a href="index.php" class="sidebar-simple-link <?php echo ($_sb_file === 'index.php' && empty($_sb_action) && empty($_sb_type)) ? 'active' : ''; ?>" data-label="<?php echo htmlspecialchars(__t('dashboard')); ?>">
+				<a href="index.php" class="sidebar-simple-link <?php echo ($_sb_file === 'index.php' && empty($_sb_action) && empty($_sb_type)) ? 'active' : ''; ?>" data-label="<?php echo hsc(__t('dashboard')); ?>">
 					<?php echo sb_icon('dashboard'); ?><?php _e('dashboard'); ?>
 				</a>
 			</li>
@@ -154,7 +154,7 @@ function sb_icon(string $name, string $class = ''): string {
 	<div class="sidebar-section">
 		<ul>
 			<li>
-				<a href="file-manager.php" class="sidebar-simple-link <?php echo $_sb_file === 'file-manager.php' ? 'active' : ''; ?>" data-label="<?php echo htmlspecialchars(__t('media')); ?>">
+				<a href="file-manager.php" class="sidebar-simple-link <?php echo $_sb_file === 'file-manager.php' ? 'active' : ''; ?>" data-label="<?php echo hsc(__t('media')); ?>">
 					<?php echo sb_icon('media'); ?><?php _e('media'); ?>
 				</a>
 			</li>
@@ -276,11 +276,11 @@ function sb_icon(string $name, string $class = ''): string {
 			<?php foreach ($_sb_plugin_items as $_sb_pi): ?>
 			<?php $_sb_pi_active = ($_sb_plugin_slug !== '' && $_sb_plugin_slug === $_sb_pi['slug']); ?>
 			<li>
-				<a href="<?php echo htmlspecialchars($_sb_pi['url']); ?>" class="sidebar-simple-link <?php echo $_sb_pi_active ? 'active' : ''; ?>" data-label="<?php echo htmlspecialchars($_sb_pi['label']); ?>">
+				<a href="<?php echo hsc($_sb_pi['url']); ?>" class="sidebar-simple-link <?php echo $_sb_pi_active ? 'active' : ''; ?>" data-label="<?php echo hsc($_sb_pi['label']); ?>">
 					<?php if (!empty($_sb_pi['icon'])): ?>
 					<svg class="sb-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><?php echo $_sb_pi['icon']; ?></svg>
 					<?php endif; ?>
-					<?php echo htmlspecialchars($_sb_pi['label']); ?>
+					<?php echo hsc($_sb_pi['label']); ?>
 				</a>
 			</li>
 			<?php endforeach; ?>

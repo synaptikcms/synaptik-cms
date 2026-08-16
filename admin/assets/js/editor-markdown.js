@@ -314,7 +314,7 @@ document.addEventListener('DOMContentLoaded', function () {
 			const text = overlay.querySelector('#lt-'+uid).value || 'link';
 			const url  = overlay.querySelector('#lu-'+uid).value  || '#';
 			const newTab = overlay.querySelector('#ln-'+uid).checked;
-			const md = newTab ? `[${text}](${url}){:target="_blank"}` : `[${text}](${url})`;
+			const md = newTab ? `[${text}](${url} {:target="_blank"})` : `[${text}](${url})`;
 			if (cmEditor) { cmEditor.getDoc().replaceSelection(md); syncContent(); }
 			_close(overlay);
 		});

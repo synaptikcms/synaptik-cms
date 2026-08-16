@@ -44,29 +44,29 @@ if (!defined('INCLUDED')) {
 			<?php foreach ($drafts as $draft): ?>
 			<tr>
 				<td class="batch-checkbox-cell" style="display: none;">
-					<input type="checkbox" class="batch-item" data-id="<?php echo htmlspecialchars($draft['id']); ?>">
+					<input type="checkbox" class="batch-item" data-id="<?php echo hsc($draft['id']); ?>">
 				</td>
 				<td class="title-cell">
 					<div class="title-with-preview">
 						<?php if (!empty($draft['image'])): ?>
 						<div class="mini-preview">
-							<img src="<?php echo '../files/' . htmlspecialchars($draft['image']); ?>" alt="" loading="lazy">
+							<img src="<?php echo '../files/' . hsc($draft['image']); ?>" alt="" loading="lazy">
 						</div>
 						<?php else: ?>
 						<div class="activity-icon unknown-icon"></div>
 						<?php endif; ?>
-						<span><?php echo htmlspecialchars($draft['title'] ?: __t('untitled_draft')); ?></span>
+						<span><?php echo hsc($draft['title'] ?: __t('untitled_draft')); ?></span>
 					</div>
 				</td>
-				<td><?php echo ucfirst(htmlspecialchars($draft['type'] ?: __t('type_unknown'))); ?></td>
+				<td><?php echo ucfirst(hsc($draft['type'] ?: __t('type_unknown'))); ?></td>
 				<td><?php echo date('Y-m-d H:i:s', $draft['timestamp']); ?></td>
 				<td>
 					<a href="index.php?action=drafts&draft_action=restore&id=<?php echo urlencode($draft['id']); ?>" class="table-btn edit-btn">
 						<?php _e('restore'); ?>
 					</a>
 					<button type="button" class="table-btn delete-btn delete-draft-btn"
-					   data-id="<?php echo htmlspecialchars($draft['id']); ?>"
-					   data-title="<?php echo htmlspecialchars($draft['title'] ?: __t('untitled_draft')); ?>">
+					   data-id="<?php echo hsc($draft['id']); ?>"
+					   data-title="<?php echo hsc($draft['title'] ?: __t('untitled_draft')); ?>">
 						<?php _e('delete'); ?>
 					</button>
 				</td>

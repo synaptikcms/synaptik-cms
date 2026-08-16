@@ -15,23 +15,23 @@ function _sv_image_picker(string $field, string $currentPath): void {
 	$clean = ltrim($currentPath, '/');
 	$src   = $clean ? '../' . $clean : '';
 	?>
-	<div class="sip-wrapper" data-field="<?php echo htmlspecialchars($field); ?>">
+	<div class="sip-wrapper" data-field="<?php echo hsc($field); ?>">
 		<div class="sip-preview"<?php echo $clean ? '' : ' style="display:none"'; ?>>
-			<img class="sip-preview-img" src="<?php echo htmlspecialchars($src); ?>" alt="">
-			<button type="button" class="btn btn-danger btn-sm sip-remove-btn" data-field="<?php echo htmlspecialchars($field); ?>" name="<?php _e('remove_image'); ?>">X</button>
+			<img class="sip-preview-img" src="<?php echo hsc($src); ?>" alt="">
+			<button type="button" class="btn btn-danger btn-sm sip-remove-btn" data-field="<?php echo hsc($field); ?>" name="<?php _e('remove_image'); ?>">X</button>
 		</div>
 		<div class="sip-controls">
-			<input type="file" name="<?php echo htmlspecialchars($field); ?>_file" accept="image/*"
-			       class="sip-upload-input" data-field="<?php echo htmlspecialchars($field); ?>"
+			<input type="file" name="<?php echo hsc($field); ?>_file" accept="image/*"
+			       class="sip-upload-input" data-field="<?php echo hsc($field); ?>"
 			       style="font-size:12px;width:auto;">
-			<button type="button" class="btn btn-outline btn-sm sip-browse-btn" data-field="<?php echo htmlspecialchars($field); ?>">
+			<button type="button" class="btn btn-outline btn-sm sip-browse-btn" data-field="<?php echo hsc($field); ?>">
 				<?php _e('select_from_files'); ?>
 			</button>
 		</div>
-		<input type="hidden" name="<?php echo htmlspecialchars($field); ?>_path"
-		       id="sip-path-<?php echo htmlspecialchars($field); ?>" value="<?php echo htmlspecialchars($clean); ?>">
-		<input type="hidden" name="<?php echo htmlspecialchars($field); ?>_remove"
-		       id="sip-remove-<?php echo htmlspecialchars($field); ?>" value="">
+		<input type="hidden" name="<?php echo hsc($field); ?>_path"
+		       id="sip-path-<?php echo hsc($field); ?>" value="<?php echo hsc($clean); ?>">
+		<input type="hidden" name="<?php echo hsc($field); ?>_remove"
+		       id="sip-remove-<?php echo hsc($field); ?>" value="">
 	</div>
 	<?php
 }
@@ -56,7 +56,7 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 		</div>
 
 		<form method="post" action="index.php?action=settings" enctype="multipart/form-data">
-			<input type="hidden" name="tab" id="settings-active-tab" value="<?php echo htmlspecialchars($activeTab); ?>">
+			<input type="hidden" name="tab" id="settings-active-tab" value="<?php echo hsc($activeTab); ?>">
 
 			<!-- ══════════════════════ GENERAL TAB ══════════════════════ -->
 			<div id="general-tab" class="tab-content" <?php echo $activeTab !== 'general' ? 'style="display: none;"' : ''; ?>>
@@ -64,17 +64,17 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 					<h3><?php _e('settings_tab_general'); ?></h3>
 					<div class="form-group">
 						<label for="site_title"><?php _e('site_title'); ?>:</label>
-						<input type="text" id="site_title" name="site_title" value="<?php echo htmlspecialchars($appSettings['site_title']); ?>" required>
+						<input type="text" id="site_title" name="site_title" value="<?php echo hsc($appSettings['site_title']); ?>" required>
 					</div>
 					<div class="form-group">
 						<label for="site_description"><?php _e('site_description'); ?>:</label>
-						<textarea id="site_description" name="site_description" rows="3"><?php echo htmlspecialchars($appSettings['site_description']); ?></textarea>
+						<textarea id="site_description" name="site_description" rows="3"><?php echo hsc($appSettings['site_description']); ?></textarea>
 					</div>
 					
 					<div class="settings-section">
 						<div class="form-group">
 							<label for="footer_text"><?php _e('footer_text'); ?>:</label>
-							<input type="text" id="footer_text" name="settings[footer_text]" value="<?php echo htmlspecialchars($appSettings['footer_text'] ?? ''); ?>" class="form-control">
+							<input type="text" id="footer_text" name="settings[footer_text]" value="<?php echo hsc($appSettings['footer_text'] ?? ''); ?>" class="form-control">
 							<p class="help-text"><?php _e('footer_text_help'); ?></p>
 						</div>
 						<div class="form-group">
@@ -86,8 +86,8 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 									$currentLang  = $appSettings['active_language'] ?? 'en';
 									foreach ($frontLangs as $locale => $label):
 									?>
-									<option value="<?php echo htmlspecialchars($locale); ?>" <?php echo $locale === $currentLang ? 'selected' : ''; ?>>
-										<?php echo htmlspecialchars($label); ?>
+									<option value="<?php echo hsc($locale); ?>" <?php echo $locale === $currentLang ? 'selected' : ''; ?>>
+										<?php echo hsc($label); ?>
 									</option>
 									<?php endforeach; ?>
 								</select>
@@ -106,8 +106,8 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 									$currentAdminLang = $appSettings['admin_language'] ?? $currentLang;
 									foreach ($adminLangs as $locale => $label):
 									?>
-									<option value="<?php echo htmlspecialchars($locale); ?>" <?php echo $locale === $currentAdminLang ? 'selected' : ''; ?>>
-										<?php echo htmlspecialchars($label); ?>
+									<option value="<?php echo hsc($locale); ?>" <?php echo $locale === $currentAdminLang ? 'selected' : ''; ?>>
+										<?php echo hsc($label); ?>
 									</option>
 									<?php endforeach; ?>
 								</select>
@@ -167,7 +167,7 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 									<option value="<?php echo $_pv; ?>"<?php echo $_pl === $_pv ? ' selected' : ''; ?>><?php echo $_pn; ?></option>
 									<?php endforeach; ?>
 										</select>
-										<input type="text" name="settings[footer_social_links][<?php echo $index; ?>][url]" value="<?php echo htmlspecialchars($link['url'] ?? ''); ?>" placeholder="URL" class="form-control">
+										<input type="text" name="settings[footer_social_links][<?php echo $index; ?>][url]" value="<?php echo hsc($link['url'] ?? ''); ?>" placeholder="URL" class="form-control">
 									</div> <!-- form-group -->
 								</div> <!-- social-link-row -->
 								<?php endforeach; ?>
@@ -182,7 +182,7 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 					<div class="form-group">
 						<p class="help-text"><?php _e('cache_section_help'); ?></p>
 						<div style="margin-top:12px;">
-							<button type="submit" name="clear_cache" form="clear-cache-form" class="btn btn-danger" onclick="return confirm('<?php echo htmlspecialchars(__t('cache_clear_confirm')); ?>')">
+							<button type="submit" name="clear_cache" form="clear-cache-form" class="btn btn-danger" onclick="return confirm('<?php echo hsc(__t('cache_clear_confirm')); ?>')">
 								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:5px;"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
 								<?php _e('cache_clear_btn'); ?>
 							</button>
@@ -211,8 +211,8 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 							<?php if (isset($data['page'])): ?>
 							<?php foreach ($data['page'] as $idx => $page): ?>
 							<?php $pageSlug = !empty($page['custom_slug']) ? $page['custom_slug'] : $page['slug']; ?>
-							<option value="<?php echo htmlspecialchars($pageSlug); ?>" <?php echo $pageSlug === $appSettings['homepage_page_id'] ? 'selected' : ''; ?>>
-								<?php echo htmlspecialchars($page['title']); ?>
+							<option value="<?php echo hsc($pageSlug); ?>" <?php echo $pageSlug === $appSettings['homepage_page_id'] ? 'selected' : ''; ?>>
+								<?php echo hsc($page['title']); ?>
 							</option>
 							<?php endforeach; ?>
 							<?php endif; ?>
@@ -302,15 +302,15 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 							}
 							foreach ($tzGroups as $region => $zones):
 							?>
-							<optgroup label="<?php echo htmlspecialchars($region); ?>">
+							<optgroup label="<?php echo hsc($region); ?>">
 								<?php foreach ($zones as $tz):
 									$offset  = (new DateTimeZone($tz))->getOffset(new DateTime('now', new DateTimeZone('UTC')));
 									$sign    = $offset >= 0 ? '+' : '-';
 									$abs     = abs($offset);
 									$label   = sprintf('(UTC%s%02d:%02d) %s', $sign, floor($abs / 3600), ($abs % 3600) / 60, str_replace('_', ' ', $tz));
 								?>
-								<option value="<?php echo htmlspecialchars($tz); ?>" <?php echo $tz === $currentTz ? 'selected' : ''; ?>>
-									<?php echo htmlspecialchars($label); ?>
+								<option value="<?php echo hsc($tz); ?>" <?php echo $tz === $currentTz ? 'selected' : ''; ?>>
+									<?php echo hsc($label); ?>
 								</option>
 								<?php endforeach; ?>
 							</optgroup>
@@ -351,20 +351,20 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 						<p class="help-text"><?php _e('seo_homepage_help'); ?></p>
 						<label for="home_meta_title"><?php _e('default_meta_title_label'); ?>:</label>
 						<input type="text" id="home_meta_title" name="home_meta_title"
-							   value="<?php echo htmlspecialchars($appSettings['home_meta_title'] ?? ''); ?>"
-							   placeholder="<?php echo htmlspecialchars($appSettings['site_title'] ?? ''); ?>">
+							   value="<?php echo hsc($appSettings['home_meta_title'] ?? ''); ?>"
+							   placeholder="<?php echo hsc($appSettings['site_title'] ?? ''); ?>">
 						<p class="help-text"><?php _e('seo_homepage_meta_title_help'); ?></p>
 					</div>
 					<div class="form-group">
 						<label for="home_meta_description"><?php _e('default_meta_description_label'); ?>:</label>
 						<textarea id="home_meta_description" name="home_meta_description" rows="3"
-								  placeholder="<?php echo htmlspecialchars($appSettings['site_description'] ?? ''); ?>"><?php echo htmlspecialchars($appSettings['home_meta_description'] ?? ''); ?></textarea>
+								  placeholder="<?php echo hsc($appSettings['site_description'] ?? ''); ?>"><?php echo hsc($appSettings['home_meta_description'] ?? ''); ?></textarea>
 						<p class="help-text"><?php _e('seo_homepage_meta_desc_help'); ?></p>
 					</div>
 					<div class="form-group">
 						<label for="home_meta_keywords"><?php _e('meta_keywords_label'); ?>:</label>
 						<input type="text" id="home_meta_keywords" name="home_meta_keywords"
-							   value="<?php echo htmlspecialchars($appSettings['home_meta_keywords'] ?? ''); ?>"
+							   value="<?php echo hsc($appSettings['home_meta_keywords'] ?? ''); ?>"
 							   placeholder="keyword1, keyword2, keyword3">
 						<p class="help-text"><?php _e('meta_keywords_help'); ?></p>
 					</div>
@@ -372,13 +372,13 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 					<div class="form-group">
 						<label for="home_og_title"><?php _e('og_title_label'); ?>:</label>
 						<input type="text" id="home_og_title" name="home_og_title"
-							   value="<?php echo htmlspecialchars($appSettings['home_og_title'] ?? ''); ?>"
-							   placeholder="<?php echo htmlspecialchars($appSettings['site_title'] ?? ''); ?>">
+							   value="<?php echo hsc($appSettings['home_og_title'] ?? ''); ?>"
+							   placeholder="<?php echo hsc($appSettings['site_title'] ?? ''); ?>">
 					</div>
 					<div class="form-group">
 						<label for="home_og_description"><?php _e('og_description_label'); ?>:</label>
 						<textarea id="home_og_description" name="home_og_description" rows="3"
-								  placeholder="<?php echo htmlspecialchars($appSettings['site_description'] ?? ''); ?>"><?php echo htmlspecialchars($appSettings['home_og_description'] ?? ''); ?></textarea>
+								  placeholder="<?php echo hsc($appSettings['site_description'] ?? ''); ?>"><?php echo hsc($appSettings['home_og_description'] ?? ''); ?></textarea>
 					</div>
 					<div class="form-group">
 						<label><?php _e('og_image_label'); ?>:</label>
@@ -397,12 +397,12 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 					</div>
 					<div class="form-group">
 						<label for="default_meta_title"><?php _e('default_meta_title_label'); ?>:</label>
-						<input type="text" id="default_meta_title" name="default_meta_title" value="<?php echo htmlspecialchars($appSettings['default_meta_title']); ?>">
+						<input type="text" id="default_meta_title" name="default_meta_title" value="<?php echo hsc($appSettings['default_meta_title']); ?>">
 						<p class="help-text"><?php _e('meta_title_vars'); ?></p>
 					</div>
 					<div class="form-group">
 						<label for="default_meta_description"><?php _e('default_meta_description_label'); ?>:</label>
-						<textarea id="default_meta_description" name="default_meta_description" rows="2"><?php echo htmlspecialchars($appSettings['default_meta_description']); ?></textarea>
+						<textarea id="default_meta_description" name="default_meta_description" rows="2"><?php echo hsc($appSettings['default_meta_description']); ?></textarea>
 						<p class="help-text"><?php _e('meta_description_vars'); ?></p>
 					</div>
 					<h3><?php _e('seo_overview'); ?></h3>
@@ -419,7 +419,7 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 							style="font-family: monospace; font-size: 0.85rem;"
 						><?php
 						$_robotsFile = dirname(dirname(__DIR__)) . '/robots.txt';
-						echo htmlspecialchars(file_exists($_robotsFile) ? file_get_contents($_robotsFile) : '');
+						echo hsc(file_exists($_robotsFile) ? file_get_contents($_robotsFile) : '');
 						?></textarea>
 					</div>
 				</div>
@@ -498,26 +498,26 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 					<div class="form-group">
 						<label for="contact_email"><?php _e('contact_email_to'); ?> *</label>
 						<input type="email" id="contact_email" name="contact_email"
-							value="<?php echo htmlspecialchars($appSettings['contact_email'] ?? ''); ?>"
+							value="<?php echo hsc($appSettings['contact_email'] ?? ''); ?>"
 							placeholder="you@example.com">
 						<p class="help-text"><?php _e('contact_email_to_help'); ?></p>
 					</div>
 					<div class="form-group">
 						<label for="contact_subject"><?php _e('contact_subject'); ?></label>
 						<input type="text" id="contact_subject" name="contact_subject"
-							value="<?php echo htmlspecialchars($appSettings['contact_subject'] ?? 'New message from {name}'); ?>">
+							value="<?php echo hsc($appSettings['contact_subject'] ?? 'New message from {name}'); ?>">
 						<p class="help-text"><?php _e('contact_subject_help'); ?></p>
 					</div>
 					<div class="form-group">
 						<label for="contact_success_message"><?php _e('contact_success_msg'); ?></label>
 						<input type="text" id="contact_success_message" name="contact_success_message"
-							value="<?php echo htmlspecialchars($appSettings['contact_success_message'] ?? ''); ?>"
+							value="<?php echo hsc($appSettings['contact_success_message'] ?? ''); ?>"
 							placeholder="<?php _e('contact_success_default'); ?>">
 					</div>
 					<div class="form-group">
 						<label for="contact_error_message"><?php _e('contact_error_msg'); ?></label>
 						<input type="text" id="contact_error_message" name="contact_error_message"
-							value="<?php echo htmlspecialchars($appSettings['contact_error_message'] ?? ''); ?>"
+							value="<?php echo hsc($appSettings['contact_error_message'] ?? ''); ?>"
 							placeholder="<?php _e('contact_error_default'); ?>">
 					</div>
 				</div>
@@ -528,7 +528,7 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 					<div class="form-group">
 						<label for="hcaptcha_site_key"><?php _e('hcaptcha_site_key'); ?></label>
 						<input type="text" id="hcaptcha_site_key" name="hcaptcha_site_key"
-							value="<?php echo htmlspecialchars($appSettings['hcaptcha_site_key'] ?? ''); ?>"
+							value="<?php echo hsc($appSettings['hcaptcha_site_key'] ?? ''); ?>"
 							placeholder="10000000-ffff-ffff-ffff-000000000001"
 							autocomplete="off">
 						<p class="help-text"><?php _e('hcaptcha_site_key_help'); ?></p>
@@ -536,7 +536,7 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 					<div class="form-group">
 						<label for="hcaptcha_secret_key"><?php _e('hcaptcha_secret_key'); ?></label>
 						<input type="password" id="hcaptcha_secret_key" name="hcaptcha_secret_key"
-							value="<?php echo htmlspecialchars($appSettings['hcaptcha_secret_key'] ?? ''); ?>"
+							value="<?php echo hsc($appSettings['hcaptcha_secret_key'] ?? ''); ?>"
 							autocomplete="off">
 						<p class="help-text"><?php _e('hcaptcha_secret_key_help'); ?></p>
 					</div>
@@ -564,7 +564,7 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 					<ul style="margin:0;padding-left:18px;">
 						<?php foreach ($availableTemplates as $tKey => $tName):
 							if ($tKey === '') continue; ?>
-						<li><code><?php echo htmlspecialchars($tKey); ?>.php</code> &mdash; <?php echo htmlspecialchars($tName); ?></li>
+						<li><code><?php echo hsc($tKey); ?>.php</code> &mdash; <?php echo hsc($tName); ?></li>
 						<?php endforeach; ?>
 					</ul>
 					<?php endif; ?>
@@ -599,41 +599,41 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 					$fields = $cfSchema[$cfType] ?? [];
 				?>
 				<div class="site-settings-section">
-					<h3><?php echo htmlspecialchars($cfLabels[$cfType]); ?></h3>
+					<h3><?php echo hsc($cfLabels[$cfType]); ?></h3>
 					<div class="form-group">
 					<div class="cf-fields-list" id="cf-list-<?php echo $cfType; ?>" data-type="<?php echo $cfType; ?>">
 						<?php if (empty($fields)): ?>
 						<p class="cf-empty help-text"><?php _e('cf_no_fields'); ?></p>
 						<?php endif; ?>
 						<?php foreach ($fields as $fi => $field):
-							$fKey      = htmlspecialchars($field['key']      ?? '');
-							$fLabel    = htmlspecialchars($field['label']    ?? '');
+							$fKey      = hsc($field['key']      ?? '');
+							$fLabel    = hsc($field['label']    ?? '');
 							$fType     = $field['type']     ?? 'text';
 							$fRequired = !empty($field['required']);
-							$fOptions  = htmlspecialchars($field['options']  ?? '');
+							$fOptions  = hsc($field['options']  ?? '');
 							$fInput    = "custom_fields_schema[{$cfType}][{$fi}]";
 						?>
 						<div class="cf-field-row" data-index="<?php echo $fi; ?>">
 						 <div class="cf-field-inputs">
 						  <div class="cf-col">
 						   <label><?php _e('cf_field_label'); ?></label>
-						   <input type="text" name="<?php echo $fInput; ?>[label]" value="<?php echo $fLabel; ?>" placeholder="<?php echo htmlspecialchars(__t('cf_field_label_ph')); ?>">
+						   <input type="text" name="<?php echo $fInput; ?>[label]" value="<?php echo $fLabel; ?>" placeholder="<?php echo hsc(__t('cf_field_label_ph')); ?>">
 						  </div>
 						  <div class="cf-col">
 						   <label><?php _e('cf_field_key'); ?></label>
-						   <input type="text" name="<?php echo $fInput; ?>[key]" value="<?php echo $fKey; ?>" placeholder="<?php echo htmlspecialchars(__t('cf_field_key_ph')); ?>" pattern="[a-z0-9\-_]+">
+						   <input type="text" name="<?php echo $fInput; ?>[key]" value="<?php echo $fKey; ?>" placeholder="<?php echo hsc(__t('cf_field_key_ph')); ?>" pattern="[a-z0-9\-_]+">
 						  </div>
 						<div class="cf-col">
 						<label><?php _e('cf_field_type'); ?></label>
 						<select name="<?php echo $fInput; ?>[type]" class="cf-type-select">
 						<?php foreach ($fieldTypes as $ftVal => $ftLabel): ?>
-						<option value="<?php echo $ftVal; ?>" <?php echo $fType === $ftVal ? 'selected' : ''; ?>><?php echo htmlspecialchars($ftLabel); ?></option>
+						<option value="<?php echo $ftVal; ?>" <?php echo $fType === $ftVal ? 'selected' : ''; ?>><?php echo hsc($ftLabel); ?></option>
 						<?php endforeach; ?>
 						</select>
 						</div>
 						<div class="cf-col cf-col-options" style="<?php echo $fType !== 'select' ? 'display:none' : ''; ?>">
 						<label><?php _e('cf_field_options'); ?></label>
-						<input type="text" name="<?php echo $fInput; ?>[options]" value="<?php echo $fOptions; ?>" placeholder="<?php echo htmlspecialchars(__t('cf_field_options_ph')); ?>">
+						<input type="text" name="<?php echo $fInput; ?>[options]" value="<?php echo $fOptions; ?>" placeholder="<?php echo hsc(__t('cf_field_options_ph')); ?>">
 						</div>
 						<div class="cf-col cf-col-required">
 						<label class="checkbox-label">
@@ -642,7 +642,7 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 						</label>
 						</div>
 						</div>
-						<button type="button" class="btn btn-danger btn-sm cf-delete-btn" title="<?php echo htmlspecialchars(__t('cf_delete_field')); ?>">&#x2715;</button>
+						<button type="button" class="btn btn-danger btn-sm cf-delete-btn" title="<?php echo hsc(__t('cf_delete_field')); ?>">&#x2715;</button>
 						</div>
 						<?php endforeach; ?>
 					</div>
@@ -668,7 +668,7 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 			  action="theme-upload.php"
 			  enctype="multipart/form-data"
 			  style="display:none;">
-			<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
+			<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token'] ?? ''); ?>">
 		</form>
 
 	<script>

@@ -50,8 +50,8 @@ $contentTypes = ['article', 'page', 'project'];
 						if (!empty($appSettings['main_menu'])) {
 							foreach ($appSettings['main_menu'] as $index => $menuItem) {
 								$itemType     = $menuItem['type'];
-								$itemLabel    = htmlspecialchars($menuItem['label']);
-								$itemUrl      = htmlspecialchars($menuItem['url']);
+								$itemLabel    = hsc($menuItem['label']);
+								$itemUrl      = hsc($menuItem['url']);
 								$itemId       = $menuItem['id'] ?? 'menu_item_' . uniqid();
 								$parentId     = $menuItem['parent_id'] ?? '';
 								$submenuClass = !empty($parentId) ? ' submenu-item' : '';
@@ -69,13 +69,13 @@ $contentTypes = ['article', 'page', 'project'];
 								echo '<input type="hidden" name="menu[' . $index . '][url]"       value="' . $itemUrl   . '">';
 								echo '<input type="hidden" name="menu[' . $index . '][id]"        value="' . $itemId    . '">';
 								echo '<input type="hidden" name="menu[' . $index . '][parent_id]" value="' . $parentId  . '">';
-								echo '<input type="hidden" name="menu[' . $index . '][target]"    value="' . htmlspecialchars($menuItem['target'] ?? '') . '">';
+								echo '<input type="hidden" name="menu[' . $index . '][target]"    value="' . hsc($menuItem['target'] ?? '') . '">';
 								if ($itemType == 'content' && isset($menuItem['content_type']) && isset($menuItem['content_slug'])) {
-									echo '<input type="hidden" name="menu[' . $index . '][content_type]"  value="' . htmlspecialchars($menuItem['content_type'])  . '">';
-									echo '<input type="hidden" name="menu[' . $index . '][content_slug]"  value="' . htmlspecialchars($menuItem['content_slug'])  . '">';
+									echo '<input type="hidden" name="menu[' . $index . '][content_type]"  value="' . hsc($menuItem['content_type'])  . '">';
+									echo '<input type="hidden" name="menu[' . $index . '][content_slug]"  value="' . hsc($menuItem['content_slug'])  . '">';
 								}
 								if (isset($menuItem['tag_slug'])) {
-									echo '<input type="hidden" name="menu[' . $index . '][tag_slug]" value="' . htmlspecialchars($menuItem['tag_slug']) . '">';
+									echo '<input type="hidden" name="menu[' . $index . '][tag_slug]" value="' . hsc($menuItem['tag_slug']) . '">';
 								}
 								echo '</li>';
 							}

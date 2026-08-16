@@ -1,5 +1,5 @@
 /* =====================================================================
- * ADMIN-BASE.CSS — SynaptikCMS Admin (2026 redesign)
+ * ADMIN-BASE.CSS — SynaptikCMS Admin
  * Design tokens (light/dark), reset, typography, layout, top bar,
  * forms, unified buttons, messages, tables, dropdowns.
  * Required on ALL admin pages.
@@ -225,14 +225,6 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .
  input[type="file"] { width: 100%; max-width: 420px; padding: 6px 10px; background-color: var(--surface-2); border: 2px dashed var(--border-strong); cursor: pointer; }
  input[type="file"]:hover { border-color: var(--primary); background-color: var(--primary-soft); }
  /* — Checkboxes — */
- /* Custom-drawn checkbox: a CSS-only checkmark (no icon font/SVG), drawn
-  * by rotating a small rectangle's bottom-right border into a check (an
-  * "L" shape rotated 45deg). This only looks like a checkmark if the
-  * rectangle is taller than it is wide (a checkmark's short upstroke vs.
-  * long downstroke) and is offset up and slightly left of dead-center — a
-  * square shape, or centering it at top:0 with no vertical offset,
-  * collapses the check into a flat wedge that reads as pointing the wrong
-  * way rather than as a checkmark. */
  .checkbox-label { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; padding: 3px 6px; margin: 0; border-radius: var(--radius-sm); font-weight: 400; }
  .checkbox-label input[type="checkbox"] { appearance: none; -webkit-appearance: none; width: 18px; height: 18px; padding: 0; margin-right: 4px; flex-shrink: 0; border: 2px solid var(--border-strong); border-radius: 4px; background-color: var(--surface); position: relative; cursor: pointer; }
  .checkbox-label input[type="checkbox"]:checked { background-color: var(--primary); border-color: var(--primary); }

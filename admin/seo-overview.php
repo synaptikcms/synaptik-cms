@@ -131,7 +131,7 @@ ob_start();
 				?>
 				<a href="seo-overview.php?filter=<?php echo $key; ?>"
 				   class="tab <?php echo $filter === $key ? 'active' : ''; ?>">
-					<?php echo htmlspecialchars($tab[0]); ?>
+					<?php echo hsc($tab[0]); ?>
 					<span class="badge"><?php echo $tab[1]; ?></span>
 				</a>
 				<?php endforeach; ?>
@@ -155,14 +155,14 @@ ob_start();
 					</thead>
 					<tbody>
 					<?php foreach ($filtered as $item): ?>
-						<tr data-type="<?php echo htmlspecialchars($item['type']); ?>" data-index="<?php echo (int)$item['index']; ?>">
+						<tr data-type="<?php echo hsc($item['type']); ?>" data-index="<?php echo (int)$item['index']; ?>">
 							<!-- Titre / type / slug -->
 							<td>
 								<div style="font-weight: 600; font-size: 1.1em; margin-bottom: 4px;">
-									<?php echo htmlspecialchars($item['title']); ?>
+								<?php echo hsc($item['title']); ?>
 								</div>
-								<span class="type-badge type-<?php echo $item['type']; ?>"><?php echo __t('type_' . $item['type']) ?></span>
-								<div class="slug-cell" style="margin-top: 5px;">/<?php echo htmlspecialchars($item['slug']); ?></div>
+								<span class="type-badge type-<?php echo hsc($item['type']); ?>"><?php echo __t('type_' . $item['type']) ?></span>
+								<div class="slug-cell" style="margin-top: 5px;">/<?php echo hsc($item['slug']); ?></div>
 							</td>
 
 							<!-- Meta title éditable -->
@@ -171,7 +171,7 @@ ob_start();
 									class="seo-field <?php echo empty($item['meta_title']) ? 'empty' : ''; ?>"
 									data-field="meta_title"
 									data-max="60"
-									value="<?php echo htmlspecialchars($item['meta_title']); ?>"
+									value="<?php echo hsc($item['meta_title']); ?>"
 									placeholder="<?php _e('meta_title_placeholder'); ?>"
 									maxlength="60">
 								<span class="char-counter"><?php echo mb_strlen($item['meta_title']); ?>/60</span>
@@ -185,7 +185,7 @@ ob_start();
 									data-max="160"
 									rows="3"
 									placeholder="<?php _e('meta_description_placeholder'); ?>"
-									maxlength="160"><?php echo htmlspecialchars($item['meta_description']); ?></textarea>
+									maxlength="160"><?php echo hsc($item['meta_description']); ?></textarea>
 								<span class="char-counter"><?php echo mb_strlen($item['meta_description']); ?>/160</span>
 								<span class="save-indicator"></span>
 							</td>
@@ -195,7 +195,7 @@ ob_start();
 									class="seo-field <?php echo empty($item['meta_keywords']) ? 'empty' : ''; ?>"
 									data-field="meta_keywords"
 									data-max="255"
-									value="<?php echo htmlspecialchars($item['meta_keywords']); ?>"
+									value="<?php echo hsc($item['meta_keywords']); ?>"
 									placeholder="<?php _e('meta_keywords_placeholder'); ?>"
 									maxlength="255">
 								<span class="save-indicator"></span>

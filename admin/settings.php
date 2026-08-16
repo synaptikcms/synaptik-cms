@@ -156,8 +156,8 @@ if (isset($_POST['save_settings'])) {
 		foreach ($_POST['settings']['footer_social_links'] as $link) {
 			if (!empty($link['platform']) && !empty($link['url'])) {
 				$socialLinks[] = [
-					'platform' => htmlspecialchars(trim($link['platform'])),
-					'url' => htmlspecialchars(trim($link['url']))
+					'platform' => hsc(trim($link['platform'])),
+					'url' => hsc(trim($link['url']))
 				];
 			}
 		}
@@ -223,7 +223,7 @@ if (isset($_POST['save_settings'])) {
 				$_fType   = in_array($_field['type'] ?? '', $_cfAllowedTypes, true) ? $_field['type'] : 'text';
 				$_cfEntry = [
 					'key'      => $_key,
-					'label'    => htmlspecialchars(trim($_field['label'] ?? $_key)),
+					'label'    => hsc(trim($_field['label'] ?? $_key)),
 					'type'     => $_fType,
 					'required' => !empty($_field['required']),
 				];

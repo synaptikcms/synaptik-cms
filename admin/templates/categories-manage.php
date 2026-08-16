@@ -190,22 +190,22 @@ $categoryTree = buildCategoryTree($categories);
 			?>
 			<tr data-orphan="<?php echo $cat['count'] === 0 ? '1' : '0'; ?>"
 				data-depth="<?php echo $depth; ?>"
-				data-slug="<?php echo htmlspecialchars($slug); ?>"
-				data-parent-slug="<?php echo htmlspecialchars($cat['parent'] ?? ''); ?>"
+				data-slug="<?php echo hsc($slug); ?>"
+				data-parent-slug="<?php echo hsc($cat['parent'] ?? ''); ?>"
 				data-count="<?php echo $cat['count']; ?>">
 				<td>
 					<?php if ($depth > 0): ?>
 						<span style="opacity:.4; font-size:.8em;"><?php echo $indent . $depthIcon; ?></span>
 					<?php endif; ?>
-					<?php echo htmlspecialchars($cat['name']); ?>
+					<?php echo hsc($cat['name']); ?>
 					<?php if ($cat['count'] === 0): ?>
 						<span class="badge-orphan" title="<?php _e('orphan_cat_title'); ?>"><?php _e('orphan'); ?></span>
 					<?php endif; ?>
 				</td>
-				<td><code class="slug-display"><?php echo htmlspecialchars($slug); ?></code></td>
+				<td><code class="slug-display"><?php echo hsc($slug); ?></code></td>
 				<td>
 					<?php if (!empty($parentName)): ?>
-						<span style="font-size:.85rem; opacity:.75;"><?php echo htmlspecialchars($parentName); ?></span>
+						<span style="font-size:.85rem; opacity:.75;"><?php echo hsc($parentName); ?></span>
 					<?php else: ?>
 						<span style="opacity:.3">—</span>
 					<?php endif; ?>
@@ -217,7 +217,7 @@ $categoryTree = buildCategoryTree($categories);
 								$types = array_unique(array_column($cat['items'], 'type'));
 								echo count($types) === 1 ? $types[0] : 'article';
 							?>"
-							data-items="<?php echo htmlspecialchars(json_encode($cat['items'])); ?>">
+							data-items="<?php echo hsc(json_encode($cat['items'])); ?>">
 							<?php echo $cat['count']; ?>
 						</span>
 					<?php else: ?>
@@ -227,12 +227,12 @@ $categoryTree = buildCategoryTree($categories);
 				<td>
 					<a href="#" style="margin:0;" class="table-btn edit-btn small edit-category"
 						data-slug="<?php echo $slug; ?>"
-						data-name="<?php echo htmlspecialchars($cat['name']); ?>"
-						data-parent="<?php echo htmlspecialchars($cat['parent'] ?? ''); ?>"
+						data-name="<?php echo hsc($cat['name']); ?>"
+						data-parent="<?php echo hsc($cat['parent'] ?? ''); ?>"
 						data-depth="<?php echo $depth; ?>"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg><?php _e('edit'); ?></a>
 					<a href="#" style="margin:0;" class="table-btn delete-btn small danger delete-category"
 						data-slug="<?php echo $slug; ?>"
-						data-name="<?php echo htmlspecialchars($cat['name']); ?>"><svg width="14" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></a>
+						data-name="<?php echo hsc($cat['name']); ?>"><svg width="14" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></a>
 				</td>
 			</tr>
 			<?php endforeach; ?>

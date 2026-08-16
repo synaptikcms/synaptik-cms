@@ -1195,5 +1195,11 @@
     "reset_same_password": "Your new password must be different from your current password.",
     "profile_display_name_invalid": "Display name must be 60 characters or fewer and cannot contain < > \" ' or \\",
     "dashboard_htaccess_warning_title": "Security warning: sensitive directories may be publicly accessible",
-    "dashboard_htaccess_warning_desc": "The /data/ directory returned a 200 response \u2014 your web server may not be applying .htaccess rules (common on nginx without manual configuration). Add location blocks for /data/, /bckps/, /private/, and /cache/, or move them above the web root."
+    "dashboard_htaccess_warning_desc": "The /data/ directory returned a 200 response \u2014 your web server may not be applying .htaccess rules (common on nginx without manual configuration). Add location blocks for /data/, /bckps/, /private/, and /cache/, or move them above the web root.",
+    "zip_val_traversal": "Unsafe path in archive: \"%s\".",
+    "zip_val_htaccess": "Forbidden file in archive: \"%s\".",
+    "zip_val_ext_forbidden": "Forbidden extension \".%s\" in archive (file: \"%s\").",
+    "ext_update_url_not_allowed": "The download URL for this update points to a disallowed host. Update aborted.",
+    "restore_zip_traversal": "The backup archive contains an unsafe path and cannot be restored.",
+    "restore_zip_forbidden_file": "The backup archive contains a forbidden file type and cannot be restored."
 }

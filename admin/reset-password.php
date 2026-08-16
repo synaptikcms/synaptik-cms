@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($error) && !_reset_token_valid($rawToken, $tokenFile)) {
         $error      = __t('reset_link_expired', 'Your reset link has expired.')
                     . ' <a href="forgot-password.php">'
-                    . htmlspecialchars(__t('reset_request_new', 'request a new one'))
+                    . hsc(__t('reset_request_new', 'request a new one'))
                     . '</a>.';
         $tokenValid = false;
     }
@@ -121,7 +121,7 @@ $jsStrings = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars(__t('reset_new_pwd_heading', 'Set New Password')); ?> — SynaptikCMS</title>
+    <title><?php echo hsc(__t('reset_new_pwd_heading', 'Set New Password')); ?> — SynaptikCMS</title>
     <?php
     // Build an absolute URL to the admin CSS so this page works correctly
     // whether it is included from index.php (/?reset_token=) or accessed directly.
@@ -142,7 +142,7 @@ $jsStrings = [
         }
     })();
     </script>
-    <link rel="stylesheet" href="<?php echo htmlspecialchars($_adminCssUrl); ?>/assets/css/admin-base.css?v=<?php echo @filemtime(__DIR__ . '/assets/css/admin-base.css'); ?>">
+    <link rel="stylesheet" href="<?php echo hsc($_adminCssUrl); ?>/assets/css/admin-base.css?v=<?php echo @filemtime(__DIR__ . '/assets/css/admin-base.css'); ?>">
     <style>
         .login-container { max-width: 420px; }
         .pw-rules { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -159,24 +159,24 @@ $jsStrings = [
 <body style="background-color: var(--surface2);">
 <div class="login-container">
     <div class="login-header">
-        <h1><?php echo htmlspecialchars(__t('reset_new_pwd_heading', 'Set New Password')); ?></h1>
+        <h1><?php echo hsc(__t('reset_new_pwd_heading', 'Set New Password')); ?></h1>
     </div>
 
     <?php if ($success): ?>
 
         <div class="blockquote success" style="text-align:center;">
-            <strong><?php echo htmlspecialchars(__t('reset_success_title', 'Password updated.')); ?></strong><br>
-            <?php echo htmlspecialchars(__t('reset_success_detail', 'You can now log in with your new password.')); ?>
+            <strong><?php echo hsc(__t('reset_success_title', 'Password updated.')); ?></strong><br>
+            <?php echo hsc(__t('reset_success_detail', 'You can now log in with your new password.')); ?>
         </div>
-        <a class="back-link" href="<?php echo htmlspecialchars($_adminCssUrl); ?>/auth.php">
-            <?php echo htmlspecialchars(__t('reset_go_to_login', '→ Go to login')); ?>
+        <a class="back-link" href="<?php echo hsc($_adminCssUrl); ?>/auth.php">
+            <?php echo hsc(__t('reset_go_to_login', '→ Go to login')); ?>
         </a>
 
     <?php elseif (!$tokenValid): ?>
 
         <div class="blockquote error"><?php echo $error; ?></div>
-        <a class="back-link" href="<?php echo htmlspecialchars($_adminCssUrl); ?>/auth.php">
-            <?php echo htmlspecialchars(__t('reset_back_to_login', '← Back to login')); ?>
+        <a class="back-link" href="<?php echo hsc($_adminCssUrl); ?>/auth.php">
+            <?php echo hsc(__t('reset_back_to_login', '← Back to login')); ?>
         </a>
 
     <?php else: ?>
@@ -188,29 +188,29 @@ $jsStrings = [
         <form class="login-form" method="POST"
               action="?reset_token=<?php echo urlencode($rawToken); ?>">
             <input type="hidden" name="csrf_token"
-                   value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+                   value="<?php echo hsc($_SESSION['csrf_token']); ?>">
 
             <label for="new_password">
-                <?php echo htmlspecialchars(__t('reset_new_password_label', 'New password')); ?>
+                <?php echo hsc(__t('reset_new_password_label', 'New password')); ?>
             </label>
             <input type="password" id="new_password" name="new_password"
                    required autofocus autocomplete="new-password">
             <div class="pw-rules" id="pw-rules-new"></div>
 
             <label for="confirm_password" style="margin-top:14px;">
-                <?php echo htmlspecialchars(__t('reset_confirm_password_label', 'Confirm password')); ?>
+                <?php echo hsc(__t('reset_confirm_password_label', 'Confirm password')); ?>
             </label>
             <input type="password" id="confirm_password" name="confirm_password"
                    required autocomplete="new-password">
             <div class="pw-rules" id="pw-rules-match"></div>
 
             <button type="submit" class="btn btn-primary btn-lg btn-block login-button" style="margin-top:20px;">
-                <?php echo htmlspecialchars(__t('reset_submit_btn', 'Set new password')); ?>
+                <?php echo hsc(__t('reset_submit_btn', 'Set new password')); ?>
             </button>
         </form>
 
-        <a class="back-link" href="<?php echo htmlspecialchars($_adminCssUrl); ?>/auth.php">
-            <?php echo htmlspecialchars(__t('reset_back_to_login', '← Back to login')); ?>
+        <a class="back-link" href="<?php echo hsc($_adminCssUrl); ?>/auth.php">
+            <?php echo hsc(__t('reset_back_to_login', '← Back to login')); ?>
         </a>
 
     <?php endif; ?>

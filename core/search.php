@@ -83,34 +83,56 @@ if (mb_strlen($query, 'UTF-8') < 2) {
 	exit;
 }
 
-// ─── Rate limiting (simple per-IP, no external dependency) ──────────────────
-// Max 30 search requests per minute per IP. File-based, purged on expiry.
+// ─── Rate limiting (per-IP, file-based, flock across full read-modify-write) ──
+// Max 30 search requests per minute per IP.
+// One JSON file shared across all IPs; expired entries pruned on every write
+// to prevent unbounded growth. flock() wraps the full cycle so concurrent
+// requests cannot lose increments (fixes the race that existed in the first
+// implementation where the read was unlocked).
 $_srRateFile = __DIR__ . '/../private/search_rate.json';
 $_srIpKey    = hash('sha256', $_SERVER['REMOTE_ADDR'] ?? '');
 $_srNow      = time();
 $_srWindow   = 60;   // seconds
 $_srMax      = 30;   // requests per window
+$_srLimited  = false;
 
-$_srData = [];
-if (file_exists($_srRateFile)) {
-	$_srRaw = @file_get_contents($_srRateFile);
-	if ($_srRaw !== false) $_srData = json_decode($_srRaw, true) ?: [];
+$_srFh = @fopen($_srRateFile, 'c+');
+if ($_srFh !== false) {
+	flock($_srFh, LOCK_EX);
+	$_srRaw  = stream_get_contents($_srFh);
+	$_srData = ($_srRaw !== '' && $_srRaw !== false) ? (json_decode($_srRaw, true) ?: []) : [];
+
+	$_srEntry = $_srData[$_srIpKey] ?? ['count' => 0, 'window_start' => $_srNow];
+	if (($_srNow - $_srEntry['window_start']) >= $_srWindow) {
+		$_srEntry = ['count' => 0, 'window_start' => $_srNow];
+	}
+	$_srEntry['count']++;
+	$_srData[$_srIpKey] = $_srEntry;
+
+	// Prune stale entries to keep the file from growing without bound
+	foreach ($_srData as $_srPruneKey => $_srPruneEntry) {
+		if (($_srNow - ($_srPruneEntry['window_start'] ?? 0)) >= $_srWindow * 2) {
+			unset($_srData[$_srPruneKey]);
+		}
+	}
+	unset($_srPruneKey, $_srPruneEntry);
+
+	ftruncate($_srFh, 0);
+	rewind($_srFh);
+	fwrite($_srFh, json_encode($_srData));
+	flock($_srFh, LOCK_UN);
+	fclose($_srFh);
+
+	if ($_srEntry['count'] > $_srMax) $_srLimited = true;
 }
+unset($_srRateFile, $_srIpKey, $_srNow, $_srWindow, $_srMax, $_srData, $_srEntry, $_srRaw, $_srFh);
 
-$_srEntry = $_srData[$_srIpKey] ?? ['count' => 0, 'window_start' => $_srNow];
-if (($_srNow - $_srEntry['window_start']) >= $_srWindow) {
-	$_srEntry = ['count' => 0, 'window_start' => $_srNow];
-}
-$_srEntry['count']++;
-$_srData[$_srIpKey] = $_srEntry;
-@file_put_contents($_srRateFile, json_encode($_srData), LOCK_EX);
-
-if ($_srEntry['count'] > $_srMax) {
+if ($_srLimited) {
 	http_response_code(429);
 	echo json_encode(['error' => 'Too many requests. Please slow down.'], JSON_UNESCAPED_UNICODE);
 	exit;
 }
-unset($_srRateFile, $_srIpKey, $_srNow, $_srWindow, $_srMax, $_srData, $_srEntry, $_srRaw);
+unset($_srLimited);
 
 // ─── Load data — only the types actually requested ───────────────────────────
 // Build the type list first so sl_build_data_array() reads only necessary files.

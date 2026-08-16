@@ -170,6 +170,8 @@ if (isset($_POST['restore_zip_backup']) && isset($_FILES['backup_zip_file'])) {
 		exit;
 	}
 
+	require_once dirname(__DIR__) . '/includes/zip-validation.php';
+
 	// ── Open and validate ZIP structure ───────────────────────────────────────
 	$zip = new ZipArchive();
 	if ($zip->open($_FILES['backup_zip_file']['tmp_name']) !== true) {
@@ -188,6 +190,17 @@ if (isset($_POST['restore_zip_backup']) && isset($_FILES['backup_zip_file'])) {
 	if (!$hasSettings || !$hasData) {
 		$zip->close();
 		$_SESSION['error'] = __t('restore_zip_invalid');
+		header('Location: index.php?action=backup');
+		exit;
+	}
+
+	// Full entry scan: path traversal + extension whitelist
+	// Backup archives contain JSON and media — .htaccess allowed only under data/, files/, private/.
+	$bckpAllowedExt = ['json','jpg','jpeg','png','gif','webp','svg','ico','mp4','webm','pdf','txt','md','csv'];
+	$valResult = zip_validate_entries($zip, $bckpAllowedExt, ['data/', 'files/', 'private/']);
+	if (!$valResult['ok']) {
+		$zip->close();
+		$_SESSION['error'] = $valResult['error'];
 		header('Location: index.php?action=backup');
 		exit;
 	}

@@ -18,6 +18,22 @@ require_once __DIR__ . '/data-layer.php';
 require_once __DIR__ . '/plugin-api.php';
 
 /**
+ * HTML-escape a string for safe output in HTML attributes and content.
+ * Enforces ENT_QUOTES so both single and double quotes are encoded,
+ * regardless of attribute quoting style used in theme or plugin templates.
+ * Drop-in replacement for htmlspecialchars() with safer defaults.
+ *
+ * @param  string $s      Input string.
+ * @param  int    $flags  htmlspecialchars flags (default: ENT_QUOTES|ENT_SUBSTITUTE).
+ * @param  string $enc    Character encoding (default: UTF-8).
+ * @return string
+ */
+function hsc(?string $s, int $flags = ENT_QUOTES | ENT_SUBSTITUTE, string $enc = 'UTF-8'): string
+{
+    return htmlspecialchars((string) ($s ?? ''), $flags, $enc);
+}
+
+/**
  * Sanitize a string to create a valid slug
  * @param string $text The text to sanitize
  * @param bool $allowSpecialChars Whether to allow special characters
@@ -375,8 +391,9 @@ function loadThemeTemplate($template, $params = []) {
    $settings = loadConfig();
    $theme = $settings['active_theme'] ?? 'default';
 
-   // Extract parameters into variables
-   extract($params);
+   // Extract parameters into local variables — EXTR_SKIP prevents overwriting
+   // $template and $theme which are used below to build the include path.
+   extract($params, EXTR_SKIP);
 
    // Define possible template paths with FULL server paths
    $basePath = CMS_ROOT;

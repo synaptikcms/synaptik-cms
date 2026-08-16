@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['activate_theme'])) {
 		$appSettings['active_theme'] = $themeName;
 		$result = file_put_contents(dirname(dirname(__DIR__)) . '/config.json', json_encode($appSettings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 		if ($result !== false) {
-			$_SESSION['message'] = sprintf(__t('theme_manager_activated'), htmlspecialchars($themeName));
+			$_SESSION['message'] = sprintf(__t('theme_manager_activated'), hsc($themeName));
 		} else {
 			$_SESSION['error'] = __t('theme_manager_activate_failed');
 		}
@@ -63,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_theme'])) {
 			$_SESSION['error'] = __t('theme_manager_not_found');
 		} else {
 			if (tm_delete_dir($themePath)) {
-				$_SESSION['message'] = sprintf(__t('theme_manager_deleted'), htmlspecialchars($themeName));
+				$_SESSION['message'] = sprintf(__t('theme_manager_deleted'), hsc($themeName));
 			} else {
 				$_SESSION['error'] = __t('theme_manager_delete_failed');
 			}
@@ -82,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_theme'])) {
 	$result    = admin_apply_extension_update('theme', $themeName);
 
 	if ($result['success']) {
-		$_SESSION['message'] = sprintf(__t('theme_manager_update_success', 'Theme "%s" updated successfully.'), htmlspecialchars($themeName));
+		$_SESSION['message'] = sprintf(__t('theme_manager_update_success', 'Theme "%s" updated successfully.'), hsc($themeName));
 	} else {
 		$_SESSION['error'] = $result['error'] ?? __t('update_failed_apply');
 	}
@@ -148,7 +148,7 @@ $themeUpdates = admin_check_theme_updates();
 			<p style="color:var(--danger-text);"><?php _e('theme_ziparchive_missing'); ?></p>
 		<?php else: ?>
 			<form method="POST" action="extension-upload.php" enctype="multipart/form-data" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-				<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
+				<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token'] ?? ''); ?>">
 				<input type="hidden" name="_type" value="theme">
 				<input type="hidden" name="_redirect" value="index.php?action=manage_themes">
 				<input type="file" name="theme_zip" accept=".zip" required style="flex:1; max-width:500px;">
@@ -169,8 +169,8 @@ $themeUpdates = admin_check_theme_updates();
 		<?php if ($theme['has_preview']): ?>
 			<img
 				class="theme-preview"
-				src="<?php echo htmlspecialchars($theme['preview_url']); ?>"
-				alt="<?php echo htmlspecialchars($theme['label']); ?>"
+				src="<?php echo hsc($theme['preview_url']); ?>"
+				alt="<?php echo hsc($theme['label']); ?>"
 				loading="lazy"
 			>
 		<?php else: ?>
@@ -181,42 +181,42 @@ $themeUpdates = admin_check_theme_updates();
 
 		<div class="theme-card-body">
 			<div class="theme-card-name">
-				<?php echo htmlspecialchars($theme['label']); ?>
+				<?php echo hsc($theme['label']); ?>
 				<?php if ($theme['active']): ?>
 				<span class="theme-badge-active"><?php _e('theme_active_label'); ?></span>
 				<?php endif; ?>
 				<?php if (isset($themeUpdates[$theme['name']])): ?>
-				<span class="theme-badge-update" title="<?php echo htmlspecialchars(sprintf(__t('theme_update_available_title', 'Version %s available'), $themeUpdates[$theme['name']]['remote_version'])); ?>"><?php _e('theme_update_badge', 'Update available'); ?></span>
+				<span class="theme-badge-update" title="<?php echo hsc(sprintf(__t('theme_update_available_title', 'Version %s available'), $themeUpdates[$theme['name']]['remote_version'])); ?>"><?php _e('theme_update_badge', 'Update available'); ?></span>
 				<?php endif; ?>
 			</div>
 
 			<?php if ($theme['author'] || $theme['version']): ?>
 			<div class="theme-card-meta">
 				<?php if ($theme['author']): ?>
-					<?php _e('theme_manager_by'); ?> <?php echo htmlspecialchars($theme['author']); ?>
+					<?php _e('theme_manager_by'); ?> <?php echo hsc($theme['author']); ?>
 				<?php endif; ?>
 				<?php if ($theme['version']): ?>
-					&nbsp;·&nbsp; v<?php echo htmlspecialchars($theme['version']); ?>
+					&nbsp;·&nbsp; v<?php echo hsc($theme['version']); ?>
 				<?php endif; ?>
 			</div>
 			<?php endif; ?>
 
 			<?php if ($theme['description']): ?>
-			<div class="theme-card-desc"><?php echo htmlspecialchars($theme['description']); ?></div>
+			<div class="theme-card-desc"><?php echo hsc($theme['description']); ?></div>
 			<?php endif; ?>
 
-			<div class="theme-card-meta" style="font-family: monospace; font-size: 0.78em;"><?php echo htmlspecialchars($theme['name']); ?></div>
+			<div class="theme-card-meta" style="font-family: monospace; font-size: 0.78em;"><?php echo hsc($theme['name']); ?></div>
 
 			<div class="theme-card-actions">
 				<?php if (!$theme['active']): ?>
 				<button
 					type="button"
 					class="btn btn-primary btn-sm"
-					onclick="confirmActivateTheme('<?php echo htmlspecialchars($theme['name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($theme['label'], ENT_QUOTES); ?>')"><?php _e('theme_manager_activate_btn'); ?></button>
+					onclick="confirmActivateTheme('<?php echo hsc($theme['name'], ENT_QUOTES); ?>', '<?php echo hsc($theme['label'], ENT_QUOTES); ?>')"><?php _e('theme_manager_activate_btn'); ?></button>
 				<button
 					type="button"
 					class="btn btn-danger btn-sm"
-					onclick="confirmDeleteTheme('<?php echo htmlspecialchars($theme['name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($theme['label'], ENT_QUOTES); ?>')"><?php _e('delete'); ?></button>
+					onclick="confirmDeleteTheme('<?php echo hsc($theme['name'], ENT_QUOTES); ?>', '<?php echo hsc($theme['label'], ENT_QUOTES); ?>')"><?php _e('delete'); ?></button>
 				<?php else: ?>
 				<span class="help-text"><?php _e('theme_manager_active_cannot_delete'); ?></span>
 				<?php endif; ?>
@@ -224,13 +224,13 @@ $themeUpdates = admin_check_theme_updates();
 				<button
 					type="button"
 					class="btn btn-primary btn-sm"
-					onclick="confirmUpdateTheme('<?php echo htmlspecialchars($theme['name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($theme['label'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($themeUpdates[$theme['name']]['remote_version'], ENT_QUOTES); ?>')"><?php echo admin_icon('update'); ?> <?php _e('theme_update_btn', 'Update'); ?></button>
+					onclick="confirmUpdateTheme('<?php echo hsc($theme['name'], ENT_QUOTES); ?>', '<?php echo hsc($theme['label'], ENT_QUOTES); ?>', '<?php echo hsc($themeUpdates[$theme['name']]['remote_version'], ENT_QUOTES); ?>')"><?php echo admin_icon('update'); ?> <?php _e('theme_update_btn', 'Update'); ?></button>
 				<?php endif; ?>
 				<button
 				type="button"
 				class="btn btn-outline"
 				title="<?php _e('theme_preview_hover'); ?>"
-				onclick="openThemePreview('<?php echo htmlspecialchars($theme['name'], ENT_QUOTES); ?>')"><?php _e('theme_preview_btn'); ?></button>
+				onclick="openThemePreview('<?php echo hsc($theme['name'], ENT_QUOTES); ?>')"><?php _e('theme_preview_btn'); ?></button>
 			</div>
 		</div>
 	</div>
@@ -240,21 +240,21 @@ $themeUpdates = admin_check_theme_updates();
 
 <!-- Hidden delete form — submitted programmatically -->
 <form id="delete-theme-form" method="POST" action="index.php?action=manage_themes" style="display:none;">
-	<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
+	<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token'] ?? ''); ?>">
 	<input type="hidden" name="delete_theme" value="1">
 	<input type="hidden" name="theme_name" id="delete-theme-name" value="">
 </form>
 
 <!-- Hidden activate form — submitted programmatically -->
 <form id="activate-theme-form" method="POST" action="index.php?action=manage_themes" style="display:none;">
-	<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
+	<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token'] ?? ''); ?>">
 	<input type="hidden" name="activate_theme" value="1">
 	<input type="hidden" name="theme_name" id="activate-theme-name" value="">
 </form>
 
 <!-- Hidden update form — submitted programmatically -->
 <form id="update-theme-form" method="POST" action="index.php?action=manage_themes" style="display:none;">
-	<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
+	<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token'] ?? ''); ?>">
 	<input type="hidden" name="update_theme" value="1">
 	<input type="hidden" name="theme_name" id="update-theme-name" value="">
 </form>

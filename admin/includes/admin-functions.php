@@ -2,6 +2,15 @@
 // Define constants
 if (!defined('INCLUDED')) define('INCLUDED', true);
 
+// hsc() may already be defined if core/functions.php was loaded first.
+// In admin-only paths (auth.php, template-editor.php) it is not, so we define it here.
+if (!function_exists('hsc')) {
+    function hsc(?string $s, int $flags = ENT_QUOTES | ENT_SUBSTITUTE, string $enc = 'UTF-8'): string
+    {
+        return htmlspecialchars((string) ($s ?? ''), $flags, $enc);
+    }
+}
+
 /**
  * Admin wrapper for sanitizeSlug function
  * Ensures the function is available in admin context
@@ -390,8 +399,9 @@ function admin_content_url($contentType, $slug, $customSlug = '', $category = ''
 	// Resolve full hierarchical category path (e.g. "parent/child")
 	$catPath = '';
 	if (!empty($categorySlug)) {
-		$data    = admin_load_data();
-		$catPath = getCategoryPath($categorySlug, $data);
+		static $_acu_data = null;
+		if ($_acu_data === null) $_acu_data = admin_load_data();
+		$catPath = getCategoryPath($categorySlug, $_acu_data);
 	}
 
 	if ($contentType === 'page') {

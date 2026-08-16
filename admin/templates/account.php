@@ -35,20 +35,20 @@ if (empty($admin_display_name)) {
 			<div class="form-group">
 				<label for="admin_username"><?php _e('profile_username_label'); ?>:</label>
 				<input type="text" id="admin_username" name="admin_username"
-				       value="<?php echo htmlspecialchars($admin_username); ?>"
+				       value="<?php echo hsc($admin_username); ?>"
 				       pattern="[a-zA-Z0-9_\-]{3,32}" required>
 				<p class="help-text"><?php _e('profile_username_help'); ?></p>
 			</div>
 			<div class="form-group">
 				<label for="admin_display_name"><?php _e('profile_display_name_label'); ?>:</label>
 				<input type="text" id="admin_display_name" name="admin_display_name"
-				       value="<?php echo htmlspecialchars($admin_display_name); ?>">
+				       value="<?php echo hsc($admin_display_name); ?>">
 				<p class="help-text"><?php _e('profile_display_name_help'); ?></p>
 			</div>
 			<div class="form-group">
 				<label for="admin_email"><?php _e('lbl_contact_email', 'Admin Email'); ?>:</label>
 				<input type="email" id="admin_email" name="admin_email"
-				       value="<?php echo htmlspecialchars($admin_email); ?>"
+				       value="<?php echo hsc($admin_email); ?>"
 				       placeholder="you@example.com">
 				<p class="help-text"><?php _e('profile_email_help'); ?></p>
 			</div>
@@ -131,7 +131,7 @@ document.addEventListener('DOMContentLoaded', function () {
 		});
 	});
 
-	var csrfToken = '<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>';
+	var csrfToken = '<?php echo hsc($_SESSION['csrf_token'] ?? ''); ?>';
 
 	function showMsg(containerId, message, type) {
 		var el = document.getElementById(containerId);

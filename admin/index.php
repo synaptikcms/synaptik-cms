@@ -138,12 +138,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_alt_save']) && (
 	exit;
 }
 
-// Load data before buffering page content — templates like dashboard.php depend on $data
-$data = admin_load_data();
-
-// Buffer page content
+// Load data — index-only for list views, full items only when needed.
+// On a site with hundreds of articles, loading full items for the list
+// view costs 500+ file reads for nothing: the list only needs index fields.
 $action = $_GET['action'] ?? '';
 $type   = $_GET['type']   ?? '';
+
+if ($type !== '' && in_array($type, ['article', 'page', 'project'], true) && $action === '') {
+	// Content list: load index only for the requested type
+	$contentType = $type;
+	$data = [
+		'article'    => [],
+		'page'       => [],
+		'project'    => [],
+		'categories' => sl_load_categories(),
+		'tags'       => sl_load_tags(),
+	];
+	$data[$contentType] = sl_load_index($contentType);
+} else {
+	$data = admin_load_data();
+}
+
+// Buffer page content
 
 // Plugin page router — renders a plugin's admin page inside the standard
 // admin layout (sidebar, topbar, footer). A plugin exposes
