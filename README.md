@@ -56,7 +56,7 @@ It was built for developers, designers, artists, creative professionals, writers
 | Built-in analytics | ✓ plugin | Plugin | Plugin | Plugin | Plugin | Plugin |
 | Composer required | ✗ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | Install footprint | ~2 MB | ~86 MB | ~52 MB | ~20 MB | ~9 MB | ~10 MB |
-| License | SynaptikCMS OL | GPL free | MIT free | Paid | MIT free | MIT free |
+| License | MIT Free | GPL free | MIT free | Paid | MIT free | MIT free |
 | Install time | ~2 min | ~10 min | ~5 min | ~5 min | ~3 min | ~5 min |
 
 SynaptikCMS is not trying to replace WordPress at scale. It is the right tool when you want a real admin panel with no database — for portfolios, documentation sites, small business sites, personal blogs or any project where simplicity and load speed matter.
@@ -288,11 +288,7 @@ Unlike themes, plugins are not tied to the active theme — once activated from 
 
 ## License
 
-SynaptikCMS Open License — free for personal, educational, and non-profit use.
-Commercial use requires visible attribution ("Powered by SynaptikCMS") in the product UI.
-Direct resale of the software is not permitted without written permission.
-
-See [LICENSE.md](LICENSE.md) for the full terms.
+MIT — free for personal and commercial use. See [LICENSE.md](LICENSE.md).
 
 ---
 
