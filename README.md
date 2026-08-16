@@ -137,6 +137,7 @@ If you wish to extend the functionalities of your CMS, official plugins can be f
 - Front-end and admin panel fully localised
 - Ships with English, French, Spanish
 - Add a new language by dropping a JSON file in `/lang/` or by using the built-in translation editor
+- Community Language packs are available on [https://synaptikcms.com/language-packs/](https://synaptikcms.com/language-packs/)
 
 ---
 
