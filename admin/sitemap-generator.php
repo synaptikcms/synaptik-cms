@@ -6,9 +6,13 @@ if (!admin_is_logged_in()) {
     header('Location: auth.php');
     exit;
 }
+if (!admin_can_manage_all_content()) {
+    http_response_code(403);
+    exit('Access denied.');
+}
 
 // Get all drafts
-$draftsDir = 'drafts';
+$draftsDir = sl_admin_drafts_dir();
 $draftCount = 0;
 
 if (file_exists($draftsDir)) {
@@ -88,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_sitemap'])) 
             if (empty($slug) && empty($customSlug)) continue;
 
             $itemUrl = admin_content_url($ct, $slug, $customSlug, $category);
-            $raw     = $item['last_modified'] ?? ($item['date'] ?? date('Y-m-d'));
+            $raw     = !empty($item['last_modified']) ? $item['last_modified'] : (!empty($item['date']) ? $item['date'] : date('Y-m-d'));
             $lastmod = substr($raw, 0, 10);
             $addUrl($itemUrl, $lastmod, $priorities[$ct] ?? '0.8');
         }

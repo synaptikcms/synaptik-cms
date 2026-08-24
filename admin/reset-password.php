@@ -14,30 +14,66 @@ if (admin_is_logged_in()) {
     exit;
 }
 
-$adminCredFile = __DIR__ . '/admin-credentials.php';
-$tokenFile     = dirname(__DIR__) . '/private/reset_token.json';
+$tokenFile = dirname(__DIR__) . '/private/reset_token.json';
 
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// ── Token validation helper ───────────────────────────────────────────────────
-function _reset_token_valid(string $rawToken, string $tokenFile): bool
+// ── Token validation helpers ──────────────────────────────────────────────────
+// Tokens live as an array (one entry per user with an outstanding reset) —
+// find the still-valid entry matching $rawToken and return its user_id.
+function _reset_token_find_user_id(string $rawToken, string $tokenFile): ?string
 {
-    if ($rawToken === '' || !file_exists($tokenFile)) return false;
+    if ($rawToken === '' || !file_exists($tokenFile)) return null;
     $stored = json_decode(file_get_contents($tokenFile), true);
-    return is_array($stored)
-        && !empty($stored['token_hash'])
-        && !empty($stored['expires_at'])
-        && $stored['expires_at'] > time()
-        && hash_equals($stored['token_hash'], hash('sha256', $rawToken));
+    if (!is_array($stored)) return null;
+    foreach ($stored as $entry) {
+        if (
+            is_array($entry)
+            && !empty($entry['token_hash'])
+            && !empty($entry['user_id'])
+            && !empty($entry['expires_at'])
+            && $entry['expires_at'] > time()
+            && hash_equals($entry['token_hash'], hash('sha256', $rawToken))
+        ) {
+            return $entry['user_id'];
+        }
+    }
+    return null;
+}
+
+// Removes only the one entry matching $rawToken — every other user's
+// still-outstanding token is left untouched.
+function _reset_token_consume(string $rawToken, string $tokenFile): void
+{
+    if (!file_exists($tokenFile)) return;
+    $_lockFp = @fopen($tokenFile, 'c+');
+    if (!$_lockFp) return;
+    flock($_lockFp, LOCK_EX);
+    $_raw     = stream_get_contents($_lockFp);
+    $_decoded = ($_raw !== false && $_raw !== '') ? json_decode($_raw, true) : null;
+    $tokens   = [];
+    if (is_array($_decoded)) {
+        $targetHash = hash('sha256', $rawToken);
+        foreach ($_decoded as $entry) {
+            if (is_array($entry) && ($entry['token_hash'] ?? '') === $targetHash) continue;
+            $tokens[] = $entry;
+        }
+    }
+    ftruncate($_lockFp, 0);
+    rewind($_lockFp);
+    fwrite($_lockFp, json_encode($tokens, JSON_PRETTY_PRINT));
+    flock($_lockFp, LOCK_UN);
+    fclose($_lockFp);
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
-$rawToken   = trim($_GET['reset_token'] ?? '');
-$tokenValid = _reset_token_valid($rawToken, $tokenFile);
-$error      = '';
-$success    = false;
+$rawToken       = trim($_GET['reset_token'] ?? '');
+$resetUserId    = _reset_token_find_user_id($rawToken, $tokenFile);
+$tokenValid     = $resetUserId !== null;
+$error          = '';
+$success        = false;
 
 if (!$tokenValid && $_SERVER['REQUEST_METHOD'] !== 'POST') {
     $error = __t('reset_link_invalid', 'This reset link is invalid or has expired.');
@@ -51,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $tokenValid = false;
     }
 
-    if (empty($error) && !_reset_token_valid($rawToken, $tokenFile)) {
+    if (empty($error) && $resetUserId === null) {
         $error      = __t('reset_link_expired', 'Your reset link has expired.')
                     . ' <a href="forgot-password.php">'
                     . hsc(__t('reset_request_new', 'request a new one'))
@@ -74,31 +110,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = __t('password_too_weak',
                 'Password must be at least 8 characters and include an uppercase letter, a number, and a special character.');
         } else {
-            // Load current credentials to preserve all fields
-            $admin_email    = '';
-            $admin_password = '';
-            if (file_exists($adminCredFile)) {
-            include $adminCredFile;
-            }
-            if (empty($admin_email)) {
-             $settings    = admin_load_config();
-            $admin_email = trim($settings['contact_email'] ?? '');
-            }
+            $resetUser = admin_find_user_by_id($resetUserId);
 
-            if (!empty($admin_password) && password_verify($newPassword, $admin_password)) {
+            if ($resetUser === null) {
+                $error = __t('reset_link_expired', 'Your reset link has expired.');
+            } elseif (password_verify($newPassword, $resetUser['password_hash'] ?? '')) {
                 $error = __t('reset_same_password', 'Your new password must be different from your current password.');
             } else {
-				$ok = admin_save_credentials([
-                 'password_hash' => password_hash($newPassword, PASSWORD_BCRYPT),
-                 'email'         => $admin_email,
-                ]);
+                $ok = admin_update_user($resetUser['id'], ['password' => $newPassword]);
 
                 if ($ok) {
-                @unlink($tokenFile);
-                $success = true;
+                    _reset_token_consume($rawToken, $tokenFile);
+                    $success = true;
                 } else {
-                $error = __t('password_update_failed',
-					'Could not save the new password. Check file permissions on admin-credentials.php.');
+                    $error = __t('password_update_failed',
+                        'Could not save the new password. Check write permissions on private/users.json.');
                 }
             }
         }
@@ -129,19 +155,7 @@ $jsStrings = [
     $_adminCssUrl = $_scheme . '://' . $_SERVER['HTTP_HOST']
                   . str_replace(rtrim($_SERVER['DOCUMENT_ROOT'], '/'), '', rtrim(__DIR__, '/'));
     ?>
-    <script>
-    (function() {
-        try {
-            var t = localStorage.getItem('synaptik_theme');
-            if (t !== 'dark' && t !== 'light') {
-                t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            }
-            document.documentElement.setAttribute('data-theme', t);
-        } catch (e) {
-            document.documentElement.setAttribute('data-theme', 'light');
-        }
-    })();
-    </script>
+    <script src="<?php echo hsc($_adminCssUrl); ?>/assets/js/theme-boot.js?v=<?php echo @filemtime(__DIR__ . '/assets/js/theme-boot.js'); ?>"></script>
     <link rel="stylesheet" href="<?php echo hsc($_adminCssUrl); ?>/assets/css/admin-base.css?v=<?php echo @filemtime(__DIR__ . '/assets/css/admin-base.css'); ?>">
     <style>
         .login-container { max-width: 420px; }
@@ -156,7 +170,7 @@ $jsStrings = [
         .message a { color: inherit; font-weight: 600; }
     </style>
 </head>
-<body style="background-color: var(--surface2);">
+<body class="auth-page" style="background-color: var(--surface2);">
 <div class="login-container">
     <div class="login-header">
         <h1><?php echo hsc(__t('reset_new_pwd_heading', 'Set New Password')); ?></h1>
@@ -216,47 +230,7 @@ $jsStrings = [
     <?php endif; ?>
 </div>
 
-<script>
-(function () {
-    var S = <?php echo json_encode($jsStrings, JSON_UNESCAPED_UNICODE); ?>;
-
-    var pw   = document.getElementById('new_password');
-    var pwc  = document.getElementById('confirm_password');
-    var rNew = document.getElementById('pw-rules-new');
-    var rMat = document.getElementById('pw-rules-match');
-    if (!pw || !rNew) return;
-
-    // Build rule badges
-    function badge(id, label) {
-        var s = document.createElement('span');
-        s.className = 'pw-rule';
-        s.id = id;
-        s.textContent = label;
-        return s;
-    }
-    rNew.appendChild(badge('r-len',   S.r_len));
-    rNew.appendChild(badge('r-up',    S.r_up));
-    rNew.appendChild(badge('r-dig',   S.r_dig));
-    rNew.appendChild(badge('r-spc',   S.r_spc));
-    if (rMat) rMat.appendChild(badge('r-match', S.r_match));
-
-    function rule(id, ok) {
-        var el = document.getElementById(id);
-        if (el) el.classList.toggle('valid', ok);
-    }
-    function check() {
-        var v = pw.value;
-        var c = pwc ? pwc.value : '';
-        rule('r-len',   v.length >= 8);
-        rule('r-up',    /[A-Z]/.test(v));
-        rule('r-dig',   /[0-9]/.test(v));
-        rule('r-spc',   /[\W_]/.test(v));
-        rule('r-match', v.length > 0 && v === c);
-    }
-    pw.addEventListener('input', check);
-    if (pwc) pwc.addEventListener('input', check);
-    check();
-})();
-</script>
+<script type="application/json" id="reset-password-strings"><?php echo json_encode($jsStrings, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?></script>
+<script src="<?php echo hsc($_adminCssUrl); ?>/assets/js/reset-password.js?v=<?php echo @filemtime(__DIR__ . '/assets/js/reset-password.js'); ?>"></script>
 </body>
 </html>

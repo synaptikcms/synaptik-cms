@@ -5,12 +5,6 @@ if (!defined('INCLUDED')) {
 	exit('Direct access to this file is not allowed');
 }
 
-/**
- * Render a self-contained image picker for the settings form.
- *
- * @param string $field       Base input name (e.g. 'site_logo').
- * @param string $currentPath Currently stored relative path (e.g. 'files/logo.png').
- */
 function _sv_image_picker(string $field, string $currentPath): void {
 	$clean = ltrim($currentPath, '/');
 	$src   = $clean ? '../' . $clean : '';
@@ -45,15 +39,7 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 	: [['platform' => '', 'url' => '']];
 ?>
 
-		<div class="tabs">
-			<div class="tab <?php echo $activeTab === 'general'       ? 'active' : ''; ?>" data-tab="general"><?php echo admin_icon('settings'); ?> <?php _e('general'); ?></div>
-			<div class="tab <?php echo $activeTab === 'reading'       ? 'active' : ''; ?>" data-tab="reading"><?php echo admin_icon('reading'); ?> <?php _e('settings_tab_reading'); ?></div>
-			<div class="tab <?php echo $activeTab === 'writing'       ? 'active' : ''; ?>" data-tab="writing"><?php echo admin_icon('writing'); ?> <?php _e('settings_tab_writing'); ?></div>
-			<div class="tab <?php echo $activeTab === 'seo'           ? 'active' : ''; ?>" data-tab="seo"><?php echo admin_icon('seo'); ?> <?php _e('seo'); ?></div>
-			<div class="tab <?php echo $activeTab === 'images'        ? 'active' : ''; ?>" data-tab="images"><?php echo admin_icon('images'); ?> <?php _e('images'); ?></div>
-			<div class="tab <?php echo $activeTab === 'contact'       ? 'active' : ''; ?>" data-tab="contact"><?php echo admin_icon('contact'); ?> <?php _e('settings_tab_contact'); ?></div>
-			<div class="tab <?php echo $activeTab === 'custom_fields' ? 'active' : ''; ?>" data-tab="custom_fields"><?php echo admin_icon('puzzle'); ?> <?php _e('cf_tab'); ?></div>
-		</div>
+		<?php admin_render_settings_tabs($activeTab, true); ?>
 
 		<form method="post" action="index.php?action=settings" enctype="multipart/form-data">
 			<input type="hidden" name="tab" id="settings-active-tab" value="<?php echo hsc($activeTab); ?>">
@@ -181,10 +167,14 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 					<h3><?php _e('cache_section_title'); ?></h3>
 					<div class="form-group">
 						<p class="help-text"><?php _e('cache_section_help'); ?></p>
-						<div style="margin-top:12px;">
-							<button type="submit" name="clear_cache" form="clear-cache-form" class="btn btn-danger" onclick="return confirm('<?php echo hsc(__t('cache_clear_confirm')); ?>')">
-								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:5px;"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+						<div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+							<button type="button" class="btn btn-danger" id="clear-cache-confirm-btn">
+								<?php echo admin_icon('update', 'style="vertical-align:-2px;margin-right:5px;"', 14); ?>
 								<?php _e('cache_clear_btn'); ?>
+							</button>
+							<button type="button" class="btn btn-outline" id="clear-admin-cache-confirm-btn">
+								<?php echo admin_icon('update', 'style="vertical-align:-2px;margin-right:5px;"', 14); ?>
+								<?php _e('admin_cache_clear_btn', 'Clear admin cache'); ?>
 							</button>
 						</div>
 					</div>
@@ -218,8 +208,9 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 							<?php endif; ?>
 						</select>
 					</div>
+					
 					<h4><?php _e('pagination_settings'); ?></h4>
-					<div class="form-group">
+					<div class="form-group" style="margin-top:14px;">
 						<label for="articles_per_page"><?php _e('articles_per_page'); ?>:</label>
 						<input type="number" id="articles_per_page" name="articles_per_page" value="<?php echo $appSettings['articles_per_page']; ?>" min="1" max="50">
 						<label class="checkbox-label">
@@ -235,15 +226,13 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 					</div>
 					<div class="form-group">
 						<label class="checkbox-label">
-							<input type="checkbox" name="show_breadcrumbs" <?php echo !empty($appSettings['show_breadcrumbs']) ? 'checked' : ''; ?>>
-							<?php _e('show_breadcrumbs'); ?>
-						</label>
-						<p class="help-text"><?php _e('show_breadcrumbs_help'); ?></p>
-						<label class="checkbox-label">
 							<input type="checkbox" name="show_site_title_in_header" <?php echo $appSettings['show_site_title_in_header'] ? 'checked' : ''; ?>>
 							<?php _e('show_site_title_in_header'); ?>
-						</label>
-						<p class="help-text"><?php _e('show_site_title_help'); ?></p>
+						</label><br>
+						<label class="checkbox-label">
+							<input type="checkbox" name="show_breadcrumbs" <?php echo !empty($appSettings['show_breadcrumbs']) ? 'checked' : ''; ?>>
+							<?php _e('show_breadcrumbs'); ?>
+						</label><br>
 						<label class="checkbox-label" for="footer_show_login">
 							<input type="checkbox" id="footer_show_login" name="settings[footer_show_login]" value="1" <?php echo !empty($appSettings['footer_show_login']) ? 'checked' : ''; ?>>
 							<?php _e('footer_show_login'); ?>
@@ -254,6 +243,29 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 							<?php _e('show_search_icon'); ?>
 						</label>
 						<p class="help-text"><?php _e('show_search_icon_help'); ?></p>
+					</div>
+				</div>
+				<div class="site-settings-section">
+					<h3><?php _e('type_labels_title'); ?></h3>
+					<p class="help-text"><?php _e('type_labels_help'); ?></p>
+					<div class="form-group">
+						<?php foreach (['article', 'page', 'project'] as $_svType): ?>
+						<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;">
+							<div>
+								<label for="type_label_<?php echo $_svType; ?>_singular"><?php echo hsc(sl_type_label($_svType, false)); ?> — <?php _e('type_labels_singular'); ?></label>
+								<input type="text" id="type_label_<?php echo $_svType; ?>_singular" name="type_label_<?php echo $_svType; ?>_singular"
+									   value="<?php echo hsc($appSettings['type_labels'][$_svType]['singular'] ?? ''); ?>"
+									   placeholder="<?php echo hsc(__t($_svType, ucfirst($_svType))); ?>">
+							</div>
+							<div>
+								<label for="type_label_<?php echo $_svType; ?>_plural"><?php _e('type_labels_plural'); ?></label>
+								<input type="text" id="type_label_<?php echo $_svType; ?>_plural" name="type_label_<?php echo $_svType; ?>_plural"
+									   value="<?php echo hsc($appSettings['type_labels'][$_svType]['plural'] ?? ''); ?>"
+									   placeholder="<?php echo hsc(__t($_svType . 's', ucfirst($_svType) . 's')); ?>">
+							</div>
+						</div>
+						<?php endforeach; ?>
+						<p class="help-text"><?php _e('type_labels_url_warning'); ?></p>
 					</div>
 				</div>
 
@@ -273,6 +285,7 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 								'd/m/Y'  => 'DD/MM/YYYY',
 								'm/d/Y'  => 'MM/DD/YYYY',
 								'd-m-Y'  => 'DD-MM-YYYY',
+								'd.m.Y'  => 'DD.MM.YYYY',
 								'd M Y'  => 'DD Mon YYYY',
 								'F j, Y' => 'Month DD, YYYY',
 								'j F Y'  => 'DD Month YYYY',
@@ -388,13 +401,11 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 				</div>
 				<div class="site-settings-section">
 					<h3><?php _e('seo_settings'); ?></h3>
-					<div class="form-group">
 						<label class="checkbox-label">
 							<input type="checkbox" name="enable_seo" <?php echo $appSettings['enable_seo'] ? 'checked' : ''; ?>>
 							<?php _e('enable_seo'); ?>
 						</label>
-						<p class="help-text"><?php _e('seo_help_text'); ?></p>
-					</div>
+					<p class="help-text"><?php _e('seo_help_text'); ?></p>
 					<div class="form-group">
 						<label for="default_meta_title"><?php _e('default_meta_title_label'); ?>:</label>
 						<input type="text" id="default_meta_title" name="default_meta_title" value="<?php echo hsc($appSettings['default_meta_title']); ?>">
@@ -404,6 +415,22 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 						<label for="default_meta_description"><?php _e('default_meta_description_label'); ?>:</label>
 						<textarea id="default_meta_description" name="default_meta_description" rows="2"><?php echo hsc($appSettings['default_meta_description']); ?></textarea>
 						<p class="help-text"><?php _e('meta_description_vars'); ?></p>
+					</div>
+					<h3>Schema.org JSON-LD</h3>
+					<div class="form-group">
+						<label for="schema_author_name"><?php _e('schema_author_name_label'); ?></label>
+						<input type="text" id="schema_author_name" name="schema_author_name"
+							value="<?php echo hsc($appSettings['schema_author_name'] ?? ''); ?>"
+							placeholder="<?php echo hsc(__t('schema_author_name_placeholder')); ?>">
+						<p class="help-text"><?php _e('schema_author_name_help'); ?></p>
+					</div>
+					<div class="form-group">
+						<label for="schema_publisher_type"><?php _e('schema_publisher_type_label'); ?></label>
+						<select id="schema_publisher_type" name="schema_publisher_type">
+							<option value="Person" <?php echo ($appSettings['schema_publisher_type'] ?? 'Person') === 'Person' ? 'selected' : ''; ?>><?php _e('schema_publisher_person'); ?></option>
+							<option value="Organization" <?php echo ($appSettings['schema_publisher_type'] ?? '') === 'Organization' ? 'selected' : ''; ?>><?php _e('schema_publisher_organization'); ?></option>
+						</select>
+						<p class="help-text"><?php _e('schema_publisher_type_help'); ?></p>
 					</div>
 					<h3><?php _e('seo_overview'); ?></h3>
 					<div class="form-group">
@@ -454,7 +481,7 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 					</div>
 					<div class="form-group">
 						<label for="image_quality"><?php _e('image_quality'); ?>:</label>
-						<input style="width:90%; padding:0;" type="range" id="image_quality" name="image_quality" value="<?php echo $appSettings['image_quality'] ?? 85; ?>" min="1" max="100" oninput="document.getElementById('quality_value').textContent = this.value">
+						<input style="width:90%; padding:0;" type="range" id="image_quality" name="image_quality" value="<?php echo $appSettings['image_quality'] ?? 85; ?>" min="1" max="100">
 						<span style="color: var(--primary); font-size: 1.2em; font-weight: 500; padding:3px; border:1px solid var(--border); border-radius: var(--radius-sm);" id="quality_value"><?php echo $appSettings['image_quality'] ?? 85; ?></span>
 						<p class="help-text"><?php _e('image_quality_help'); ?></p>
 					</div>
@@ -482,7 +509,7 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 
 				<div class="site-settings-section">
 					<h3><?php _e('image_optimizer'); ?></h3>
-					<p class="help-text" style="margin-left: 20px;"><?php _e('batch_optimizer_desc'); ?></p>
+					<p class="help-text" style="margin-bottom: 16px;"><?php _e('batch_optimizer_desc'); ?></p>
 					<div class="form-group">
 						<a href="batch-optimize.php" class="btn btn-outline"><?php echo admin_icon('compress'); ?> <?php _e('image_optimizer'); ?></a>
 					</div>
@@ -494,13 +521,12 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 
 				<div class="site-settings-section">
 					<h3><?php echo admin_icon('contact'); ?> <?php _e('contact_form_settings'); ?></h3>
-					<p class="help-text" style="margin-bottom:16px;margin-left: 20px;"><?php _e('contact_form_help'); ?></p>
+					<p class="help-text" style="margin-bottom:16px;"><?php _e('contact_form_help'); ?></p>
 					<div class="form-group">
 						<label for="contact_email"><?php _e('contact_email_to'); ?> *</label>
 						<input type="email" id="contact_email" name="contact_email"
 							value="<?php echo hsc($appSettings['contact_email'] ?? ''); ?>"
 							placeholder="you@example.com">
-						<p class="help-text"><?php _e('contact_email_to_help'); ?></p>
 					</div>
 					<div class="form-group">
 						<label for="contact_subject"><?php _e('contact_subject'); ?></label>
@@ -524,21 +550,19 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 
 				<div class="site-settings-section">
 					<h3><?php echo admin_icon('robot'); ?> <?php _e('hcaptcha_section'); ?></h3>
-					<p class="help-text" style="margin-bottom:12px;margin-left: 20px;"><?php _e('hcaptcha_help'); ?></p>
+					<p class="help-text" style="margin-bottom:16px;"><?php _e('hcaptcha_help'); ?></p>
 					<div class="form-group">
 						<label for="hcaptcha_site_key"><?php _e('hcaptcha_site_key'); ?></label>
 						<input type="text" id="hcaptcha_site_key" name="hcaptcha_site_key"
 							value="<?php echo hsc($appSettings['hcaptcha_site_key'] ?? ''); ?>"
 							placeholder="10000000-ffff-ffff-ffff-000000000001"
 							autocomplete="off">
-						<p class="help-text"><?php _e('hcaptcha_site_key_help'); ?></p>
 					</div>
 					<div class="form-group">
 						<label for="hcaptcha_secret_key"><?php _e('hcaptcha_secret_key'); ?></label>
 						<input type="password" id="hcaptcha_secret_key" name="hcaptcha_secret_key"
 							value="<?php echo hsc($appSettings['hcaptcha_secret_key'] ?? ''); ?>"
 							autocomplete="off">
-						<p class="help-text"><?php _e('hcaptcha_secret_key_help'); ?></p>
 					</div>
 					<?php if (empty($appSettings['hcaptcha_site_key'])): ?>
 					<p style="color:var(--warning-text);font-size:0.85rem;">
@@ -598,7 +622,7 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 				foreach ($cfTypes as $cfType):
 					$fields = $cfSchema[$cfType] ?? [];
 				?>
-				<div class="site-settings-section">
+				<div class="site-settings-section" id="cf-section-<?php echo $cfType; ?>">
 					<h3><?php echo hsc($cfLabels[$cfType]); ?></h3>
 					<div class="form-group">
 					<div class="cf-fields-list" id="cf-list-<?php echo $cfType; ?>" data-type="<?php echo $cfType; ?>">
@@ -660,7 +684,14 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 		</form>
 
 		<!-- Standalone form for cache clear — declared outside main form to avoid nesting -->
-		<form id="clear-cache-form" method="post" action="index.php?action=settings"></form>
+		<form id="clear-cache-form" method="post" action="index.php?action=settings">
+			<input type="hidden" name="clear_cache" value="1">
+			<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token'] ?? ''); ?>">
+		</form>
+		<form id="clear-admin-cache-form" method="post" action="index.php?action=settings">
+			<input type="hidden" name="clear_admin_cache" value="1">
+			<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token'] ?? ''); ?>">
+		</form>
 
 		<!-- Form upload thème : déclaré ici, champs liés via form="theme-upload-form" -->
 		<form id="theme-upload-form"
@@ -671,288 +702,42 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 			<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token'] ?? ''); ?>">
 		</form>
 
-	<script>
-		document.addEventListener('DOMContentLoaded', function() {
-
-			document.querySelectorAll('.message.success, .message.error').forEach(function(msg) {
-				setTimeout(function() {
-					msg.style.transition = 'opacity 0.5s';
-					msg.style.opacity    = '0';
-					setTimeout(function() { msg.style.display = 'none'; msg.style.opacity = '1'; }, 500);
-				}, 5000);
-			});
-
-			document.querySelectorAll('.tab').forEach(tab => {
-				tab.addEventListener('click', function() {
-					document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
-					document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-					const tabId = this.getAttribute('data-tab');
-					document.getElementById(tabId + '-tab').style.display = 'grid';
-					this.classList.add('active');
-					const hiddenTab = document.getElementById('settings-active-tab');
-					if (hiddenTab) hiddenTab.value = tabId;
-					const url = new URL(window.location.href);
-					url.searchParams.set('tab', tabId);
-					history.replaceState(null, '', url);
-				});
-			});
-
-			const homepageTypeSelect = document.getElementById('homepage_type');
-			if (homepageTypeSelect) {
-				homepageTypeSelect.addEventListener('change', function() {
-					document.getElementById('homepage_page_selector').style.display = (this.value === 'page') ? 'block' : 'none';
-				});
-			}
-
-			// ── Custom Fields: add/remove/options toggle ────────────────────────
-			const cfI18n = {
-				label:      <?php echo json_encode(__t('cf_field_label')); ?>,
-				labelPh:    <?php echo json_encode(__t('cf_field_label_ph')); ?>,
-				key:        <?php echo json_encode(__t('cf_field_key')); ?>,
-				keyPh:      <?php echo json_encode(__t('cf_field_key_ph')); ?>,
-				type:       <?php echo json_encode(__t('cf_field_type')); ?>,
-				options:    <?php echo json_encode(__t('cf_field_options')); ?>,
-				optionsPh:  <?php echo json_encode(__t('cf_field_options_ph')); ?>,
-				required:   <?php echo json_encode(__t('cf_field_required')); ?>,
-				delete:     <?php echo json_encode(__t('cf_delete_field')); ?>,
-				empty:      <?php echo json_encode(__t('cf_no_fields')); ?>,
-				types:      <?php echo json_encode([
-					'text'     => __t('cf_type_text'),
-					'textarea' => __t('cf_type_textarea'),
-					'number'   => __t('cf_type_number'),
-					'url'      => __t('cf_type_url'),
-					'checkbox' => __t('cf_type_checkbox'),
-					'select'   => __t('cf_type_select'),
-				]); ?>,
-			};
-
-			function cfReindex(list) {
-				const type = list.dataset.type;
-				list.querySelectorAll('.cf-field-row').forEach((row, i) => {
-					row.dataset.index = i;
-					row.querySelectorAll('[name]').forEach(el => {
-						// Replace the [type][N] part in the field name, handling literal brackets
-						el.name = el.name.replace(
-							/custom_fields_schema\[[^\]]+\]\[\d+\]/,
-							`custom_fields_schema[${type}][${i}]`
-						);
-					});
-				});
-				const empty = list.querySelector('.cf-empty');
-				if (empty) empty.style.display = list.querySelectorAll('.cf-field-row').length === 0 ? '' : 'none';
-			}
-
-			function cfBuildRow(type, index) {
-				const pre = `custom_fields_schema[${type}][${index}]`;
-				const typeOptions = Object.entries(cfI18n.types)
-					.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
-				return `<div class="cf-field-row" data-index="${index}">
-					<div class="cf-field-inputs">
-						<div class="cf-col">
-							<label>${cfI18n.label}</label>
-							<input type="text" name="${pre}[label]" placeholder="${cfI18n.labelPh}" required>
-						</div>
-						<div class="cf-col">
-							<label>${cfI18n.key}</label>
-							<input type="text" name="${pre}[key]" placeholder="${cfI18n.keyPh}" pattern="[a-z0-9\\-_]+" required>
-						</div>
-						<div class="cf-col">
-							<label>${cfI18n.type}</label>
-							<select name="${pre}[type]" class="cf-type-select">${typeOptions}</select>
-						</div>
-						<div class="cf-col cf-col-options" style="display:none">
-							<label>${cfI18n.options}</label>
-							<input type="text" name="${pre}[options]" placeholder="${cfI18n.optionsPh}">
-						</div>
-						<div class="cf-col cf-col-required">
-							<label class="checkbox-label">
-								<input type="checkbox" name="${pre}[required]" value="1">
-								${cfI18n.required}
-							</label>
-						</div>
-					</div>
-					<button type="button" class="btn btn-danger btn-sm cf-delete-btn" title="${cfI18n.delete}">&#x2715;</button>
-				</div>`;
-			}
-
-			// Add field
-			document.querySelectorAll('.cf-add-btn').forEach(btn => {
-				btn.addEventListener('click', function() {
-					const type = this.dataset.type;
-					const list = document.getElementById('cf-list-' + type);
-					const index = list.querySelectorAll('.cf-field-row').length;
-					const empty = list.querySelector('.cf-empty');
-					if (empty) empty.style.display = 'none';
-					list.insertAdjacentHTML('beforeend', cfBuildRow(type, index));
-					const newRow = list.lastElementChild;
-					newRow.querySelector('.cf-type-select').addEventListener('change', cfTypeChange);
-					newRow.querySelector('.cf-delete-btn').addEventListener('click', cfDeleteRow);
-				});
-			});
-
-			function cfTypeChange() {
-				const optionsCol = this.closest('.cf-field-row').querySelector('.cf-col-options');
-				if (optionsCol) optionsCol.style.display = this.value === 'select' ? '' : 'none';
-			}
-
-			function cfDeleteRow() {
-				const row  = this.closest('.cf-field-row');
-				const list = row.closest('.cf-fields-list');
-				row.remove();
-				cfReindex(list);
-			}
-
-			// Bind existing rows
-			document.querySelectorAll('.cf-type-select').forEach(sel => sel.addEventListener('change', cfTypeChange));
-			document.querySelectorAll('.cf-delete-btn').forEach(btn => btn.addEventListener('click', cfDeleteRow));
-
-			window.initialSocialLinkIndex = <?php echo count($socialLinks); ?>;
-
-			// Autosave checkbox ↔ interval dropdown
-			const autosaveCheckbox = document.getElementById('autosave_enabled');
-			const autosaveInterval = document.getElementById('autosave_interval');
-			if (autosaveCheckbox && autosaveInterval) {
-			autosaveCheckbox.addEventListener('change', function () {
-			autosaveInterval.disabled = !this.checked;
-			});
-			}
-
-			// ── Settings Image Picker (SIP) ─────────────────────────────────────────────
-			(function () {
-			var _sipActiveField = null;
-			var _sipModal = document.getElementById('sip-modal');
-
-			document.querySelectorAll('.sip-upload-input').forEach(function (input) {
-			input.addEventListener('change', function () {
-			var field = this.dataset.field;
-			 var file  = this.files[0];
-			 if (!file) return;
-			 var reader = new FileReader();
-			 reader.onload = function (e) { _sipShowPreview(field, e.target.result); };
-			 reader.readAsDataURL(file);
-			 var p = document.getElementById('sip-path-' + field);
-			 var r = document.getElementById('sip-remove-' + field);
-			 if (p) p.value = '';
-					if (r) r.value = '';
-			 });
-			});
-
-			document.querySelectorAll('.sip-browse-btn').forEach(function (btn) {
-			btn.addEventListener('click', function () {
-			_sipActiveField = this.dataset.field;
-			_sipModal.style.display = 'flex';
-			_sipLoad('');
-			});
-			});
-
-			document.querySelectorAll('.sip-remove-btn').forEach(function (btn) {
-			btn.addEventListener('click', function () {
-			 var field = this.dataset.field;
-					_sipHidePreview(field);
-			 var p = document.getElementById('sip-path-' + field);
-			 var r = document.getElementById('sip-remove-' + field);
-			 var f = document.querySelector('.sip-upload-input[data-field="' + field + '"]');
-			 if (p) p.value = '';
-			 if (r) r.value = '1';
-			 if (f) f.value = '';
-			});
-			});
-
-			document.getElementById('sip-modal-close').addEventListener('click', function () {
-			_sipModal.style.display = 'none';
-			});
-			_sipModal.addEventListener('click', function (e) {
-			if (e.target === this) this.style.display = 'none';
-			});
-
-			function _sipLoad(path) {
-			var body = document.getElementById('sip-modal-body');
-			body.innerHTML = '<p style="padding:12px;color:var(--text-muted)"><?php echo __t('loading_files'); ?></p>';
-			fetch('get-files.php?path=' + encodeURIComponent(path))
-			 .then(function (r) { return r.json(); })
-			 .then(function (data) {
-			  body.innerHTML = '';
-			  if (path !== '') {
-			   var up = document.createElement('div');
-			 up.className = 'sip-folder-item';
-			   up.textContent = '← ..';
-			   up.addEventListener('click', function () {
-			    _sipLoad(path.includes('/') ? path.substring(0, path.lastIndexOf('/')) : '');
-			   });
-			   body.appendChild(up);
-			  }
-			  (data.folders || []).forEach(function (folder) {
-			   var div = document.createElement('div');
-							div.className = 'sip-folder-item';
-			   div.textContent = '📁 ' + folder;
-			   div.addEventListener('click', function () { _sipLoad(path ? path + '/' + folder : folder); });
-							body.appendChild(div);
-			  });
-			  var images = (data.files || []).filter(function (f) { return f.is_image; });
-			  if (images.length === 0 && (data.folders || []).length === 0) {
-			   var empty = document.createElement('p');
-			   empty.style.cssText = 'grid-column:1/-1;padding:12px;color:var(--text-muted)';
-			   empty.textContent = '<?php echo __t('sip_no_images'); ?>';
-			   body.appendChild(empty);
-			   return;
-			 }
-			images.forEach(function (f) {
-			var filePath = 'files/' + (path ? path + '/' : '') + f.name;
-			   var div = document.createElement('div');
-			div.className = 'sip-file-item';
-			div.innerHTML = '<img src="../' + filePath + '" loading="lazy" alt="' + f.name + '"><span>' + f.name + '</span>';
-			 div.addEventListener('click', function () { _sipSelect(filePath); });
-			 body.appendChild(div);
-			});
-			})
-			.catch(function () { body.innerHTML = '<p style="padding:12px;color:var(--danger)">Error loading files.</p>'; });
-			}
-
-			function _sipSelect(filePath) {
-			if (!_sipActiveField) return;
-			var p = document.getElementById('sip-path-' + _sipActiveField);
-			var r = document.getElementById('sip-remove-' + _sipActiveField);
-			var f = document.querySelector('.sip-upload-input[data-field="' + _sipActiveField + '"]');
-			 if (p) p.value = filePath;
-			  if (r) r.value = '';
-			   if (f) f.value = '';
-			   _sipShowPreview(_sipActiveField, '../' + filePath);
-				_sipModal.style.display = 'none';
-			}
-
-			function _sipShowPreview(field, src) {
-				var wrapper = document.querySelector('.sip-wrapper[data-field="' + field + '"]');
-				if (!wrapper) return;
-				var img     = wrapper.querySelector('.sip-preview-img');
-				var preview = wrapper.querySelector('.sip-preview');
-				if (img)     img.src = src;
-				if (preview) preview.style.display = 'flex';
-			}
-
-			function _sipHidePreview(field) {
-				var wrapper = document.querySelector('.sip-wrapper[data-field="' + field + '"]');
-				if (!wrapper) return;
-				var preview = wrapper.querySelector('.sip-preview');
-				var img     = wrapper.querySelector('.sip-preview-img');
-				if (img)     img.src = '';
-				if (preview) preview.style.display = 'none';
-			}
-		})();
-
-	});
-	</script>
-
-	<!-- Settings Image Picker modal -->
-	<div id="sip-modal" style="display:none;position:fixed;inset:0;background:var(--overlay);z-index:9999;align-items:center;justify-content:center;">
-		<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);width:760px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow-lg);">
-			<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--border);flex-shrink:0;">
-				<h3 style="margin:0;"><?php _e('sip_select_modal_title'); ?></h3>
-				<button type="button" id="sip-modal-close" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-muted);line-height:1;">&#x2715;</button>
-			</div>
-			<div id="sip-modal-body" style="padding:16px;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;align-content:start;min-height:120px;">
-			</div>
-		</div>
-	</div>
+<script type="application/json" id="settings-view-data"><?php echo json_encode([
+	'cfI18n' => [
+		'label'     => __t('cf_field_label'),
+		'labelPh'   => __t('cf_field_label_ph'),
+		'key'       => __t('cf_field_key'),
+		'keyPh'     => __t('cf_field_key_ph'),
+		'type'      => __t('cf_field_type'),
+		'options'   => __t('cf_field_options'),
+		'optionsPh' => __t('cf_field_options_ph'),
+		'required'  => __t('cf_field_required'),
+		'delete'    => __t('cf_delete_field'),
+		'empty'     => __t('cf_no_fields'),
+		'types'     => [
+			'text'     => __t('cf_type_text'),
+			'textarea' => __t('cf_type_textarea'),
+			'number'   => __t('cf_type_number'),
+			'url'      => __t('cf_type_url'),
+			'checkbox' => __t('cf_type_checkbox'),
+			'select'   => __t('cf_type_select'),
+		],
+	],
+	'initialSocialLinkIndex' => count($socialLinks),
+	'loadingFiles'           => __t('loading_files'),
+	'sipNoImages'            => __t('sip_no_images'),
+	'sipModalTitle'          => __t('sip_select_modal_title'),
+	'home'                   => __t('home'),
+	'cacheClearConfirm'      => __t('cache_clear_confirm'),
+	'cacheClearBtn'          => __t('cache_clear_btn'),
+	'adminCacheClearConfirm' => __t('admin_cache_clear_confirm', 'Clear the admin cache? This will force a fresh check for CMS and extension updates.'),
+	'adminCacheClearBtn'     => __t('admin_cache_clear_btn', 'Clear admin cache'),
+], JSON_HEX_TAG); ?></script>
+<!-- defer: this page's own HTML (with this tag) renders before the core
+     admin footer scripts, but settings-view.js needs window.SynaptikImagePicker
+     from common.js, which loads later in that footer — defer runs this
+     only after the whole document (including common.js) has parsed. -->
+<script src="assets/js/settings-view.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/settings-view.js'); ?>" defer></script>
 
 	<style>
 	.sip-wrapper { display:flex; flex-direction:column; gap:10px; }
@@ -961,10 +746,4 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 	.sip-controls { display:flex; gap:8px; flex-wrap:wrap; }
 	.sip-upload-label { cursor:pointer; overflow: hidden; line-height: normal; }
 	.sip-upload-input { padding: 0; margin: 0; }
-	.sip-file-item { cursor:pointer; border:2px solid transparent; border-radius:var(--radius-sm); overflow:hidden; background:var(--surface-2); transition:border-color .15s; }
-	.sip-file-item:hover { border-color:var(--primary); }
-	.sip-file-item img { width:100%; height:80px; object-fit:cover; display:block; }
-	.sip-file-item span { display:block; font-size:.7em; padding:4px 6px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-	.sip-folder-item { cursor:pointer; padding:10px 14px; background:var(--surface-2); border-radius:var(--radius-sm); border:1px solid var(--border); grid-column:1/-1; transition:background .15s; }
-	.sip-folder-item:hover { background:var(--primary-soft); }
 	</style>

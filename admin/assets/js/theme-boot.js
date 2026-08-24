@@ -1,0 +1,1 @@
+!function(){try{var t=localStorage.getItem("synaptik_theme");"light"!==t&&"dark"!==t&&(t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"),document.documentElement.setAttribute("data-theme",t)}catch(t){document.documentElement.setAttribute("data-theme","light")}}();

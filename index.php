@@ -1,6 +1,13 @@
 <?php
 ini_set('memory_limit', '256M');
 
+// LLM indexer endpoints — intercept before session/bootstrap overhead.
+// Accessible as /llms.txt and /llms-full.txt via .htaccess rewrite.
+if (isset($_GET['_llms'])) {
+    require_once __DIR__ . '/core/' . ($_GET['_llms'] === 'full' ? 'llms-full' : 'llms') . '.php';
+    exit;
+}
+
 // Use the same session cookie name as the admin panel (see
 // admin/includes/session-config.php) so an authenticated admin session is
 // visible here too — required for the front-end admin bar (#snk-admin-bar,
@@ -26,14 +33,14 @@ $__sessionConfigPath = __DIR__ . '/' . $__adminDirForSession . '/includes/sessio
 // name is still configured on the front end. Mirrors resolve_admin_dir() in
 // core-functions.php, inlined here because functions.php is not loaded yet.
 if (!file_exists($__sessionConfigPath)) {
-    foreach (glob(__DIR__ . '/*/admin-credentials.php') ?: [] as $__adminCredFile) {
-        $__candidate = __DIR__ . '/' . basename(dirname($__adminCredFile)) . '/includes/session-config.php';
+    foreach (glob(__DIR__ . '/*/auth.php') ?: [] as $__adminAuthFile) {
+        $__candidate = __DIR__ . '/' . basename(dirname($__adminAuthFile)) . '/includes/session-config.php';
         if (file_exists($__candidate)) {
             $__sessionConfigPath = $__candidate;
             break;
         }
     }
-    unset($__adminCredFile, $__candidate);
+    unset($__adminAuthFile, $__candidate);
 }
 if (file_exists($__sessionConfigPath)) {
     require_once $__sessionConfigPath;
@@ -41,11 +48,6 @@ if (file_exists($__sessionConfigPath)) {
 unset($__adminDirForSession, $__configPathForSession, $__decodedForSession, $__sessionConfigPath);
 
 session_start();
-// One-time migration (v1.3.3 architecture refactor). The script deletes
-// itself after running, so this check becomes a no-op on subsequent loads.
-if (file_exists(__DIR__ . '/migrate.php')) {
-    require_once __DIR__ . '/migrate.php';
-}
 
 // Include the CMS bootstrap loader (core libraries + rendering modules).
 require_once __DIR__ . '/core/functions.php';
@@ -130,7 +132,7 @@ if (isset($_GET['_tp']) && isset($_SESSION['admin']) && $_SESSION['admin'] === t
   <span class="tpb-label">' . $_tpTheme . '
 	<span class="tpb-sub">&mdash; not active &middot; preview only</span>
   </span>
-  <button class="tpb-close" onclick="window.close()">' . __t('preview_close') . '</button>
+  <button class="tpb-close">' . __t('preview_close') . '</button>
 </div>';
 }
 
@@ -238,6 +240,12 @@ if ($type === 'category' && !empty($category)) {
 	$httpStatus = $pageData['http_status'] ?? 200;
 }
 
+// Mirrored the same way as $GLOBALS['data'] above — lets render_header_scripts()
+// (called from inside loadThemeTemplate('header', ...), a separate function scope)
+// inspect the page's actual rendered HTML, e.g. to conditionally load
+// highlight.js only on pages that actually contain a code block.
+$GLOBALS['pageContent'] = $pageContent;
+
 // Set HTTP status BEFORE any output (header template inclusion below)
 http_response_code($httpStatus);
 
@@ -340,7 +348,20 @@ $requiredGalleryScripts = array_unique($requiredGalleryScripts);
 // render_header_scripts() and must NOT be added here.
 $headerScripts = array_values(array_unique($requiredGalleryScripts));
 
-$headerScripts[] = '	<script>window.appSettings = window.appSettings || {}; window.appSettings.showSearchIcon = ' . (isset($settings["show_search_icon"]) && $settings["show_search_icon"] ? 'true' : 'false') . ';</script>';
+// Schema.org JSON-LD — injected into <head> for single-item views only.
+// render_schema_jsonld() returns '' for all other page types, so this is always safe.
+$_schemaJsonld = render_schema_jsonld($settings, $type, $slug, $data);
+if ($_schemaJsonld !== '') {
+	$headerScripts[] = $_schemaJsonld;
+}
+unset($_schemaJsonld);
+
+// front-boot.js already ran once in $system (before this array is merged in) and
+// missed this island — safe to re-include: it only acts on islands it finds present.
+$headerScripts[] = '	<script type="application/json" id="cms-appsettings-json">'
+	. json_encode(['showSearchIcon' => isset($settings["show_search_icon"]) && $settings["show_search_icon"]])
+	. '</script>'
+	. '	<script src="' . getBaseUrl() . 'assets/js/front-boot.js' . (($_v = @filemtime(CMS_ROOT . '/assets/js/front-boot.js')) ? '?v=' . $_v : '') . '"></script>';
 
 // ── Admin top bar ────────────────────────────────────────────────────────────
 // Visible only when an admin session is active.
@@ -422,7 +443,8 @@ if ($isAdminLoggedIn) {
 	$_s .= '#snk-admin-bar .snk-ab-spacer{flex:1;}';
 	$_s .= '#snk-admin-bar svg{flex-shrink:0;}';
 	$_s .= '</style>';
-	$_s .= '<script>document.addEventListener("DOMContentLoaded",function(){document.body.classList.add("has-adminbar");});</script>';
+	// body.has-adminbar is added by front-boot.js (in $system), which checks for
+	// #snk-admin-bar's presence on DOMContentLoaded — no inline script needed here.
 	$headerScripts[] = $_s;
 
 	$_ico_home = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>';

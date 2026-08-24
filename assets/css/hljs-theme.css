@@ -1,0 +1,45 @@
+/* Syntax colors for highlight.js — same palette the old hand-rolled
+ * highlighter used, mapped onto highlight.js's own .hljs-* class names.
+ * Loaded conditionally (see render_hljs_scripts() in core/render/tf-page.php)
+ * only for themes that don't already ship their own .hljs styling.
+ */
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-section,
+.hljs-link,
+.hljs-tag { color: #e74c3c; }
+
+.hljs-string,
+.hljs-title,
+.hljs-title.function_ { color: #2ecc71; }
+
+.hljs-attr,
+.hljs-attribute,
+.hljs-name,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-selector-attr,
+.hljs-selector-class,
+.hljs-selector-id { color: #3498db; }
+
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet { color: #f39c12; }
+
+.hljs-comment,
+.hljs-quote,
+.hljs-deletion { color: #95a5a6; font-style: italic; }
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-type,
+.hljs-title.class_ { color: #9b59b6; }
+
+.hljs-operator,
+.hljs-punctuation,
+.hljs-meta,
+.hljs-subst { color: #ecf0f1; }
+
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: bold; }

@@ -2,12 +2,14 @@
 /**
  * forgot-password.php — SynaptikCMS admin password reset request
  *
- * Email source priority:
- *   1. $admin_email in admin-credentials.php
- *   2. contact_email in config.json
+ * Looked up by email across every user in private/users.json — no
+ * config.json contact_email fallback (that's the site's public contact
+ * address, not any one person's, and would be wrong to accept here now
+ * that there can be more than one personal account).
  *
- * Token: stored in private/reset_token.json (.htaccess-protected)
- * TTL  : 15 minutes
+ * Tokens: stored as an array in private/reset_token.json
+ * (.htaccess-protected) so two different users can have an outstanding
+ * reset at once. TTL: 15 minutes, one active token per user.
  */
 require_once __DIR__ . '/includes/session-config.php';
 session_start();
@@ -20,19 +22,7 @@ if (admin_is_logged_in()) {
 
 define('RESET_TOKEN_TTL', 900); // 15 minutes
 
-$adminCredFile = __DIR__ . '/admin-credentials.php';
-$tokenFile     = dirname(__DIR__) . '/private/reset_token.json';
-
-// ── Resolve admin email ───────────────────────────────────────────────────────
-$admin_email    = '';
-$admin_password = '';
-if (file_exists($adminCredFile)) {
-    include $adminCredFile;
-}
-if (empty($admin_email)) {
-    $settings    = admin_load_config();
-    $admin_email = trim($settings['contact_email'] ?? '');
-}
+$tokenFile = dirname(__DIR__) . '/private/reset_token.json';
 
 // ── CSRF ──────────────────────────────────────────────────────────────────────
 if (empty($_SESSION['csrf_token'])) {
@@ -49,74 +39,109 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
         $error = __t('auth_csrf_error', 'Invalid security token. Please try again.');
     } else {
-        $inputEmail = trim(strtolower($_POST['email'] ?? ''));
+        $inputEmail  = trim($_POST['email'] ?? '');
+        $matchedUser = admin_find_user_by_email($inputEmail);
 
-        if (!empty($admin_email) && strtolower($admin_email) === $inputEmail) {
-
-            // Rate-limit: one active token at a time
-            $existing    = null;
-            $alreadySent = false;
-            if (file_exists($tokenFile)) {
-                $existing = json_decode(file_get_contents($tokenFile), true);
-                $alreadySent = is_array($existing)
-                            && isset($existing['expires_at'])
-                            && $existing['expires_at'] > time();
-            }
-
-            if ($alreadySent) {
-                // A valid token already exists — don't generate a new one.
-                // We still show $sent = true to avoid leaking this info, but
-                // we do NOT expose a fallback URL (the first one is still valid).
-                $sent = true;
-            } else {
-                // Generate a new token
-                $token     = bin2hex(random_bytes(32));
-                $tokenHash = hash('sha256', $token);
-                $expiresAt = time() + RESET_TOKEN_TTL;
-
-                $writeOk = file_put_contents($tokenFile, json_encode([
-                    'token_hash' => $tokenHash,
-                    'expires_at' => $expiresAt,
-                ], JSON_PRETTY_PRINT));
-
-                if ($writeOk === false) {
-                    // Can't write the token file — abort entirely
-                    $error = 'Could not write reset token. Check write permissions on <code>/private/</code>.';
-                } else {
-                    // Build reset URL from configured site_url to prevent Host header poisoning.
-                    $settings = admin_load_config();
-                    $siteUrl  = rtrim($settings['site_url'] ?? '', '/');
-                    if (empty($siteUrl)) {
-                        // Fallback for unconfigured installs only.
-                        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-                        $docRoot  = rtrim($_SERVER['DOCUMENT_ROOT'], '/');
-                        $cmsPath  = str_replace($docRoot, '', rtrim(dirname(__DIR__), '/'));
-                        $siteUrl  = $protocol . '://' . $_SERVER['HTTP_HOST'] . $cmsPath;
-                    }
-                    $resetUrl = $siteUrl . '/?reset_token=' . urlencode($token);
-
-                    // Try to send the email
-                    $siteName   = $settings['site_title'] ?? 'SynaptikCMS';
-                    $mailDomain = parse_url($siteUrl, PHP_URL_HOST) ?? 'localhost';
-                    $subject    = '[' . $siteName . '] Password Reset';
-                    $body       = "Hello,\n\n"
-                                . "A password reset was requested for the " . $siteName . " admin account.\n\n"
-                                . "Click the link below to set a new password (valid for 15 minutes):\n\n"
-                                . $resetUrl . "\n\n"
-                                . "If you did not request this, ignore this email.";
-                    $headers    = "From: noreply@" . $mailDomain . "\r\n"
-                                . "Reply-To: noreply@" . $mailDomain . "\r\n"
-                                . "X-Mailer: SynaptikCMS\r\n"
-                                . "Content-Type: text/plain; charset=UTF-8";
-
-                    mail($admin_email, $subject, $body, $headers);
-                    // Never expose the result of mail() or the token in the response.
-                    $sent = true;
+        // Always run the same lock/read/purge/write cycle on the shared
+        // token file whether or not the email matches an account — a real
+        // match must not be distinguishable from "no such account" by how
+        // much work this request does (same rationale as auth.php's
+        // timing-safe login: the file I/O below is the expensive step, so
+        // it always runs, and only the mail() call stays conditional).
+        $_lockFp = @fopen($tokenFile, 'c+');
+        $tokens      = [];
+        $alreadySent = false;
+        if ($_lockFp) {
+            flock($_lockFp, LOCK_EX);
+            $_raw     = stream_get_contents($_lockFp);
+            $_decoded = ($_raw !== false && $_raw !== '') ? json_decode($_raw, true) : null;
+            if (is_array($_decoded)) {
+                // Keep every still-valid entry (expired ones are dropped
+                // regardless of owner). One active token per user: if
+                // this user already has a valid one, rate-limit —
+                // don't generate/send another.
+                foreach ($_decoded as $_entry) {
+                    if (!is_array($_entry) || ($_entry['expires_at'] ?? 0) <= time()) continue;
+                    $tokens[] = $_entry;
+                    if ($matchedUser !== null && ($_entry['user_id'] ?? null) === $matchedUser['id']) $alreadySent = true;
                 }
             }
-        } else {
-            // Email doesn't match — show generic success anyway (no enumeration)
+        }
+
+        if ($matchedUser === null || $alreadySent) {
+            // No such account, or a valid token already exists for this
+            // user — nothing new to persist, but still write the purged
+            // list back so this request's file cost matches the
+            // token-generating branch below.
+            if ($_lockFp) {
+                ftruncate($_lockFp, 0);
+                rewind($_lockFp);
+                fwrite($_lockFp, json_encode($tokens, JSON_PRETTY_PRINT));
+                flock($_lockFp, LOCK_UN);
+                fclose($_lockFp);
+            }
+            // Note: the token-generating branch below calls mail(), an SMTP
+            // round-trip whose cost varies by relay and can't be reliably
+            // padded to match with a fixed delay (tried 200ms here — it
+            // overshot local sendmail's ~15-40ms and just flipped which
+            // side is slower). What's fixed above is the deterministic
+            // signal — file I/O now happens identically either way — the
+            // residual mail()-timing gap is a known, accepted limitation of
+            // sending reset emails synchronously with no queue.
             $sent = true;
+        } else {
+            $token     = bin2hex(random_bytes(32));
+            $tokenHash = hash('sha256', $token);
+            $expiresAt = time() + RESET_TOKEN_TTL;
+            $tokens[]  = [
+                'token_hash' => $tokenHash,
+                'user_id'    => $matchedUser['id'],
+                'expires_at' => $expiresAt,
+            ];
+
+            $writeOk = false;
+            if ($_lockFp) {
+                $writeOk = ftruncate($_lockFp, 0)
+                    && rewind($_lockFp)
+                    && (fwrite($_lockFp, json_encode($tokens, JSON_PRETTY_PRINT)) !== false);
+                flock($_lockFp, LOCK_UN);
+                fclose($_lockFp);
+            }
+
+            if (!$writeOk) {
+                // Can't write the token file — abort entirely
+                $error = 'Could not write reset token. Check write permissions on <code>/private/</code>.';
+            } else {
+                // Build reset URL from configured site_url to prevent Host header poisoning.
+                $settings = admin_load_config();
+                $siteUrl  = rtrim($settings['site_url'] ?? '', '/');
+                if (empty($siteUrl)) {
+                    // Fallback for unconfigured installs only.
+                    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+                    $docRoot  = rtrim($_SERVER['DOCUMENT_ROOT'], '/');
+                    $cmsPath  = str_replace($docRoot, '', rtrim(dirname(__DIR__), '/'));
+                    $siteUrl  = $protocol . '://' . $_SERVER['HTTP_HOST'] . $cmsPath;
+                }
+                $resetUrl = $siteUrl . '/?reset_token=' . urlencode($token);
+
+                // Try to send the email
+                $siteName   = $settings['site_title'] ?? 'SynaptikCMS';
+                $mailDomain = parse_url($siteUrl, PHP_URL_HOST) ?? 'localhost';
+                $subject    = '[' . $siteName . '] Password Reset';
+                $body       = "Hello,\n\n"
+                            . "A password reset was requested for your " . $siteName . " admin account.\n\n"
+                            . "Click the link below to set a new password (valid for 15 minutes):\n\n"
+                            . $resetUrl . "\n\n"
+                            . "If you did not request this, ignore this email.";
+                $headers    = "From: noreply@" . $mailDomain . "\r\n"
+                            . "Reply-To: noreply@" . $mailDomain . "\r\n"
+                            . "X-Mailer: SynaptikCMS\r\n"
+                            . "Content-Type: text/plain; charset=UTF-8";
+
+                mail(str_replace(["\r", "\n"], '', $matchedUser['email']), $subject, $body, $headers);
+                // Never expose the result of mail() or the token in the response.
+                $sent = true;
+            }
         }
     }
 
@@ -129,19 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo hsc(__t('reset_page_title', 'Password Reset')); ?> — SynaptikCMS</title>
-    <script>
-    (function() {
-        try {
-            var t = localStorage.getItem('synaptik_theme');
-            if (t !== 'dark' && t !== 'light') {
-                t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            }
-            document.documentElement.setAttribute('data-theme', t);
-        } catch (e) {
-            document.documentElement.setAttribute('data-theme', 'light');
-        }
-    })();
-    </script>
+    <script src="assets/js/theme-boot.js?v=<?php echo @filemtime(__DIR__ . '/assets/js/theme-boot.js'); ?>"></script>
     <link rel="stylesheet" href="assets/css/admin-base.css?v=<?php echo @filemtime(__DIR__ . '/assets/css/admin-base.css'); ?>">
     <style>
         .login-container { max-width: 420px; }
@@ -156,7 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     </style>
 </head>
-<body style="background-color: var(--surface2);">
+<body class="auth-page" style="background-color: var(--surface2);">
 <div class="login-container">
     <div class="login-header">
         <h1><?php echo hsc(__t('reset_send_link_heading', 'Forgot your password?')); ?></h1>
@@ -180,13 +193,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </a>
 
     <?php else: ?>
-
-        <?php if (empty($admin_email)): ?>
-        <div class="notice-warning">
-            <?php echo __t('reset_no_email_warning', '⚠ No admin email configured. Password reset by email is unavailable.'); ?><br>
-            <small><?php echo __t('reset_no_email_fix', "To enable it, add <code>\$admin_email = 'you@example.com';</code> to <code>admin-credentials.php</code>."); ?></small>
-        </div>
-        <?php endif; ?>
 
         <form class="login-form" method="POST" action="">
             <input type="hidden" name="csrf_token"

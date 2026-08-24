@@ -84,12 +84,35 @@ $contentStats = [
 	'project' => count($data['project'] ?? []),
 ];
 
-// ── Draft count ──────────────────────────────────────────────────────────────
-$_sb_draftsDir  = __DIR__ . '/drafts';
-$_sb_draftCount = 0;
-if (is_dir($_sb_draftsDir)) {
-	$_sb_draftFiles = glob($_sb_draftsDir . '/*.json');
-	$_sb_draftCount = $_sb_draftFiles ? count($_sb_draftFiles) : 0;
+// ── Content storage size — bytes on disk per type, cached like media stats ───
+$_sb_contentSizeCache    = dirname(__DIR__) . '/cache/content-size-stats.json';
+$_sb_contentSize         = ['article' => 0, 'page' => 0, 'project' => 0];
+$_sb_contentSizeCacheAge = 300;
+$_sb_contentSizeValid = file_exists($_sb_contentSizeCache)
+	&& (time() - filemtime($_sb_contentSizeCache)) < $_sb_contentSizeCacheAge;
+
+if ($_sb_contentSizeValid) {
+	$_sb_csData = json_decode(file_get_contents($_sb_contentSizeCache), true);
+	if (is_array($_sb_csData)) {
+		foreach (['article', 'page', 'project'] as $_sb_cst) {
+			$_sb_contentSize[$_sb_cst] = (int)($_sb_csData[$_sb_cst] ?? 0);
+		}
+	}
+} else {
+	foreach (['article', 'page', 'project'] as $_sb_cst) {
+		$_sb_typeDir = sl_data_dir() . '/' . sl_type_dir($_sb_cst);
+		if (!is_dir($_sb_typeDir)) continue;
+		foreach (glob($_sb_typeDir . '/*.json') ?: [] as $_sb_itemFile) {
+			if (basename($_sb_itemFile) === '_index.json') continue;
+			$_sb_contentSize[$_sb_cst] += filesize($_sb_itemFile);
+		}
+	}
+	if (is_writable(dirname($_sb_contentSizeCache))) {
+		file_put_contents(
+			$_sb_contentSizeCache,
+			json_encode(array_merge($_sb_contentSize, ['ts' => time()]))
+		);
+	}
 }
 
 // ── Settings (reuse if already loaded by caller) ─────────────────────────────
@@ -111,68 +134,31 @@ $_sb_plugin_updates = admin_check_plugin_updates();
 $_sb_ext_update_count = count($_sb_theme_updates) + count($_sb_plugin_updates);
 
 // ── Recent content items ─────────────────────────────────────────────────────
+// Author shown per item only on multi-user sites — see content-list.php.
+$_sb_authors = [];
+foreach (admin_load_users() as $_sb_u) {
+	$_sb_authors[$_sb_u['id']] = $_sb_u['display_name'] ?: $_sb_u['username'];
+}
+$_sb_show_authors = count($_sb_authors) > 1;
+
 $recentItems = [];
 foreach (['article', 'page', 'project'] as $_type) {
 	foreach ($data[$_type] ?? [] as $_idx => $_item) {
+		if (!admin_can_edit_item($_item)) continue;
 		$recentItems[] = [
 			'type'          => $_type,
 			'index'         => $_idx,
 			'title'         => $_item['title'],
-			'date'          => $_item['date']          ?? date('Y-m-d'),
-			'last_modified' => $_item['last_modified'] ?? $_item['date'] ?? date('Y-m-d'),
+			'date'          => !empty($_item['date']) ? $_item['date'] : date('Y-m-d'),
+			'last_modified' => !empty($_item['last_modified']) ? $_item['last_modified'] : (!empty($_item['date']) ? $_item['date'] : date('Y-m-d')),
 			'image'         => $_item['image']         ?? null,
+			'author_name'   => $_sb_show_authors ? ($_sb_authors[$_item['author_id'] ?? ''] ?? '') : '',
 		];
 	}
 }
 usort($recentItems, fn($a, $b) => strcmp($b['last_modified'], $a['last_modified']));
-$recentItems = array_slice($recentItems, 0, 9);
+$recentItems = array_slice($recentItems, 0, 6);
 
-// ── Total content count (used for empty-state detection) ─────────────────────
-$_totalContent = array_sum($contentStats);
-
-/**
- * Return an inline Lucide SVG icon sized for the dashboard quick-task grid.
- */
-function dash_icon(string $name): string {
-	$base = 'width="22" height="22" viewBox="0 0 24 24" fill="none" '
-		. 'stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"';
-
-	$paths = [
-		'compress'   => '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
-		'css'        => '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
-		'menu'       => '<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>',
-		'settings'   => '<line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="9" cy="18" r="2" fill="currentColor" stroke="none"/>',
-		'article'    => '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
-		'page'       => '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
-		'project'    => '<path d="M2 7.5V5c0-1.1.9-2 2-2h4l2 2h8a2 2 0 0 1 2 2v1"/><path d="M2 7.5h20l-1.5 9a2 2 0 0 1-2 1.5H5.5a2 2 0 0 1-2-1.5z"/>',
-	];
-
-	$inner = $paths[$name] ?? '';
-	if ($inner === '') return '';
-	return '<svg class="task-svg-icon" aria-hidden="true" ' . $base . '>' . $inner . '</svg>';
-}
-
-/**
- * Returns true if OPcache is enabled and actually running for the current request.
- * Tries opcache_get_status() first (reflects real runtime state, e.g. catches
- * a module that failed to initialize despite opcache.enable=1). Falls back to
- * the opcache.enable ini directive if the status function is unavailable —
- * some shared hosts (e.g. OVH) block opcache_* functions via disable_functions
- * or opcache.restrict_api_key while OPcache itself runs normally.
- */
-function dash_opcache_enabled(): bool {
-	if (!extension_loaded('Zend OPcache')) return false;
-
-	if (function_exists('opcache_get_status')) {
-		$status = @opcache_get_status(false);
-		if (is_array($status)) {
-			return !empty($status['opcache_enabled']);
-		}
-		// Function exists but call failed/blocked at runtime — fall through to ini check.
-	}
-
-	return filter_var(ini_get('opcache.enable'), FILTER_VALIDATE_BOOLEAN);
-}
 ?>
 
 <div class="dashboard-container">
@@ -232,16 +218,30 @@ function dash_opcache_enabled(): bool {
 		<?php endforeach; ?>
 	</div>
 	<?php endif; ?>
+	<?php /* ── Dashboard widgets (plugins hook in here, e.g. Analytics traffic) ──
+	     Widgets share this grid: a plain .dashboard-panel spans the full width
+	     (e.g. Analytics), while .dashboard-panel--sm sits in a single auto-fit
+	     column so several small widgets (Booking, Comments) pack 2-3 per row. */ ?>
+	<div class="dashboard-widgets">
+	<?php pl_do_hook('admin_dashboard'); ?>
+	</div>
+	<?php if (!pl_is_active('analytics')): ?>
+	<div class="update-notice">
+		<strong><?php echo admin_icon('chart'); ?> <?php _e('dashboard_analytics_cta_title'); ?></strong>
+		<?php _e('dashboard_analytics_cta_desc'); ?>
+		<a href="https://synaptikcms.com/plugins/" target="_blank" rel="noopener"><?php _e('dashboard_analytics_cta_btn'); ?> →</a>
+	</div>
+	<?php endif; ?>
 	<?php /* ── Stat cards ────────────────────────────────────── */ ?>
 	<div class="dashboard-stats">
 
 		<div class="stat-card<?php echo $contentStats['article'] === 0 ? ' stat-card--empty' : ''; ?>">
 			<div class="stat-icon">
-				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+				<?php echo admin_icon('article', '', 20); ?>
 			</div>
 			<div class="stat-content">
 				<div class="stat-value"><?php echo $contentStats['article']; ?></div>
-				<div class="stat-label"><?php _e('articles'); ?></div>
+				<div class="stat-label"><?php echo hsc(sl_type_label('article', true)); ?></div>
 			</div>
 			<div class="stat-action">
 				<?php if ($contentStats['article'] === 0): ?>
@@ -254,11 +254,11 @@ function dash_opcache_enabled(): bool {
 
 		<div class="stat-card<?php echo $contentStats['page'] === 0 ? ' stat-card--empty' : ''; ?>">
 			<div class="stat-icon">
-				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+				<?php echo admin_icon('page', '', 20); ?>
 			</div>
 			<div class="stat-content">
 				<div class="stat-value"><?php echo $contentStats['page']; ?></div>
-				<div class="stat-label"><?php _e('pages'); ?></div>
+				<div class="stat-label"><?php echo hsc(sl_type_label('page', true)); ?></div>
 			</div>
 			<div class="stat-action">
 				<?php if ($contentStats['page'] === 0): ?>
@@ -271,11 +271,11 @@ function dash_opcache_enabled(): bool {
 
 		<div class="stat-card<?php echo $contentStats['project'] === 0 ? ' stat-card--empty' : ''; ?>">
 			<div class="stat-icon">
-				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7.5V5c0-1.1.9-2 2-2h4l2 2h8a2 2 0 0 1 2 2v1"/><path d="M2 7.5h20l-1.5 9a2 2 0 0 1-2 1.5H5.5a2 2 0 0 1-2-1.5z"/></svg>
+				<?php echo admin_icon('project', '', 20); ?>
 			</div>
 			<div class="stat-content">
 				<div class="stat-value"><?php echo $contentStats['project']; ?></div>
-				<div class="stat-label"><?php _e('projects'); ?></div>
+				<div class="stat-label"><?php echo hsc(sl_type_label('project', true)); ?></div>
 			</div>
 			<div class="stat-action">
 				<?php if ($contentStats['project'] === 0): ?>
@@ -288,7 +288,7 @@ function dash_opcache_enabled(): bool {
 
 		<div class="stat-card">
 			<div class="stat-icon">
-				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+				<?php echo admin_icon('images', '', 20); ?>
 			</div>
 			<div class="stat-content">
 				<div class="stat-value"><?php echo $_sb_fileCount; ?></div>
@@ -299,22 +299,41 @@ function dash_opcache_enabled(): bool {
 			</div>
 		</div>
 
-		<?php if ($_sb_draftCount > 0): ?>
-		<div class="stat-card stat-card--drafts">
-			<div class="stat-icon">
-				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-			</div>
-			<div class="stat-content">
-				<div class="stat-value"><?php echo $_sb_draftCount; ?></div>
-				<div class="stat-label"><?php _e('drafts'); ?></div>
-			</div>
-			<div class="stat-action">
-				<a href="index.php?action=drafts"><?php _e('view_all'); ?></a>
-			</div>
-		</div>
-		<?php endif; ?>
-
 	</div>
+
+
+	<?php /* ── Storage breakdown: media / articles / other, by size on disk — iPhone-storage style ── */ ?>
+	<?php
+	$_sb_compo = [
+		'media'   => ['size' => $_sb_fileSize, 'count' => $_sb_fileCount, 'label_key' => 'dashboard_type_media', 'class' => 'compo-media'],
+		'article' => ['size' => $_sb_contentSize['article'], 'count' => $contentStats['article'], 'label' => sl_type_label('article', true), 'class' => 'compo-articles'],
+		'other'   => ['size' => $_sb_contentSize['page'] + $_sb_contentSize['project'], 'count' => $contentStats['page'] + $contentStats['project'], 'label_key' => 'dashboard_type_other', 'class' => 'compo-other'],
+	];
+	$_sb_compoTotalSize = array_sum(array_column($_sb_compo, 'size'));
+	?>
+	<?php if ($_sb_compoTotalSize > 0): ?>
+	<div class="dashboard-panel">
+		<h3><?php _e('dashboard_storage_breakdown'); ?></h3>
+		<div class="composition-bar">
+			<?php foreach ($_sb_compo as $_sb_seg): if ($_sb_seg['size'] <= 0) continue; ?>
+			<?php $_sb_pct = round($_sb_seg['size'] / $_sb_compoTotalSize * 100, 2); ?>
+			<span class="composition-seg <?php echo $_sb_seg['class']; ?>" style="width:<?php echo $_sb_pct; ?>%" title="<?php echo hsc(admin_format_file_size($_sb_seg['size'])); ?>">
+				<?php if ($_sb_pct >= 10): ?>
+				<span class="composition-seg-label"><?php echo number_format($_sb_seg['size'] / 1048576, 2); ?> MB</span>
+				<?php endif; ?>
+			</span>
+			<?php endforeach; ?>
+		</div>
+		<div class="composition-legend">
+			<?php foreach ($_sb_compo as $_sb_seg): if ($_sb_seg['count'] <= 0) continue; ?>
+			<span class="composition-legend-item">
+				<span class="composition-dot <?php echo $_sb_seg['class']; ?>"></span>
+				<?php echo hsc($_sb_seg['label'] ?? __t($_sb_seg['label_key'])); ?> — <?php echo $_sb_seg['count']; ?>
+			</span>
+			<?php endforeach; ?>
+		</div>
+	</div>
+	<?php endif; ?>
 
 	<?php /* ── Main columns ─────────────────────────────────── */ ?>
 	<div class="dashboard-columns">
@@ -330,8 +349,8 @@ function dash_opcache_enabled(): bool {
 						<div class="dashboard-empty-state">
 							<p><?php _e('no_recent_activity'); ?></p>
 							<div class="dashboard-empty-cta">
-								<a href="index.php?action=add&type=article" class="btn btn-primary"><?php _e('new_article'); ?></a>
-								<a href="index.php?action=add&type=page" class="btn btn-outline"><?php _e('new_page'); ?></a>
+								<a href="index.php?action=add&type=article" class="btn btn-primary"><?php printf(hsc(__t('add_new_type')), hsc(sl_type_label('article'))); ?></a>
+								<a href="index.php?action=add&type=page" class="btn btn-outline"><?php printf(hsc(__t('add_new_type')), hsc(sl_type_label('page'))); ?></a>
 							</div>
 						</div>
 
@@ -348,11 +367,11 @@ function dash_opcache_enabled(): bool {
 							<?php else: ?>
 							<div class="activity-icon">
 						<?php if ($item['type'] === 'article'): ?>
-							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+							<?php echo admin_icon('article', '', 18); ?>
 						<?php elseif ($item['type'] === 'page'): ?>
-							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+							<?php echo admin_icon('page', '', 18); ?>
 						<?php else: ?>
-							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7.5V5c0-1.1.9-2 2-2h4l2 2h8a2 2 0 0 1 2 2v1"/><path d="M2 7.5h20l-1.5 9a2 2 0 0 1-2 1.5H5.5a2 2 0 0 1-2-1.5z"/></svg>
+							<?php echo admin_icon('project', '', 18); ?>
 						<?php endif; ?>
 					</div>
 							<?php endif; ?>
@@ -365,10 +384,13 @@ function dash_opcache_enabled(): bool {
 									</a>
 								</div>
 								<div class="activity-meta">
-									<span class="type-badge type-<?php echo $item['type']; ?>"><?php echo __t('type_' . $item['type']); ?></span>&nbsp;
+									<span class="type-badge type-<?php echo hsc($item['type']); ?>"><?php echo hsc(sl_type_label($item['type'])); ?></span>&nbsp;
 									<b><?php _e('published'); ?></b>: <?php echo admin_format_date($item['date']); ?>
 									<?php if ($item['last_modified'] !== $item['date']): ?>
 										• <b><?php _e('updated'); ?></b>: <?php echo admin_format_date($item['last_modified']); ?>
+									<?php endif; ?>
+									<?php if (!empty($item['author_name'])): ?>
+										• <?php echo hsc($item['author_name']); ?>
 									<?php endif; ?>
 								</div>
 							</div>
@@ -387,66 +409,36 @@ function dash_opcache_enabled(): bool {
 			</div>
 		</div>
 
-		<?php /* ── Right column : quick tasks ───────────────── */ ?>
+		<?php /* ── Right column ─────────────────────────────── */ ?>
 		<div class="dashboard-column">
-			<div class="dashboard-panel">
-				<h3><?php _e('quick_tasks'); ?></h3>
-				<div class="task-buttons">
-					<a href="batch-optimize.php" class="task-button">
-						<?php echo dash_icon('compress'); ?>
-						<div class="task-label"><?php _e('optimize_images'); ?></div>
-					</a>
-					<a href="template-editor.php" class="task-button">
-						<?php echo dash_icon('css'); ?>
-						<div class="task-label"><?php _e('template_editor_title'); ?></div>
-					</a>
-					<a href="index.php?action=menu_builder" class="task-button">
-						<?php echo dash_icon('menu'); ?>
-						<div class="task-label"><?php _e('edit_menu'); ?></div>
-					</a>
-					<a href="index.php?action=settings" class="task-button">
-						<?php echo dash_icon('settings'); ?>
-						<div class="task-label"><?php _e('settings'); ?></div>
-					</a>
-				</div>
-			</div>
-		<div class="dashboard-panel">
-			<h3><?php _e('system_information'); ?></h3>
-			<div class="system-info">
-				<div class="info-item">
-					<div class="info-label"><strong><?php _e('php_version'); ?>:</strong></div>
-					<div class="info-value"><?php echo phpversion(); ?></div>
-				</div>
-				<div class="info-item">
-					<div class="info-label"><strong><?php _e('opcache_support'); ?>:</strong></div>
-					<div class="info-value"><?php echo dash_opcache_enabled() ? __t('enabled') : __t('disabled'); ?></div>
-				</div>
-				<div class="info-item">
-					<div class="info-label"><strong><?php _e('apcu_support'); ?>:</strong></div>
-					<div class="info-value"><?php echo function_exists('apcu_fetch') ? __t('enabled') : __t('disabled'); ?></div>
-				</div>
-				<div class="info-item">
-					<div class="info-label"><strong><?php _e('gd_library'); ?>:</strong></div>
-					<div class="info-value"><?php echo function_exists('gd_info') ? __t('enabled') : __t('disabled'); ?></div>
-				</div>
-				<div class="info-item">
-					<div class="info-label"><strong><?php _e('webp_support'); ?>:</strong></div>
-					<div class="info-value"><?php echo function_exists('imagewebp') ? __t('enabled') : __t('disabled'); ?></div>
-				</div>
-				<div class="info-item">
-					<div class="info-label"><strong><?php _e('zip_support'); ?>:</strong></div>
-					<div class="info-value"><?php echo class_exists('ZipArchive') ? __t('enabled') : __t('disabled'); ?></div>
-				</div>
-				<div class="info-item">
-					<div class="info-label"><strong><?php _e('mbstring_support'); ?>:</strong></div>
-					<div class="info-value"><?php echo extension_loaded('mbstring') ? __t('enabled') : __t('disabled'); ?></div>
-				</div>
-				<div class="info-item">
-					<div class="info-label"><strong><?php _e('active_theme'); ?>:</strong></div>
-					<div class="info-value"><strong><?php echo ucfirst($appSettings['active_theme'] ?? 'default'); ?></strong></div>
-				</div>
-			</div>
-		</div>
 
+			<?php /* ── Recent activity (login, saves, updates, etc.) — admin only, same as the Activity Log page itself ── */ ?>
+			<?php $_sb_activity = admin_is_admin() ? array_slice(array_reverse(sl_admin_load_activity_log()), 0, 5) : []; ?>
+			<?php if (!empty($_sb_activity)): ?>
+			<div class="dashboard-panel">
+				<h3><?php _e('recent_activity'); ?></h3>
+				<div class="activity-list">
+					<?php foreach ($_sb_activity as $_sb_entry): ?>
+					<div class="activity-item">
+						<div class="activity-icon"><?php echo admin_icon('clock', '', 18); ?></div>
+						<div class="activity-content">
+							<div class="activity-title"><?php echo hsc(admin_activity_action_label($_sb_entry['action'] ?? '')); ?></div>
+							<?php $_sb_entryDate = date('Y-m-d H:i', (int)($_sb_entry['ts'] ?? 0)); ?>
+							<div class="activity-meta">
+								<?php echo hsc($_sb_entry['username'] ?? ''); ?>
+								• <?php echo hsc(admin_format_date($_sb_entryDate)); ?>
+								<?php $_sb_t = admin_format_time($_sb_entryDate); if ($_sb_t): ?> - <?php echo hsc($_sb_t); ?><?php endif; ?>
+							</div>
+						</div>
+					</div>
+					<?php endforeach; ?>
+				</div>
+				<div class="stat-action" style="margin-top:10px;">
+					<a href="index.php?action=activity_log"><?php _e('view_all'); ?></a>
+				</div>
+			</div>
+			<?php endif; ?>
+
+		</div>
 	</div>
 </div>

@@ -137,8 +137,6 @@ usort($themes, fn($a, $b) => $b['active'] <=> $a['active']);
 $themeUpdates = admin_check_theme_updates();
 ?>
 
-<p class="help-text"><?php _e('theme_manager_desc'); ?></p>
-
 <!-- Import thème -->
 <div class="site-settings-section" style="margin-bottom: 40px;">
 	<h3><?php echo admin_icon('package'); ?> <?php _e('theme_import_title'); ?></h3>
@@ -211,26 +209,26 @@ $themeUpdates = admin_check_theme_updates();
 				<?php if (!$theme['active']): ?>
 				<button
 					type="button"
-					class="btn btn-primary btn-sm"
-					onclick="confirmActivateTheme('<?php echo hsc($theme['name'], ENT_QUOTES); ?>', '<?php echo hsc($theme['label'], ENT_QUOTES); ?>')"><?php _e('theme_manager_activate_btn'); ?></button>
+					class="btn btn-primary btn-sm theme-activate-btn"
+					data-theme-name="<?php echo hsc($theme['name']); ?>" data-theme-label="<?php echo hsc($theme['label']); ?>"><?php _e('theme_manager_activate_btn'); ?></button>
 				<button
 					type="button"
-					class="btn btn-danger btn-sm"
-					onclick="confirmDeleteTheme('<?php echo hsc($theme['name'], ENT_QUOTES); ?>', '<?php echo hsc($theme['label'], ENT_QUOTES); ?>')"><?php _e('delete'); ?></button>
+					class="btn btn-danger btn-sm theme-delete-btn"
+					data-theme-name="<?php echo hsc($theme['name']); ?>" data-theme-label="<?php echo hsc($theme['label']); ?>"><?php _e('delete'); ?></button>
 				<?php else: ?>
 				<span class="help-text"><?php _e('theme_manager_active_cannot_delete'); ?></span>
 				<?php endif; ?>
 				<?php if (isset($themeUpdates[$theme['name']])): ?>
 				<button
 					type="button"
-					class="btn btn-primary btn-sm"
-					onclick="confirmUpdateTheme('<?php echo hsc($theme['name'], ENT_QUOTES); ?>', '<?php echo hsc($theme['label'], ENT_QUOTES); ?>', '<?php echo hsc($themeUpdates[$theme['name']]['remote_version'], ENT_QUOTES); ?>')"><?php echo admin_icon('update'); ?> <?php _e('theme_update_btn', 'Update'); ?></button>
+					class="btn btn-primary btn-sm theme-update-btn"
+					data-theme-name="<?php echo hsc($theme['name']); ?>" data-theme-label="<?php echo hsc($theme['label']); ?>" data-remote-version="<?php echo hsc($themeUpdates[$theme['name']]['remote_version']); ?>"><?php echo admin_icon('update'); ?> <?php _e('theme_update_btn', 'Update'); ?></button>
 				<?php endif; ?>
 				<button
 				type="button"
-				class="btn btn-outline"
+				class="btn btn-outline theme-preview-btn"
 				title="<?php _e('theme_preview_hover'); ?>"
-				onclick="openThemePreview('<?php echo hsc($theme['name'], ENT_QUOTES); ?>')"><?php _e('theme_preview_btn'); ?></button>
+				data-theme-name="<?php echo hsc($theme['name']); ?>"><?php _e('theme_preview_btn'); ?></button>
 			</div>
 		</div>
 	</div>
@@ -259,62 +257,4 @@ $themeUpdates = admin_check_theme_updates();
 	<input type="hidden" name="theme_name" id="update-theme-name" value="">
 </form>
 
-<script>
-function confirmActivateTheme(name, label) {
-	showModal(
-		t('theme_manager_activate_confirm').replace('%s', label),
-		t('theme_manager_activate_confirm_title'),
-		{
-			showCancel:  true,
-			confirmText: t('theme_manager_activate_btn'),
-			cancelText:  t('cancel'),
-			danger:      false,
-			onConfirm: function () {
-				document.getElementById('activate-theme-name').value = name;
-				document.getElementById('activate-theme-form').submit();
-			}
-		}
-	);
-}
-
-function confirmDeleteTheme(name, label) {
-	showModal(
-		t('theme_manager_delete_confirm').replace('%s', label),
-		t('theme_manager_delete_confirm_title'),
-		{
-			showCancel:  true,
-			confirmText: t('delete'),
-			cancelText:  t('cancel'),
-			danger:      true,
-			onConfirm: function () {
-				document.getElementById('delete-theme-name').value = name;
-				document.getElementById('delete-theme-form').submit();
-			}
-		}
-	);
-}
-
-function confirmUpdateTheme(name, label, newVersion) {
-	showModal(
-		t('theme_update_confirm').replace('%s', label).replace('%v', newVersion),
-		t('theme_update_confirm_title'),
-		{
-			showCancel:  true,
-			confirmText: t('theme_update_btn'),
-			cancelText:  t('cancel'),
-			danger:      false,
-			onConfirm: function () {
-				document.getElementById('update-theme-name').value = name;
-				document.getElementById('update-theme-form').submit();
-			}
-		}
-	);
-}
-function openThemePreview(name) {
-	window.open(
-		'theme-preview.php?theme=' + encodeURIComponent(name),
-		'theme-preview-' + name,
-		'width=1280,height=800,scrollbars=yes,resizable=yes'
-	);
-}
-</script>
+<script src="assets/js/theme-manager.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/theme-manager.js'); ?>"></script>

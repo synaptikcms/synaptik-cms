@@ -31,15 +31,10 @@ if (!isset($data)) {
 }
 
 if (!isset($contentCounts)) {
-	$_draftsDir  = 'drafts';
-	$_draftCount = (is_dir($_draftsDir))
-		? count(glob($_draftsDir . '/*.json') ?: [])
-		: 0;
 	$contentCounts = [
 		'article' => count($data['article'] ?? []),
 		'page'    => count($data['page']    ?? []),
 		'project' => count($data['project'] ?? []),
-		'drafts'  => $_draftCount,
 	];
 }
 
@@ -67,19 +62,18 @@ $_isEditor      = $isEditor ?? in_array($_currentAction, ['add', 'edit']);
 $_layoutTitle = $pageTitle
 	?? (function_exists('admin_get_page_title') ? admin_get_page_title() : 'Admin');
 
-// ── Editor topbar: "View" link ────────────────────────────────────────────────
-$_topbarViewUrl = null;
+// ── Editor topbar: current item's publish status ────────────────────────────
+// Drives the submit button's initial label below (re-synced client-side by
+// content-edit-editor.js when the status dropdown changes): "Mettre à jour"
+// once published, "Programmer" while scheduled, "Enregistrer" for
+// draft/unpublished (stays offline — "Publier" would be misleading), else
+// "Publier" (new item).
+$_editItemStatus  = null;
 if ($_isEditor && $_currentAction === 'edit'
 	&& in_array($_currentType, ['article', 'page', 'project'], true)) {
 	$_editIdx = isset($_GET['index']) ? (int)$_GET['index'] : -1;
 	if ($_editIdx >= 0 && !empty($data[$_currentType][$_editIdx]['slug'])) {
-		$_ti = $data[$_currentType][$_editIdx];
-		$_topbarViewUrl = admin_content_url(
-			$_currentType,
-			$_ti['slug']        ?? '',
-			$_ti['custom_slug'] ?? '',
-			$_ti['category']    ?? ''
-		);
+		$_editItemStatus = $data[$_currentType][$_editIdx]['status'] ?? 'published';
 	}
 }
 
@@ -87,7 +81,7 @@ if ($_isEditor && $_currentAction === 'edit'
 $_currentScript  = basename($_SERVER['PHP_SELF']);
 $_needsPanel     = $_isEditor
 	|| in_array($_currentAction, ['settings', 'menu_builder', 'manage_categories',
-		'manage_tags', 'manage_themes', 'drafts'], true)
+		'manage_tags', 'manage_themes'], true)
 	|| in_array($_currentScript, ['dashboard.php'], true)
 	|| (isset($_GET['type']) && in_array($_currentType, ['article', 'page', 'project'], true))
 	|| empty($_currentAction); // dashboard
@@ -106,99 +100,49 @@ $_sb_version     = (is_array($_sb_versionData) && !empty($_sb_versionData['versi
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title><?php echo htmlspecialchars($_layoutTitle); ?> | SynaptikCMS Admin</title>
 	<link rel="icon" href="assets/img/favicon.ico" type="image/x-icon">
-	<script>
-	(function() {
-		try {
-			var t = localStorage.getItem('synaptik_theme');
-			if (t !== 'light' && t !== 'dark') {
-				t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-			}
-			document.documentElement.setAttribute('data-theme', t);
-		} catch (e) {
-			document.documentElement.setAttribute('data-theme', 'light');
-		}
-	})();
-	</script>
-	<link rel="preconnect" href="https://fonts.googleapis.com">
-	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;600;700&display=swap" media="print" onload="this.media='all'">
-	<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;600;700&display=swap"></noscript>
+	<script src="assets/js/theme-boot.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/theme-boot.js'); ?>"></script>
+	<link rel="preconnect" href="https://fonts.bunny.net">
+	<link id="gfonts-link" rel="stylesheet" href="https://fonts.bunny.net/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" media="print">
+	<script src="assets/js/gfonts-async.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/gfonts-async.js'); ?>"></script>
+	<noscript><link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"></noscript>
 	<link rel="stylesheet" href="assets/css/admin-base.css?v=<?php echo @filemtime(__DIR__ . '/../assets/css/admin-base.css'); ?>">
 	<link rel="stylesheet" href="assets/css/admin-components.css?v=<?php echo @filemtime(__DIR__ . '/../assets/css/admin-components.css'); ?>">
 	<link rel="stylesheet" href="assets/css/admin-content.css?v=<?php echo @filemtime(__DIR__ . '/../assets/css/admin-content.css'); ?>">
+	<?php if ($_isEditor): ?>
 	<link rel="stylesheet" href="assets/css/editor-layout.css?v=<?php echo @filemtime(__DIR__ . '/../assets/css/editor-layout.css'); ?>">
+	<?php endif; ?>
 	<link rel="stylesheet" href="assets/css/admin-sidebar.css?v=<?php echo @filemtime(__DIR__ . '/../assets/css/admin-sidebar.css'); ?>">
 	<style>.sidebar { background: var(--sidebar-bg); }</style>
-	<script>window.CMS_LANG = <?php echo lang_js_bridge(); ?>;</script>
+	<script type="application/json" id="cms-lang-json"><?php echo lang_js_bridge(); ?></script>
+	<script src="assets/js/admin-boot.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/admin-boot.js'); ?>"></script>
 	<?php echo $extraHead ?? ''; ?>
 </head>
 <body>
-	<script>
-	(function() {
-		try {
-			var saved = localStorage.getItem('synaptik_sidebar_state');
-			if (saved) {
-				var s = JSON.parse(saved);
-				document.body.classList.add(s.isExpanded === false ? 'sidebar-collapsed' : 'sidebar-expanded');
-			} else {
-				document.body.classList.add('sidebar-expanded');
-			}
-		} catch(e) { document.body.classList.add('sidebar-expanded'); }
-		try {
-			var sections = localStorage.getItem('synaptik_sidebar_sections');
-			if (sections) {
-				var ss = JSON.parse(sections);
-				document.addEventListener('DOMContentLoaded', function() {
-					document.querySelectorAll('.sidebar-collapsible[data-key]').forEach(function(el) {
-						var key = el.getAttribute('data-key');
-						if (Object.prototype.hasOwnProperty.call(ss, key) && ss[key] === false) {
-							el.removeAttribute('open');
-						}
-					});
-				});
-			}
-		} catch(e) {}
-	})();
-	</script>
+	<script src="assets/js/sidebar-state-boot.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/sidebar-state-boot.js'); ?>"></script>
 	<div class="admin-container">
 		<?php include __DIR__ . '/sidebar.php'; ?>
 		<div class="admin-main">
 			<div class="admin-topbar">
 			<?php if ($_isEditor): ?>
-				<div class="admin-topbar-default">
+				<div class="admin-topbar-default admin-topbar-editor">
 					<h1 class="admin-topbar-title"><?php echo htmlspecialchars($_layoutTitle); ?></h1>
-					<div class="editor-topbar">
-						<div class="topbar-new-dropdown">
-							<button type="button" class="btn btn-outline btn-sm topbar-new-toggle" id="topbar-new-btn" aria-haspopup="true" aria-expanded="false">
-								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-								<span class="topbar-hide-mobile"><?php _e('add_new'); ?></span>
-							</button>
-							<div class="topbar-new-menu" id="topbar-new-menu" role="menu">
-								<a href="index.php?action=add&type=article" class="topbar-new-item" role="menuitem"><?php _e('new_article'); ?></a>
-								<a href="index.php?action=add&type=page" class="topbar-new-item" role="menuitem"><?php _e('new_page'); ?></a>
-								<a href="index.php?action=add&type=project" class="topbar-new-item" role="menuitem"><?php _e('new_project'); ?></a>
-							</div>
-						</div>
-						<div class="editor-topbar-format" id="topbar-format-switcher">
-							<button type="button" class="editor-format-tab active" data-format="html"
-								onclick="window.EditorCommon && window.EditorCommon.switchFormat('html')">WYSIWYG</button>
-							<button type="button" class="editor-format-tab" data-format="markdown"
-								onclick="window.EditorCommon && window.EditorCommon.switchFormat('markdown')">Markdown</button>
-						</div>
-						<div class="editor-topbar-actions">
-							<div id="autosave-status" class="autosave-status"></div>
-							<button type="button" id="save-draft-btn" class="btn btn-outline btn-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:4px;vertical-align:-1px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><?php _e('save_draft'); ?></button>
-							<button type="button" id="preview-btn" class="btn btn-outline btn-sm" title="<?php _e('preview_open_tab'); ?>"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:4px;vertical-align:-1px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><?php _e('preview_badge'); ?></button>
-							<?php if ($_topbarViewUrl): ?>
-							<a href="<?php echo htmlspecialchars($_topbarViewUrl); ?>" class="btn btn-outline btn-sm">
-								<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:4px;vertical-align:-1px"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><?php printf(__t('view_type'), __t('type_' . $_currentType)); ?>
-							</a>
-							<?php endif; ?>
-							<button type="submit" form="content-form" id="publish-btn" class="btn btn-primary btn-sm btn-publish">
-								<span id="publish-btn-icon">✓</span>
-								<span id="publish-btn-label"><?php echo $_currentAction === 'edit' ? __t('update') : __t('publish'); ?></span>
-							</button>
-						</div>
+					<div class="editor-topbar-format" id="topbar-format-switcher">
+						<button type="button" class="editor-format-tab active" data-format="html">WYSIWYG</button>
+						<button type="button" class="editor-format-tab" data-format="markdown">Markdown</button>
+					</div>
+					<div class="editor-topbar-actions">
+						<div id="autosave-status" class="autosave-status"></div>
+						<button type="button" id="save-draft-btn" class="btn btn-outline btn-sm" title="<?php _e('save_draft'); ?>"><?php echo admin_icon('save', 'style="margin-right:4px;vertical-align:-2px"', 13); ?><span class="topbar-hide-mobile"><?php _e('save_draft'); ?></span></button>
+						<button type="button" id="preview-btn" class="btn btn-outline btn-sm" title="<?php _e('preview_open_tab'); ?>"><?php echo admin_icon('eye', 'style="margin-right:4px;vertical-align:-2px"', 13); ?><span class="topbar-hide-mobile"><?php _e('preview_badge'); ?></span></button>
+						<button type="submit" form="content-form" id="publish-btn" class="btn btn-primary btn-sm btn-publish">
+							<span id="publish-btn-icon"><?php echo admin_icon('check', 'style="vertical-align:-2px"', 13); ?></span>
+							<span id="publish-btn-label"><?php
+								if ($_currentAction === 'edit' && $_editItemStatus === 'published') echo __t('update');
+								elseif ($_currentAction === 'edit' && $_editItemStatus === 'scheduled') echo __t('schedule');
+								elseif ($_currentAction === 'edit' && in_array($_editItemStatus, ['draft', 'unpublished'], true)) echo __t('save');
+								else echo __t('publish');
+							?></span>
+						</button>
 					</div>
 				</div>
 			<?php else: ?>
@@ -206,26 +150,26 @@ $_sb_version     = (is_array($_sb_versionData) && !empty($_sb_versionData['versi
 					<h1 class="admin-topbar-title"><?php echo htmlspecialchars($_layoutTitle); ?></h1>
 					<div class="topbar-new-dropdown">
 						<button type="button" class="btn btn-outline btn-sm topbar-new-toggle" id="topbar-new-btn-global" aria-haspopup="true" aria-expanded="false">
-							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+							<?php echo admin_icon('circle-plus', '', 14); ?>
 							<span class="topbar-hide-mobile"><?php _e('add_new'); ?></span>
 						</button>
 						<div class="topbar-new-menu" id="topbar-new-menu-global" role="menu">
 							<a href="index.php?action=add&type=article" class="topbar-new-item" role="menuitem">
-								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-								<?php _e('new_article'); ?>
+								<?php echo admin_icon('article', '', 14); ?>
+								<?php printf(hsc(__t('add_new_type')), hsc(sl_type_label('article'))); ?>
 							</a>
 							<a href="index.php?action=add&type=page" class="topbar-new-item" role="menuitem">
-								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
-								<?php _e('new_page'); ?>
+								<?php echo admin_icon('page', '', 14); ?>
+								<?php printf(hsc(__t('add_new_type')), hsc(sl_type_label('page'))); ?>
 							</a>
 							<a href="index.php?action=add&type=project" class="topbar-new-item" role="menuitem">
-								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7.5V5c0-1.1.9-2 2-2h4l2 2h8a2 2 0 0 1 2 2v1"/><path d="M2 7.5h20l-1.5 9a2 2 0 0 1-2 1.5H5.5a2 2 0 0 1-2-1.5z"/></svg>
-								<?php _e('new_project'); ?>
+								<?php echo admin_icon('project', '', 14); ?>
+								<?php printf(hsc(__t('add_new_type')), hsc(sl_type_label('project'))); ?>
 							</a>
 						</div>
 					</div>
-					<a href="<?php echo admin_site_url(); ?>" class="btn btn-outline btn-sm">
-						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:5px;vertical-align:-2px"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><span class="topbar-hide-mobile"><?php _e('view_website'); ?></span>
+					<a target="_blank" href="<?php echo admin_site_url(); ?>" class="btn btn-outline btn-sm">
+						<?php echo admin_icon('globe', 'style="margin-right:5px;vertical-align:-2px"', 14); ?><span class="topbar-hide-mobile"><?php _e('view_website'); ?></span>
 					</a>
 				</div>
 			<?php endif; ?>
@@ -248,9 +192,10 @@ $_sb_version     = (is_array($_sb_versionData) && !empty($_sb_versionData['versi
 		</div><!-- /.admin-main -->
 	</div><!-- /.admin-container -->
 
-	<script>window.CMS_CSRF_TOKEN = <?php echo json_encode($_SESSION['csrf_token'] ?? ''); ?>;</script>
-	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-	<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
+	<script type="application/json" id="cms-csrf-json"><?php echo json_encode($_SESSION['csrf_token'] ?? ''); ?></script>
+	<script src="assets/js/admin-boot.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/admin-boot.js'); ?>"></script>
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha384-vtXRMe3mGCbOeY7l30aIg8H9p3GdeSe4IFlP6G8JMa7o7lXvnz3GFKzPxzJdPfGK" crossorigin="anonymous"></script>
+	<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js" integrity="sha384-vxc713BCZYoMxC6DlBK6K4M+gLAS8+63q7TtgB2+KZVn8GNafLKZCJ7Wk2S6ZEl1" crossorigin="anonymous"></script>
 	<script src="assets/js/common.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/common.js'); ?>"></script>
 	<script src="assets/js/admin-sidebar.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/admin-sidebar.js'); ?>"></script>
 	<?php if ($_needsPanel): ?>
@@ -261,11 +206,13 @@ $_sb_version     = (is_array($_sb_versionData) && !empty($_sb_versionData['versi
 	<?php endif; ?>
 	<?php if ($_needsEditorJS): ?>
 	<script src="assets/js/gallery.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/gallery.js'); ?>"></script>
-	<script>
-		<?php $_autosave_settings = admin_load_config(); ?>
-		window.AUTOSAVE_ENABLED_BY_SETTINGS = <?php echo !empty($_autosave_settings['autosave_enabled']) ? 'true' : 'false'; ?>;
-		window.AUTOSAVE_INTERVAL_SECONDS    = <?php echo (int)($_autosave_settings['autosave_interval'] ?? 5) * 60; ?>;
-	</script>
+	<?php $_autosave_settings = admin_load_config(); ?>
+	<script type="application/json" id="cms-autosave-json"><?php echo json_encode([
+		'enabled'          => !empty($_autosave_settings['autosave_enabled']),
+		'interval_seconds' => (int)($_autosave_settings['autosave_interval'] ?? 5) * 60,
+	]); ?></script>
+	<script src="assets/js/admin-boot.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/admin-boot.js'); ?>"></script>
+	<script src="assets/js/editor-icons.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/editor-icons.js'); ?>"></script>
 	<script src="assets/js/editor-common.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/editor-common.js'); ?>"></script>
 	<script src="assets/js/editor.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/editor.js'); ?>"></script>
 	<script src="assets/js/editor-markdown.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/editor-markdown.js'); ?>"></script>

@@ -55,39 +55,36 @@ uasort($tagsAlpha, fn($a, $b) => strcasecmp($a['name'], $b['name']));
 	<div class="site-settings-section">
 	<!-- Merge Tags Form -->
 	<?php if (count($tags) >= 2): ?>
-		<button type="button" class="btn btn-outline" id="toggle-merge-tags"><?php _e('merge_tags'); ?></button>
-		<div id="merge-tags-form" style="display:none; margin-top:12px; padding:15px; background:var(--surface-2); border-radius:var(--radius-sm);">
-			<h3 style="margin-top:0;"><?php _e('merge_tags'); ?></h3>
-			<p style="font-size:.85rem; opacity:.75; margin-top:0;"><?php _e('merge_tags_help'); ?></p>
-			<form id="merge-tags-submit-form" method="post" action="index.php?action=manage_tags">
-				<input type="hidden" name="tag_action" value="merge">
-				<div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
-					<div class="form-group" style="margin:0; padding: 0; flex:1; min-width:160px;">
-						<label><?php _e('merge_source'); ?></label>
-						<select name="source_slug" style="width:100%;" required>
-							<option value=""><?php _e('select_tag'); ?></option>
-							<?php foreach ($tagsAlpha as $slug => $tag): ?>
-							<option value="<?php echo $slug; ?>"><?php echo htmlspecialchars($tag['name']); ?> (<?php echo $tag['count']; ?>)</option>
-							<?php endforeach; ?>
-						</select>
-					</div>
-					<div style="padding-bottom:8px; font-size:1.1rem; opacity:.6;">→</div>
-					<div class="form-group" style="margin:0; padding:0; flex:1; min-width:160px;">
-						<label><?php _e('merge_target'); ?></label>
-						<select name="target_slug" style="width:100%;" required>
-							<option value=""><?php _e('select_tag'); ?></option>
-							<?php foreach ($tagsAlpha as $slug => $tag): ?>
-							<option value="<?php echo $slug; ?>"><?php echo htmlspecialchars($tag['name']); ?> (<?php echo $tag['count']; ?>)</option>
-							<?php endforeach; ?>
-						</select>
-					</div>
-					<button class="btn btn-danger merge-btn" type="button"
-						data-form="merge-tags-submit-form"
-						data-confirm="<?php _e('confirm_merge_tags'); ?>"
-						style="margin-bottom:1px;"><?php _e('merge'); ?></button>
+		<h3 style="margin-top:0;"><?php _e('merge_tags'); ?></h3>
+		<p style="font-size:.85rem; opacity:.75; margin-top:0;"><?php _e('merge_tags_help'); ?></p>
+		<form id="merge-tags-submit-form" method="post" action="index.php?action=manage_tags">
+			<input type="hidden" name="tag_action" value="merge">
+			<div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+				<div class="form-group" style="margin:0; padding: 0; flex:1; min-width:160px;">
+					<label><?php _e('merge_source'); ?></label>
+					<select name="source_slug" style="width:100%;" required>
+						<option value=""><?php _e('select_tag'); ?></option>
+						<?php foreach ($tagsAlpha as $slug => $tag): ?>
+						<option value="<?php echo $slug; ?>"><?php echo htmlspecialchars($tag['name']); ?> (<?php echo $tag['count']; ?>)</option>
+						<?php endforeach; ?>
+					</select>
 				</div>
-			</form>
-		</div>
+				<div style="padding-bottom:8px; font-size:1.1rem; opacity:.6;">→</div>
+				<div class="form-group" style="margin:0; padding:0; flex:1; min-width:160px;">
+					<label><?php _e('merge_target'); ?></label>
+					<select name="target_slug" style="width:100%;" required>
+						<option value=""><?php _e('select_tag'); ?></option>
+						<?php foreach ($tagsAlpha as $slug => $tag): ?>
+						<option value="<?php echo $slug; ?>"><?php echo htmlspecialchars($tag['name']); ?> (<?php echo $tag['count']; ?>)</option>
+						<?php endforeach; ?>
+					</select>
+				</div>
+				<button class="btn btn-danger merge-btn" type="button"
+					data-form="merge-tags-submit-form"
+					data-confirm="<?php _e('confirm_merge_tags'); ?>"
+					style="margin-bottom:1px;"><?php _e('merge'); ?></button>
+			</div>
+		</form>
 	<?php endif; ?>
 		<!-- Toolbar: orphan filter + purge -->
 		<div class="tag-toolbar" style="display:flex; align-items:center; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
@@ -153,10 +150,10 @@ uasort($tagsAlpha, fn($a, $b) => strcasecmp($a['name'], $b['name']));
 				<td>
 					<a href="#" style="margin:0;" class="table-btn edit-btn small edit-tag"
 						data-slug="<?php echo $slug; ?>"
-						data-name="<?php echo hsc($tag['name']); ?>"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg><?php _e('edit'); ?></a>
+						data-name="<?php echo hsc($tag['name']); ?>"><?php echo admin_icon('writing', '', 13); ?><?php _e('edit'); ?></a>
 					<a href="#" style="margin:0;" class="table-btn delete-btn small danger delete-tag"
 						data-slug="<?php echo $slug; ?>"
-						data-name="<?php echo hsc($tag['name']); ?>"><svg width="14" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></a>
+						data-name="<?php echo hsc($tag['name']); ?>"><?php echo admin_icon('trash', '', 14); ?></a>
 				</td>
 			</tr>
 			<?php endforeach; ?>
@@ -177,118 +174,4 @@ uasort($tagsAlpha, fn($a, $b) => strcasecmp($a['name'], $b['name']));
 	<div id="items-popover-content"></div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-
-	// ── Edit tag ──────────────────────────────────────────────────
-	const editForm  = document.getElementById('edit-tag-form');
-	const slugInput = document.getElementById('edit_tag_slug');
-	const nameInput = document.getElementById('edit_tag_name');
-
-	document.querySelectorAll('.edit-tag').forEach(link => {
-		link.addEventListener('click', function(e) {
-			e.preventDefault();
-			const slug = this.getAttribute('data-slug');
-			const name = this.getAttribute('data-name');
-
-			const modal = showModal(
-				`<div class="form-group" style="margin:0">
-					<label for="modal-tag-name" style="display:block;margin-bottom:6px">${window.t('tag_name')}</label>
-					<input type="text" id="modal-tag-name" style="width:100%;box-sizing:border-box;">
-				</div>`,
-				window.t('edit_tag'),
-				{
-					showCancel: true,
-					confirmText: window.t('update_tag'),
-					cancelText: window.t('cancel'),
-					onConfirm: function() {
-						const newName = document.getElementById('modal-tag-name').value.trim();
-						if (!newName) return;
-						slugInput.value = slug;
-						nameInput.value = newName;
-						editForm.submit();
-					}
-				}
-			);
-			const input = document.getElementById('modal-tag-name');
-			if (input) {
-				input.value = name;
-				input.select();
-				input.addEventListener('keydown', function(e) {
-					if (e.key === 'Enter') modal.querySelector('.modal-confirm').click();
-				});
-			}
-		});
-	});
-
-	// ── Orphan filter ─────────────────────────────────────────────
-	const orphanCheckbox = document.getElementById('show-orphans-only');
-	const tableRows      = document.querySelectorAll('#tags-table tbody tr');
-	
-	if (orphanCheckbox) {
-		orphanCheckbox.addEventListener('change', function() {
-			tableRows.forEach(row => {
-				row.style.display = (this.checked && row.dataset.orphan !== '1') ? 'none' : '';
-			});
-		});
-	}
-
-	// ── Merge form toggle ─────────────────────────────────────────
-	const toggleMergeBtn = document.getElementById('toggle-merge-tags');
-	const mergeFormBox   = document.getElementById('merge-tags-form');
-	if (toggleMergeBtn) {
-		toggleMergeBtn.addEventListener('click', () => {
-			mergeFormBox.style.display = mergeFormBox.style.display === 'none' ? 'block' : 'none';
-		});
-	}
-
-	// ── Count popover ─────────────────────────────────────────────
-	const popover        = document.getElementById('items-popover');
-	const popoverContent = document.getElementById('items-popover-content');
-
-	function escHtml(str) {
-		return String(str)
-			.replace(/&/g,'&amp;').replace(/</g,'&lt;')
-			.replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-	}
-
-	function positionPopover(e) {
-		const pad = 14;
-		let x = e.clientX + pad;
-		let y = e.clientY + pad;
-		// Keep within viewport
-		if (x + 320 > window.innerWidth)  x = e.clientX - 320 - pad;
-		if (y + 200 > window.innerHeight) y = e.clientY - 200 - pad;
-		popover.style.left = x + 'px';
-		popover.style.top  = y + 'px';
-	}
-
-	document.querySelectorAll('.count-link').forEach(el => {
-		el.style.cursor = 'pointer';
-		el.style.borderBottom = '1px dotted currentColor';
-
-		el.addEventListener('mouseenter', function(e) {
-			const items = JSON.parse(this.dataset.items || '[]');
-			if (!items.length) return;
-			const t = (k) => window.CMS_LANG?.[k] ?? k;
-		let html = `<strong style="display:block;margin-bottom:6px;">${t('linked_items')}</strong><ul style="margin:0;padding:0 0 0 16px;">`;
-			items.forEach(item => {
-				const url = `index.php?action=edit&type=${item.type}&index=${item.index}`;
-				html += `<li><a href="${url}" style="color:var(--primary);">${escHtml(item.title)}</a> <em style="opacity:.5">(${item.type})</em></li>`;
-			});
-			html += '</ul>';
-			popoverContent.innerHTML = html;
-			popover.style.display = 'block';
-			positionPopover(e);
-		});
-
-		el.addEventListener('mousemove', positionPopover);
-		el.addEventListener('mouseleave', () => popover.style.display = 'none');
-
-		// Click navigates to content list
-		el.addEventListener('click', function() {
-			window.location = `index.php?type=${this.dataset.typeFilter}`;
-		});
-	});
-});
-</script>
+<script src="assets/js/tags-manage.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/tags-manage.js'); ?>"></script>

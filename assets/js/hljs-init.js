@@ -1,0 +1,1 @@
+document.addEventListener("DOMContentLoaded",function(){"undefined"!=typeof hljs&&(hljs.configure({ignoreUnescapedHTML:!0}),document.querySelectorAll("pre code:not([data-highlighted])").forEach(function(e){hljs.highlightElement(e)}))});

@@ -11,7 +11,8 @@
  * no trace — the token only works when present in the URL.
  *
  * Token format (base64url): "themeName|unixTimestamp|hmac-sha256"
- * TTL: 2 hours. Secret: sha256(adminPasswordHash + salt).
+ * TTL: 2 hours. Secret: a dedicated per-install value in
+ * private/theme_preview.secret (see themePreviewSecret()).
  */
 
 require_once __DIR__ . '/includes/session-config.php';
@@ -20,6 +21,10 @@ session_start();
 // ── Auth ──────────────────────────────────────────────────────────────────────
 require_once __DIR__ . '/includes/admin-functions.php';
 if (!admin_is_logged_in()) {
+    http_response_code(403);
+    exit('Access denied.');
+}
+if (!admin_is_admin()) {
     http_response_code(403);
     exit('Access denied.');
 }
@@ -42,17 +47,7 @@ if (
 }
 
 // ── Build HMAC token ──────────────────────────────────────────────────────────
-// admin-credentials.php lives in the same directory as this file.
-$credFile = __DIR__ . '/admin-credentials.php';
-if (!file_exists($credFile)) {
-    http_response_code(500);
-    exit('Admin credentials file not found.');
-}
-
-$admin_password = '';
-require $credFile; // Sets $admin_password (the bcrypt hash)
-
-$secret    = hash('sha256', $admin_password . 'theme_preview_salt');
+$secret    = themePreviewSecret();
 $timestamp = time();
 $payload   = $requestedTheme . '|' . $timestamp;
 $hmac      = hash_hmac('sha256', $payload, $secret);

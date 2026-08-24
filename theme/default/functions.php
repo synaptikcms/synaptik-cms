@@ -35,25 +35,3 @@ function mono_body_class(): string
     return implode(' ', $classes);
 }
 
-/**
- * Render a back-navigation link for single content pages.
- * Returns HTML string pointing to the relevant list page.
- *
- * @param string $type  Content type: article | project | page
- * @return string HTML anchor tag
- */
-function mono_back_link(string $type): string
-{
-    $labels = [
-        'article' => __t('articles'),
-        'project' => __t('projects'),
-        'page'    => __t('pages'),
-    ];
-    $label = $labels[$type] ?? ucfirst($type) . 's';
-    $url   = cleanUrl($type . 's'); // e.g. cleanUrl('articles')
-
-    // cleanUrl expects the type key not the plural — use the list form
-    $url = cleanUrl($type, null, null, null);
-
-    return '<a href="' . $url . '" class="back-link">' . htmlspecialchars($label) . '</a>';
-}

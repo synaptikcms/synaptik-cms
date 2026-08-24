@@ -97,47 +97,44 @@ $categoryTree = buildCategoryTree($categories);
 	<div class="site-settings-section">
 		<!-- Merge Categories Form -->
 		<?php if (count($categories) >= 2): ?>
-			<button type="button" class="btn btn-outline" id="toggle-merge-cats"><?php _e('merge_categories'); ?></button>
-			<div id="merge-cats-form" style="display:none; margin-top: 12px; padding:15px; background:var(--surface-2); border-radius:var(--radius-sm);">
-				<h3 style="margin-top:0;"><?php _e('merge_categories'); ?></h3>
-				<p style="font-size:.85rem; opacity:.75; margin-top:0;"><?php _e('merge_cats_help'); ?></p>
-				<form id="merge-cats-submit-form" method="post" action="index.php?action=manage_categories">
-					<input type="hidden" name="category_action" value="merge">
-					<div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
-						<div class="form-group" style="margin:0; padding:0; flex:1; min-width:160px;">
-							<label><?php _e('merge_source'); ?></label>
-							<select name="source_slug" style="width:100%;" required>
-								<option value=""><?php _e('select_category'); ?></option>
-								<?php foreach ($categoryTree as $cat):
-									$prefix = str_repeat('— ', $cat['depth']);
-								?>
-								<option value="<?php echo $cat['slug']; ?>">
-									<?php echo $prefix . htmlspecialchars($cat['name']); ?> (<?php echo $cat['count']; ?>)
-								</option>
-								<?php endforeach; ?>
-							</select>
-						</div>
-						<div style="padding-bottom:8px; font-size:1.6rem; opacity:.8;">→</div>
-						<div class="form-group" style="margin:0; padding:0; flex:1; min-width:160px;">
-							<label><?php _e('merge_target'); ?></label>
-							<select name="target_slug" style="width:100%;" required>
-								<option value=""><?php _e('select_category'); ?></option>
-								<?php foreach ($categoryTree as $cat):
-									$prefix = str_repeat('— ', $cat['depth']);
-								?>
-								<option value="<?php echo $cat['slug']; ?>">
-									<?php echo $prefix . htmlspecialchars($cat['name']); ?> (<?php echo $cat['count']; ?>)
-								</option>
-								<?php endforeach; ?>
-							</select>
-						</div>
-						<button class="btn btn-danger merge-btn" type="button"
-							data-form="merge-cats-submit-form"
-							data-confirm="<?php _e('confirm_merge_cats'); ?>"
-							style="margin-bottom:1px;"><?php _e('merge'); ?></button>
+			<h3 style="margin-top:0;"><?php _e('merge_categories'); ?></h3>
+			<p style="font-size:.85rem; opacity:.75; margin-top:0;"><?php _e('merge_cats_help'); ?></p>
+			<form id="merge-cats-submit-form" method="post" action="index.php?action=manage_categories">
+				<input type="hidden" name="category_action" value="merge">
+				<div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+					<div class="form-group" style="margin:0; padding:0; flex:1; min-width:160px;">
+						<label><?php _e('merge_source'); ?></label>
+						<select name="source_slug" style="width:100%;" required>
+							<option value=""><?php _e('select_category'); ?></option>
+							<?php foreach ($categoryTree as $cat):
+								$prefix = str_repeat('— ', $cat['depth']);
+							?>
+							<option value="<?php echo $cat['slug']; ?>">
+								<?php echo $prefix . htmlspecialchars($cat['name']); ?> (<?php echo $cat['count']; ?>)
+							</option>
+							<?php endforeach; ?>
+						</select>
 					</div>
-				</form>
-			</div>
+					<div style="padding-bottom:8px; font-size:1.6rem; opacity:.8;">→</div>
+					<div class="form-group" style="margin:0; padding:0; flex:1; min-width:160px;">
+						<label><?php _e('merge_target'); ?></label>
+						<select name="target_slug" style="width:100%;" required>
+							<option value=""><?php _e('select_category'); ?></option>
+							<?php foreach ($categoryTree as $cat):
+								$prefix = str_repeat('— ', $cat['depth']);
+							?>
+							<option value="<?php echo $cat['slug']; ?>">
+								<?php echo $prefix . htmlspecialchars($cat['name']); ?> (<?php echo $cat['count']; ?>)
+							</option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+					<button class="btn btn-danger merge-btn" type="button"
+						data-form="merge-cats-submit-form"
+						data-confirm="<?php _e('confirm_merge_cats'); ?>"
+						style="margin-bottom:1px;"><?php _e('merge'); ?></button>
+				</div>
+			</form>
 		<?php endif; ?>
 		<!-- Toolbar: orphan filter + purge -->
 		<div class="tag-toolbar" style="display:flex; align-items:center; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
@@ -229,10 +226,10 @@ $categoryTree = buildCategoryTree($categories);
 						data-slug="<?php echo $slug; ?>"
 						data-name="<?php echo hsc($cat['name']); ?>"
 						data-parent="<?php echo hsc($cat['parent'] ?? ''); ?>"
-						data-depth="<?php echo $depth; ?>"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg><?php _e('edit'); ?></a>
+						data-depth="<?php echo $depth; ?>"><?php echo admin_icon('writing', '', 13); ?><?php _e('edit'); ?></a>
 					<a href="#" style="margin:0;" class="table-btn delete-btn small danger delete-category"
 						data-slug="<?php echo $slug; ?>"
-						data-name="<?php echo hsc($cat['name']); ?>"><svg width="14" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></a>
+						data-name="<?php echo hsc($cat['name']); ?>"><?php echo admin_icon('trash', '', 14); ?></a>
 				</td>
 			</tr>
 			<?php endforeach; ?>
@@ -248,9 +245,7 @@ $categoryTree = buildCategoryTree($categories);
 	</form>
 
 	<!-- Parent options for JS modal — serialized from PHP -->
-	<script>
-	// Available parent options for the edit modal (slug => label with depth prefix)
-	window.CMS_PARENT_OPTIONS = <?php
+	<script type="application/json" id="cms-parent-options-json"><?php
 		$opts = ['' => __t('cat_no_parent')];
 		foreach ($categoryTree as $cat) {
 			if ($cat['depth'] >= 2) continue; // Cannot be parent at depth 2+ (would exceed 3 levels)
@@ -258,8 +253,7 @@ $categoryTree = buildCategoryTree($categories);
 			$opts[$cat['slug']] = $prefix . $cat['name'];
 		}
 		echo json_encode($opts, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
-	?>;
-	</script>
+	?></script>
 <?php endif; ?>
 
 <!-- Popover for linked items -->
@@ -269,229 +263,4 @@ $categoryTree = buildCategoryTree($categories);
 	<div id="items-popover-content"></div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-
-	// ── Edit category ─────────────────────────────────────────────
-	const editForm      = document.getElementById('edit-category-form');
-	const slugInput     = document.getElementById('edit_category_slug');
-	const nameInput     = document.getElementById('edit_category_name');
-	const parentInput   = document.getElementById('edit_category_parent');
-
-	document.querySelectorAll('.edit-category').forEach(link => {
-		link.addEventListener('click', function(e) {
-			e.preventDefault();
-			const slug        = this.getAttribute('data-slug');
-			const name        = this.getAttribute('data-name');
-			const currentParent = this.getAttribute('data-parent') || '';
-			const currentDepth  = parseInt(this.getAttribute('data-depth') || '0', 10);
-
-			// Build parent <select> options, excluding self and own descendants
-			let parentSelectHtml = '<select id="modal-cat-parent" style="width:100%;box-sizing:border-box;margin-top:4px;">';
-			const opts = window.CMS_PARENT_OPTIONS || {};
-			for (const [optSlug, optLabel] of Object.entries(opts)) {
-				// Cannot set self as its own parent
-				if (optSlug === slug) continue;
-				const selected = optSlug === currentParent ? ' selected' : '';
-				parentSelectHtml += `<option value="${optSlug}"${selected}>${optLabel}</option>`;
-			}
-			parentSelectHtml += '</select>';
-
-			const modal = showModal(
-				`<div class="form-group" style="margin:0 0 14px">
-					<label for="modal-cat-name" style="display:block;margin-bottom:6px">${window.t('category_name')}</label>
-					<input type="text" id="modal-cat-name" style="width:100%;box-sizing:border-box;">
-				</div>
-				<div class="form-group" style="margin:0">
-					<label style="display:block;margin-bottom:6px">${window.t('cat_parent')}</label>
-					${parentSelectHtml}
-					<p style="font-size:.8rem;opacity:.65;margin-top:4px;">${window.t('cat_parent_help')}</p>
-				</div>`,
-				window.t('edit_category'),
-				{
-					showCancel: true,
-					confirmText: window.t('update_category'),
-					cancelText: window.t('cancel'),
-					onConfirm: function() {
-						const newName   = document.getElementById('modal-cat-name').value.trim();
-						const newParent = document.getElementById('modal-cat-parent').value;
-						if (!newName) return;
-						slugInput.value   = slug;
-						nameInput.value   = newName;
-						parentInput.value = newParent;
-						editForm.submit();
-					}
-				}
-			);
-			const input = document.getElementById('modal-cat-name');
-			if (input) {
-				input.value = name;
-				input.select();
-				input.addEventListener('keydown', function(e) {
-					if (e.key === 'Enter') modal.querySelector('.modal-confirm').click();
-				});
-			}
-		});
-	});
-
-	// ── Orphan filter ─────────────────────────────────────────────
-	const orphanCheckbox = document.getElementById('show-orphans-only');
-	const tableRows      = document.querySelectorAll('#cats-table tbody tr');
-	
-	if (orphanCheckbox) {
-		orphanCheckbox.addEventListener('change', function() {
-			tableRows.forEach(row => {
-				row.style.display = (this.checked && row.dataset.orphan !== '1') ? 'none' : '';
-			});
-		});
-	}
-
-	// ── Merge form toggle ─────────────────────────────────────────
-	const toggleMergeBtn = document.getElementById('toggle-merge-cats');
-	const mergeFormBox   = document.getElementById('merge-cats-form');
-	if (toggleMergeBtn) {
-		toggleMergeBtn.addEventListener('click', () => {
-			mergeFormBox.style.display = mergeFormBox.style.display === 'none' ? 'block' : 'none';
-		});
-	}
-
-	// ── Count popover ─────────────────────────────────────────────
-	const popover        = document.getElementById('items-popover');
-	const popoverContent = document.getElementById('items-popover-content');
-
-	function escHtml(str) {
-		return String(str)
-			.replace(/&/g,'&amp;').replace(/</g,'&lt;')
-			.replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-	}
-
-	function positionPopover(e) {
-		const pad = 14;
-		let x = e.clientX + pad;
-		let y = e.clientY + pad;
-		if (x + 320 > window.innerWidth)  x = e.clientX - 320 - pad;
-		if (y + 200 > window.innerHeight) y = e.clientY - 200 - pad;
-		popover.style.left = x + 'px';
-		popover.style.top  = y + 'px';
-	}
-
-	document.querySelectorAll('.count-link').forEach(el => {
-		el.style.cursor = 'pointer';
-		el.style.borderBottom = '1px dotted currentColor';
-
-		el.addEventListener('mouseenter', function(e) {
-			const items = JSON.parse(this.dataset.items || '[]');
-			if (!items.length) return;
-			const t = (k) => window.CMS_LANG?.[k] ?? k;
-		let html = `<strong style="display:block;margin-bottom:6px;">${t('linked_items')}</strong><ul style="margin:0;padding:0 0 0 16px;">`;
-			items.forEach(item => {
-				const url = `index.php?action=edit&type=${item.type}&index=${item.index}`;
-				html += `<li><a href="${url}" style="color:var(--primary);">${escHtml(item.title)}</a> <em style="opacity:.5">(${item.type})</em></li>`;
-			});
-			html += '</ul>';
-			popoverContent.innerHTML = html;
-			popover.style.display = 'block';
-			positionPopover(e);
-		});
-
-		el.addEventListener('mousemove', positionPopover);
-		el.addEventListener('mouseleave', () => popover.style.display = 'none');
-
-		el.addEventListener('click', function() {
-			window.location = `index.php?type=${this.dataset.typeFilter}`;
-		});
-	});
-
-	// ── Hierarchy-aware table sort — overrides the global sortTableByKey for #cats-table ──
-	// The global version in panel.js sorts all rows independently, which breaks the
-	// parent/child grouping. This version sorts only root rows, then re-inserts
-	// each root's descendants immediately below it, preserving nesting at every depth.
-	const catsTable = document.getElementById('cats-table');
-	if (catsTable) {
-
-		/**
-		 * Return a plain text value from a row for a given sort key.
-		 * Reads data-slug for 'slug', data-count for 'count',
-		 * and the first cell's text for 'name'.
-		 */
-		function getCatRowValue(row, sortKey) {
-			if (sortKey === 'slug')  return row.dataset.slug  || '';
-			if (sortKey === 'count') return parseInt(row.dataset.count ?? row.querySelector('td:nth-child(4)')?.textContent.trim(), 10) || 0;
-			// 'name': strip leading whitespace / tree characters, keep only the name text
-			const nameCell = row.querySelector('td:first-child');
-			const clone = nameCell ? nameCell.cloneNode(true) : null;
-			// Remove the orphan badge span before reading text so it doesn't pollute the sort value
-			clone?.querySelectorAll('span').forEach(s => s.remove());
-			return (clone?.textContent ?? '').trim().toLowerCase();
-		}
-
-		/**
-		 * Sort tbody rows of #cats-table while preserving parent→child grouping.
-		 * Only top-level rows (depth === '0') are sorted; their descendants
-		 * are kept in original relative order immediately below them.
-		 *
-		 * @param {string}  sortKey    'name' | 'slug' | 'count'
-		 * @param {boolean} isAscending
-		 */
-		function sortCatsTable(sortKey, isAscending) {
-			const tbody = catsTable.querySelector('tbody');
-			if (!tbody) return;
-
-			const allRows = Array.from(tbody.querySelectorAll('tr'));
-
-			// Build a map: slug → row element (for quick parent lookup)
-			const rowBySlug = {};
-			allRows.forEach(row => { rowBySlug[row.dataset.slug] = row; });
-
-			// Identify root rows (depth 0) and group each with its descendants
-			// A descendant is any row whose ancestor chain leads back to the root.
-			// We collect groups in original DOM order first, then sort the groups.
-			const groups = []; // [ { root: rowEl, children: [rowEl, ...] }, ... ]
-
-			allRows.forEach(row => {
-				if (row.dataset.depth !== '0') return; // skip non-roots
-				// Collect all descendants in current DOM order
-				const children = allRows.filter(r => {
-					if (r.dataset.depth === '0') return false;
-					// Walk up parent chain via data-slug on parent rows
-					let current = r;
-					for (let i = 0; i < 3; i++) {
-						const parentSlug = current.dataset.parentSlug || '';
-						if (!parentSlug) break;
-						const parentRow = rowBySlug[parentSlug];
-						if (!parentRow) break;
-						if (parentRow === row) return true; // root is an ancestor
-						current = parentRow;
-					}
-					return false;
-				});
-				groups.push({ root: row, children });
-			});
-
-			// Sort groups by the root row's value
-			groups.sort((a, b) => {
-				const va = getCatRowValue(a.root, sortKey);
-				const vb = getCatRowValue(b.root, sortKey);
-				if (typeof va === 'number') return isAscending ? va - vb : vb - va;
-				return isAscending ? va.localeCompare(vb) : vb.localeCompare(va);
-			});
-
-			// Re-insert: root first, then its children in their original relative order
-			groups.forEach(({ root, children }) => {
-				tbody.appendChild(root);
-				children.forEach(child => tbody.appendChild(child));
-			});
-		}
-
-		// Hook into the header clicks for #cats-table specifically, running
-		// sortCatsTable AFTER the global handler has already fired (so sort icons update).
-		catsTable.querySelectorAll('th.sortable').forEach(th => {
-			th.addEventListener('click', function() {
-				const sortKey    = this.getAttribute('data-sort');
-				const isAscending = this.classList.contains('sorted-asc'); // global handler already toggled
-				sortCatsTable(sortKey, isAscending);
-			});
-		});
-	}
-});
-</script>
+<script src="assets/js/categories-manage.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/categories-manage.js'); ?>"></script>

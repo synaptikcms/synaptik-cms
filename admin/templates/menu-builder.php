@@ -39,7 +39,6 @@ $contentTypes = ['article', 'page', 'project'];
 						<option value="date_asc"     <?php echo (isset($appSettings['default_menu_order']) && $appSettings['default_menu_order'] === 'date_asc')     ? 'selected' : ''; ?>><?php _e('menu_sort_date_asc'); ?></option>
 						<option value="menu_order"   <?php echo (isset($appSettings['default_menu_order']) && $appSettings['default_menu_order'] === 'menu_order')   ? 'selected' : ''; ?>><?php _e('menu_sort_manual'); ?></option>
 					</select>
-					<p class="help-text"><?php _e('menu_sort_help'); ?></p>
 				</div>
 			</div>
 				<div class="site-settings-section" id="custom-menu-builder" style="<?php echo !empty($appSettings['use_custom_menu']) ? '' : 'display: none;'; ?>">
@@ -125,7 +124,7 @@ $contentTypes = ['article', 'page', 'project'];
 							<select id="content-type" name="content-type">
 								<option value=""><?php _e('select_type'); ?></option>
 								<?php foreach ($contentTypes as $type): ?>
-								<option value="<?php echo $type; ?>"><?php echo ucfirst($type); ?></option>
+								<option value="<?php echo $type; ?>"><?php echo hsc(sl_type_label($type, false)); ?></option>
 								<?php endforeach; ?>
 								<option value="contentlist"><?php _e('content_list'); ?></option>
 								<option value="tag"><?php _e('tag'); ?></option>
@@ -135,7 +134,15 @@ $contentTypes = ['article', 'page', 'project'];
 							<label for="contentlist-type"><?php _e('list_type'); ?>:</label>
 							<select id="contentlist-type" name="contentlist-type">
 								<?php foreach ($contentTypes as $type): ?>
-								<option value="<?php echo $type; ?>"><?php echo ucfirst($type); ?>s</option>
+								<?php
+								// The public URL for a content-type list uses the front-end's own
+								// translated plural slug (e.g. German "artikel/"), not an English
+								// "type + s" guess — admin_front_url_slug() already resolves this
+								// correctly (front locale + any Settings > Reading override), so
+								// reuse it instead of re-reading lang/front/ directly here.
+								$pluralSlug = admin_front_url_slug($type . 's');
+								?>
+								<option value="<?php echo $type; ?>" data-plural-slug="<?php echo hsc($pluralSlug); ?>"><?php echo hsc(sl_type_label($type, true)); ?></option>
 								<?php endforeach; ?>
 							</select>
 						</div>
@@ -168,16 +175,3 @@ $contentTypes = ['article', 'page', 'project'];
 			<button type="submit" class="btn btn-primary btn-lg" style="margin-top:20px;"><?php _e('save_menu_btn'); ?></button>
 		</form>
 
-	<script>
-	(function() {
-		const useCustomCheckbox = document.getElementById('use_custom_menu');
-		const defaultSettings   = document.getElementById('default-menu-settings');
-		const customBuilder     = document.getElementById('custom-menu-builder');
-		if (useCustomCheckbox && defaultSettings && customBuilder) {
-			useCustomCheckbox.addEventListener('change', function() {
-				defaultSettings.style.display = this.checked ? 'none'  : 'block';
-				customBuilder.style.display   = this.checked ? 'block' : 'none';
-			});
-		}
-	})();
-	</script>

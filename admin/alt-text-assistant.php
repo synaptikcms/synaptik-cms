@@ -10,16 +10,107 @@ if (!admin_is_logged_in()) {
 $data        = admin_load_data();
 $appSettings = admin_load_config();
 
+// ── Inline content image helpers ────────────────────────────────────────────────
+// Content is stored as raw source (HTML or Markdown, per content_format), never
+// as a structured array like gallery images — so inline images have no stable
+// index of their own. Both functions below walk the source in the same order
+// (regex match order), so "the Nth image in this content" means the same thing
+// in both: extraction assigns indices 0..N-1, and the save handler replaces by
+// that same index against a freshly-loaded copy of the content.
+
+/**
+ * Finds every image embedded directly in a content string (not part of a
+ * gallery). Markdown regex mirrors _md_inline()'s image pattern exactly
+ * (core/render/tf-markdown.php) so extraction matches what actually renders.
+ */
+function alt_extract_inline_images(string $content, string $format): array
+{
+	$images = [];
+	if ($content === '') return $images;
+
+	if ($format === 'markdown') {
+		preg_match_all(
+			'/!\[([^\]]*)\]\(\s*([^)\s]+?)(?:\s+=(?:\d+%?)?x(?:\d+%?)?)?\s*\)/',
+			$content,
+			$matches,
+			PREG_SET_ORDER
+		);
+		foreach ($matches as $m) {
+			$images[] = ['alt' => $m[1], 'src' => trim($m[2])];
+		}
+		return $images;
+	}
+
+	preg_match_all('/<img\b[^>]*>/i', $content, $matches);
+	foreach ($matches[0] as $tag) {
+		$src = '';
+		$alt = '';
+		if (preg_match('/\bsrc=(["\'])(.*?)\1/i', $tag, $m)) $src = $m[2];
+		if (preg_match('/\balt=(["\'])(.*?)\1/i', $tag, $m)) $alt = html_entity_decode($m[2], ENT_QUOTES);
+		if ($src === '') continue;
+		$images[] = ['alt' => $alt, 'src' => $src];
+	}
+	return $images;
+}
+
+/**
+ * Rewrites the alt text of the $targetIndex-th inline image (0-based, same
+ * order as alt_extract_inline_images()) and returns the updated content.
+ */
+function alt_replace_inline_image_alt(string $content, string $format, int $targetIndex, string $newAlt): string
+{
+	$counter = -1;
+
+	if ($format === 'markdown') {
+		return preg_replace_callback(
+			'/!\[([^\]]*)\]\(\s*([^)\s]+?)((?:\s+=(?:\d+%?)?x(?:\d+%?)?)?)\s*\)/',
+			function ($m) use (&$counter, $targetIndex, $newAlt) {
+				$counter++;
+				$alt = ($counter === $targetIndex) ? $newAlt : $m[1];
+				return '![' . $alt . '](' . $m[2] . $m[3] . ')';
+			},
+			$content
+		);
+	}
+
+	return preg_replace_callback(
+		'/<img\b[^>]*>/i',
+		function ($m) use (&$counter, $targetIndex, $newAlt) {
+			$counter++;
+			if ($counter !== $targetIndex) return $m[0];
+			$tag     = $m[0];
+			$encoded = htmlspecialchars($newAlt, ENT_QUOTES);
+			if (preg_match('/\balt=(["\']).*?\1/i', $tag)) {
+				return preg_replace('/\balt=(["\']).*?\1/i', 'alt="' . $encoded . '"', $tag, 1);
+			}
+			return preg_replace('/^<img\b/i', '<img alt="' . $encoded . '"', $tag, 1);
+		},
+		$content
+	);
+}
+
+/**
+ * Resolves a stored image src to a URL renderable from /admin/. Gallery and
+ * featured-image src values are relative ("files/..."); inline images store
+ * absolute URLs (editor.js always builds one on insert) and are used as-is.
+ */
+function alt_resolve_thumb_url(string $src): string
+{
+	if (stripos($src, 'http://') === 0 || stripos($src, 'https://') === 0) {
+		return $src;
+	}
+	if (strpos($src, 'files/') === 0) {
+		return '../' . $src;
+	}
+	return '../files/' . $src;
+}
+
 // ── AJAX save handler ─────────────────────────────────────────────────────────
-// Saves alt_text or caption for a specific image within a gallery entry.
-// Expected POST fields:
-//   ajax_alt_save  : '1' (trigger)
-//   post_type      : 'article' | 'page' | 'project'
-//   post_index     : (int) index in data[$type]
-//   gallery_index  : (int) index in galleries[]
-//   image_index    : (int) index in gallery.images[]
-//   field          : 'alt_text' | 'caption'
-//   value          : string (sanitized server-side)
+// Saves alt text/caption for one image. Three targets:
+//   gallery  : image inside a named gallery   (gallery_index, image_index, field: alt_text|caption)
+//   featured : a post's featured image        (field: alt_text only, writes image_alt)
+//   inline   : an image embedded in the body  (inline_index, field: alt_text only, rewrites content)
+// Common fields: post_type, post_index, field, value.
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_alt_save'])) {
 	header('Content-Type: application/json');
@@ -30,33 +121,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_alt_save'])) {
 		exit;
 	}
 
-	$allowed_types  = ['article', 'page', 'project'];
-	$allowed_fields = ['alt_text', 'caption'];
+	$allowed_types   = ['article', 'page', 'project'];
+	$allowed_fields  = ['alt_text', 'caption'];
+	$allowed_targets = ['gallery', 'featured', 'inline'];
 
-	$post_type    = $_POST['post_type']     ?? '';
-	$post_index   = (int)($_POST['post_index']    ?? -1);
-	$gallery_idx  = (int)($_POST['gallery_index'] ?? -1);
-	$image_idx    = (int)($_POST['image_index']   ?? -1);
-	$field        = $_POST['field']          ?? '';
-	$value        = trim($_POST['value']     ?? '');
+	$target     = $_POST['target']     ?? 'gallery';
+	$post_type  = $_POST['post_type']  ?? '';
+	$post_index = (int)($_POST['post_index'] ?? -1);
+	$field      = $_POST['field']      ?? '';
+	$value      = trim($_POST['value'] ?? '');
 
-	// Validate all parameters before touching data
 	if (
-		!in_array($post_type, $allowed_types, true)
+		!in_array($target, $allowed_targets, true)
+		|| !in_array($post_type, $allowed_types, true)
 		|| !in_array($field, $allowed_fields, true)
-		|| $post_index  < 0
-		|| $gallery_idx < 0
-		|| $image_idx   < 0
+		|| $post_index < 0
+		|| !isset($data[$post_type][$post_index])
 	) {
 		echo json_encode(['ok' => false, 'error' => 'invalid_params']);
 		exit;
 	}
 
-	// Verify the path exists in data
-	if (
-		!isset($data[$post_type][$post_index]['galleries'][$gallery_idx]['images'][$image_idx])
-	) {
-		echo json_encode(['ok' => false, 'error' => 'not_found']);
+	if (!admin_can_edit_item($data[$post_type][$post_index])) {
+		echo json_encode(['ok' => false, 'error' => 'not_authorized']);
 		exit;
 	}
 
@@ -64,7 +151,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_alt_save'])) {
 	$value = strip_tags($value);
 	$value = mb_substr($value, 0, 500);
 
-	$data[$post_type][$post_index]['galleries'][$gallery_idx]['images'][$image_idx][$field] = $value;
+	if ($target === 'gallery') {
+		$gallery_idx = (int)($_POST['gallery_index'] ?? -1);
+		$image_idx   = (int)($_POST['image_index']   ?? -1);
+
+		if (
+			$gallery_idx < 0 || $image_idx < 0
+			|| !isset($data[$post_type][$post_index]['galleries'][$gallery_idx]['images'][$image_idx])
+		) {
+			echo json_encode(['ok' => false, 'error' => 'not_found']);
+			exit;
+		}
+
+		$data[$post_type][$post_index]['galleries'][$gallery_idx]['images'][$image_idx][$field] = $value;
+	} elseif ($target === 'featured') {
+		if ($field !== 'alt_text' || empty($data[$post_type][$post_index]['image'])) {
+			echo json_encode(['ok' => false, 'error' => 'not_found']);
+			exit;
+		}
+
+		$data[$post_type][$post_index]['image_alt'] = $value;
+	} else { // inline
+		if ($field !== 'alt_text') {
+			echo json_encode(['ok' => false, 'error' => 'invalid_params']);
+			exit;
+		}
+
+		$inline_idx = (int)($_POST['inline_index'] ?? -1);
+		$content    = $data[$post_type][$post_index]['content']        ?? '';
+		$format     = $data[$post_type][$post_index]['content_format'] ?? 'html';
+		$images     = alt_extract_inline_images($content, $format);
+
+		if ($inline_idx < 0 || !isset($images[$inline_idx])) {
+			echo json_encode(['ok' => false, 'error' => 'not_found']);
+			exit;
+		}
+
+		$data[$post_type][$post_index]['content'] = alt_replace_inline_image_alt($content, $format, $inline_idx, $value);
+	}
+
 	$result = admin_save_data($data);
 
 	echo json_encode(['ok' => $result !== false, 'value' => $value]);
@@ -74,9 +199,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_alt_save'])) {
 $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
 $baseUrl  = $protocol . '://' . $_SERVER['HTTP_HOST'] . rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');
 
-// ── Collect all gallery images across all content types ───────────────────────
-// Each entry in $allImages holds enough context to display the image card
-// and write back to the correct location in data.json on save.
+// ── Collect every image across all content types: featured image, gallery
+// images, and images embedded directly in the body content. Each entry in
+// $allImages holds enough context to display the image card and write back
+// to the correct location in data.json on save (see 'target' above).
 $contentTypes = ['article', 'page', 'project'];
 
 $allImages = [];
@@ -85,6 +211,39 @@ foreach ($contentTypes as $type) {
 	if (empty($data[$type])) continue;
 
 	foreach ($data[$type] as $postIndex => $post) {
+		if (!admin_can_edit_item($post)) continue;
+
+		$postTitle     = $post['title'] ?? '';
+		$postSlug      = !empty($post['custom_slug']) ? $post['custom_slug'] : ($post['slug'] ?? '');
+		$postPublished = $post['published'] ?? false;
+		$editUrl       = 'index.php?action=edit&type=' . urlencode($type) . '&index=' . $postIndex;
+
+		// ── Featured image ──────────────────────────────────────────────────
+		if (!empty($post['image'])) {
+			$alt = $post['image_alt'] ?? '';
+			$allImages[] = [
+				'target'        => 'featured',
+				'post_type'     => $type,
+				'post_index'    => $postIndex,
+				'post_title'    => $postTitle,
+				'post_slug'     => $postSlug,
+				'post_published'=> $postPublished,
+				'edit_url'      => $editUrl,
+				'gallery_index' => -1,
+				'gallery_label' => __t('alt_source_featured', 'Featured image'),
+				'image_index'   => -1,
+				'inline_index'  => -1,
+				'src'           => $post['image'],
+				'img_url'       => alt_resolve_thumb_url($post['image']),
+				'alt_text'      => $alt,
+				'caption'       => '',
+				'has_alt'       => ($alt !== ''),
+				'has_caption'   => true, // no caption field for featured images — never "missing"
+				'has_caption_field' => false,
+			];
+		}
+
+		// ── Gallery images ───────────────────────────────────────────────────
 		$galleries = $post['galleries'] ?? [];
 
 		// Legacy migration: flat gallery array → named gallery
@@ -96,42 +255,62 @@ foreach ($contentTypes as $type) {
 			]];
 		}
 
-		if (empty($galleries)) continue;
-
 		foreach ($galleries as $galleryIdx => $gallery) {
 			$images = $gallery['images'] ?? [];
-			if (empty($images)) continue;
 
 			foreach ($images as $imageIdx => $image) {
-				$src      = $image['src'] ?? '';
-				$alt      = $image['alt_text'] ?? '';
-				$caption  = $image['caption']  ?? '';
-
-				// Build a renderable URL relative to the admin folder
-				if (strpos($src, 'files/') === 0) {
-					$imgUrl = '../' . $src;
-				} else {
-					$imgUrl = '../files/' . $src;
-				}
+				$src     = $image['src'] ?? '';
+				$alt     = $image['alt_text'] ?? '';
+				$caption = $image['caption']  ?? '';
 
 				$allImages[] = [
+					'target'        => 'gallery',
 					'post_type'     => $type,
 					'post_index'    => $postIndex,
-					'post_title'    => $post['title']     ?? '',
-					'post_slug'     => !empty($post['custom_slug']) ? $post['custom_slug'] : ($post['slug'] ?? ''),
-					'post_published'=> $post['published'] ?? false,
-					'edit_url'      => 'index.php?action=edit&type=' . urlencode($type) . '&index=' . $postIndex,
+					'post_title'    => $postTitle,
+					'post_slug'     => $postSlug,
+					'post_published'=> $postPublished,
+					'edit_url'      => $editUrl,
 					'gallery_index' => $galleryIdx,
 					'gallery_label' => $gallery['label'] ?? ('Gallery ' . ($galleryIdx + 1)),
 					'image_index'   => $imageIdx,
+					'inline_index'  => -1,
 					'src'           => $src,
-					'img_url'       => $imgUrl,
+					'img_url'       => alt_resolve_thumb_url($src),
 					'alt_text'      => $alt,
 					'caption'       => $caption,
 					'has_alt'       => ($alt !== ''),
 					'has_caption'   => ($caption !== ''),
+					'has_caption_field' => true,
 				];
 			}
+		}
+
+		// ── Images embedded directly in the body content ────────────────────
+		$inlineImages = alt_extract_inline_images($post['content'] ?? '', $post['content_format'] ?? 'html');
+
+		foreach ($inlineImages as $inlineIdx => $img) {
+			$alt = $img['alt'];
+			$allImages[] = [
+				'target'        => 'inline',
+				'post_type'     => $type,
+				'post_index'    => $postIndex,
+				'post_title'    => $postTitle,
+				'post_slug'     => $postSlug,
+				'post_published'=> $postPublished,
+				'edit_url'      => $editUrl,
+				'gallery_index' => -1,
+				'gallery_label' => __t('alt_source_inline', 'In content'),
+				'image_index'   => -1,
+				'inline_index'  => $inlineIdx,
+				'src'           => $img['src'],
+				'img_url'       => alt_resolve_thumb_url($img['src']),
+				'alt_text'      => $alt,
+				'caption'       => '',
+				'has_alt'       => ($alt !== ''),
+				'has_caption'   => true, // no caption field for inline images — never "missing"
+				'has_caption_field' => false,
+			];
 		}
 	}
 }
@@ -159,7 +338,7 @@ $filtered = array_filter($allImages, function ($img) use ($filter) {
 $filtered = array_values($filtered);
 
 // ── Sidebar prerequisites ─────────────────────────────────────────────────────
-$draftsDir  = 'drafts';
+$draftsDir  = sl_admin_drafts_dir();
 $draftCount = file_exists($draftsDir) ? count(glob($draftsDir . '/*.json')) : 0;
 
 $message = $_SESSION['message'] ?? null;
@@ -204,10 +383,12 @@ ob_start();
 						if (!$img['has_alt']) $cardClasses .= ' missing-alt';
 					?>
 					<div class="<?php echo $cardClasses; ?>"
+						 data-target="<?php echo htmlspecialchars($img['target']); ?>"
 						 data-post-type="<?php echo htmlspecialchars($img['post_type']); ?>"
 						 data-post-index="<?php echo (int)$img['post_index']; ?>"
 						 data-gallery-index="<?php echo (int)$img['gallery_index']; ?>"
-						 data-image-index="<?php echo (int)$img['image_index']; ?>">
+						 data-image-index="<?php echo (int)$img['image_index']; ?>"
+						 data-inline-index="<?php echo (int)$img['inline_index']; ?>">
 
 						<!-- Thumbnail -->
 						<div class="alt-card-thumb">
@@ -220,7 +401,7 @@ ob_start();
 							<!-- Post context -->
 							<div class="alt-card-context">
 								<span class="post-title"><?php echo htmlspecialchars($img['post_title']); ?></span>
-								<span class="type-badge type-<?php echo $img['post_type']; ?>"><?php echo __t('type_' . $img['post_type']) ?></span>
+								<span class="type-badge type-<?php echo hsc($img['post_type']); ?>"><?php echo hsc(sl_type_label($img['post_type'])); ?></span>
 								<span class="gallery-name">— <?php echo htmlspecialchars($img['gallery_label']); ?></span>
 							</div>
 							<!-- Alt text field -->
@@ -238,7 +419,8 @@ ob_start();
 									   maxlength="250">
 								<span class="save-indicator"></span>
 							</div>
-							<!-- Caption field -->
+							<!-- Caption field — gallery images only; featured/inline images have no caption in this CMS -->
+							<?php if ($img['has_caption_field']): ?>
 							<div class="alt-field-group">
 								<label class="alt-field-label">
 									<?php _e('caption', 'Caption'); ?>
@@ -251,13 +433,12 @@ ob_start();
 										  rows="2"><?php echo htmlspecialchars($img['caption']); ?></textarea>
 								<span class="save-indicator"></span>
 							</div>
+							<?php endif; ?>
 						</div><!-- /.alt-card-body -->
 						<!-- Footer: link to the post editor -->
 						<div class="alt-card-footer">
 							<span class="slug-cell">/<?php echo htmlspecialchars($img['post_slug']); ?></span>
-							<a href="<?php echo $img['edit_url']; ?>" class="edit-link">
-								✏️ <?php _e('edit', 'Edit post'); ?>
-							</a>
+							<a href="<?php echo $img['edit_url']; ?>" class="table-btn edit-btn small"><?php echo admin_icon('writing', '', 13); ?><?php _e('edit', 'Edit post'); ?></a>
 						</div>
 					</div><!-- /.alt-card -->
 					<?php endforeach; ?>
@@ -266,79 +447,7 @@ ob_start();
 <?php
 $pageContent = ob_get_clean();
 
-$extraFooterScripts = <<<'JSINLINE'
-<script>
-(function () {
-	'use strict';
-	var saveTimers = new WeakMap();
-
-	function updateCounter(field) {
-		var max = parseInt(field.dataset.max, 10), len = field.value.length;
-		var counter = field.parentNode.querySelector('.char-counter');
-		if (!counter) return;
-		counter.textContent = len + '/' + max;
-		counter.className = 'char-counter';
-		if (len > max * 0.9) counter.classList.add('warn');
-		if (len >= max) counter.classList.add('over');
-		field.classList.toggle('empty', len === 0);
-	}
-
-	function showSaveIndicator(field, ok) {
-		var ind = field.parentNode.querySelector('.save-indicator');
-		if (!ind) return;
-		var t = window.CMS_LANG || {};
-		ind.textContent = ok ? '\u2713 ' + (t['saved'] || 'Saved') : '\u2717 ' + (t['save_error'] || 'Error');
-		ind.className = 'save-indicator visible' + (ok ? '' : ' error');
-		clearTimeout(ind._hideTimer);
-		ind._hideTimer = setTimeout(function () { ind.classList.remove('visible'); }, 2000);
-	}
-
-	function updateCardState(card, field, value) {
-		var hasValue = value.trim().length > 0;
-		if (field === 'alt_text') {
-			var thumb = card.querySelector('.alt-card-thumb img');
-			if (thumb) thumb.alt = value;
-			card.classList.toggle('missing-alt', !hasValue);
-		}
-	}
-
-	function saveField(field) {
-		var card = field.closest('.alt-card');
-		field.classList.add('saving');
-		var body = new URLSearchParams({
-			ajax_alt_save: '1',
-			csrf_token:    window.CMS_CSRF_TOKEN || '',
-			post_type:     card.dataset.postType,
-			post_index:    card.dataset.postIndex,
-			gallery_index: card.dataset.galleryIndex,
-			image_index:   card.dataset.imageIndex,
-			field:         field.dataset.field,
-			value:         field.value
-		});
-		fetch('alt-text-assistant.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() })
-			.then(function (r) { return r.json(); })
-			.then(function (data) {
-				field.classList.remove('saving');
-				showSaveIndicator(field, data.ok);
-				if (data.ok) updateCardState(card, field.dataset.field, data.value);
-			})
-			.catch(function () { field.classList.remove('saving'); showSaveIndicator(field, false); });
-	}
-
-	document.querySelectorAll('.alt-editable').forEach(function (field) {
-		updateCounter(field);
-		field.addEventListener('input', function () {
-			updateCounter(field);
-			clearTimeout(saveTimers.get(field));
-			saveTimers.set(field, setTimeout(function () { saveField(field); }, 800));
-		});
-		field.addEventListener('blur', function () {
-			clearTimeout(saveTimers.get(field));
-			saveField(field);
-		});
-	});
-})();
-</script>
-JSINLINE;
+$extraFooterScripts = '<script src="assets/js/alt-text-assistant.js?v='
+	. @filemtime(__DIR__ . '/assets/js/alt-text-assistant.js') . '"></script>';
 
 require_once 'includes/layout.php';

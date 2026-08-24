@@ -92,9 +92,11 @@ function parseRequestUri()
     $segments = explode('/', $uri);
 
     // ── Localized URL slug map ────────────────────────────────────────────────
-    // Build a two-way map between incoming URL prefixes (which may be translated)
-    // and internal type identifiers. __t() falls back to the English key when the
-    // locale string is missing, so English always works with no extra configuration.
+    // Build a two-way map between incoming URL prefixes (which may be translated,
+    // or overridden per site via Settings > Reading — see sl_type_label()/
+    // url_slug()) and internal type identifiers. url_slug() falls back to the
+    // English key when neither an override nor a locale string is set, so
+    // English always works with no extra configuration.
     //
     // singular slug  → internal type
     // plural slug    → internal type (list pages)
@@ -105,8 +107,8 @@ function parseRequestUri()
     $slugPluralFromType = []; // internal_type → localized plural slug
 
     foreach (['article', 'project', 'page'] as $_t) {
-        $single = sanitizeSlug(__t('url_slug_' . $_t,  $_t));
-        $plural = sanitizeSlug(__t('url_slug_' . $_t . 's', $_t . 's'));
+        $single = url_slug($_t);
+        $plural = url_slug($_t . 's');
         $typeFromSlug[$single] = $_t;
         $typeFromSlug[$plural] = $_t; // plural also maps to internal type
         $slugFromType[$_t]       = $single;
@@ -248,61 +250,6 @@ function parseRequestUri()
 }
 
 /**
- * Get all categories for a specific content type
- * @param string $contentType The content type ('article' or 'project')
- * @param array $data The data array containing all content
- * @return array List of categories
- */
-function getCategories($contentType, $data)
-{
-    if (!in_array($contentType, ['article', 'project']) || !isset($data[$contentType])) {
-        return [];
-    }
-
-    $catStore   = function_exists('sl_load_categories') ? sl_load_categories() : [];
-    $categories = [];
-    foreach ($data[$contentType] as $item) {
-        if (isset($item['category']) && !empty($item['category'])) {
-            $categorySlug = sanitizeSlug($item['category']);
-            if (!isset($categories[$categorySlug])) {
-                $categories[$categorySlug] = $catStore[$categorySlug]['name'] ?? $item['category'];
-            }
-        }
-    }
-
-    return $categories;
-}
-
-/**
- * Get all tags for a specific content type
- * @param string $contentType The content type ('article' or 'project')
- * @param array $data The data array containing all content
- * @return array List of tags
- */
-function getTags($contentType, $data)
-{
-    if (!in_array($contentType, ['article', 'project']) || !isset($data[$contentType])) {
-        return [];
-    }
-
-    $tagStore = function_exists('sl_load_tags') ? sl_load_tags() : [];
-    $tags = [];
-    foreach ($data[$contentType] as $item) {
-        if (isset($item['tags']) && is_array($item['tags'])) {
-            foreach ($item['tags'] as $tagRaw) {
-                $tagSlug = sanitizeSlug($tagRaw);
-                if ($tagSlug === '') continue;
-                if (!isset($tags[$tagSlug])) {
-                    $tags[$tagSlug] = $tagStore[$tagSlug]['name'] ?? $tagRaw;
-                }
-            }
-        }
-    }
-
-    return $tags;
-}
-
-/**
  * Generate SEO title and description based on page context
  * @param string $pageTitle The current page title
  * @param string $type The content type
@@ -432,7 +379,7 @@ function renderCategoryPage($category, $data)
             echo '<p>' . __t('no_content_in_category') . '</p>';
         } else {
             if (!empty($articles)) {
-                echo '<h2>' . __t('articles') . '</h2>';
+                echo '<h2>' . sl_type_label('article', true) . '</h2>';
                 echo '<div class="articles-grid">';
                 foreach ($articles as $article) {
                     echo render_article_card($article);
@@ -440,7 +387,7 @@ function renderCategoryPage($category, $data)
                 echo '</div>';
             }
             if (!empty($projects)) {
-                echo '<h2>' . __t('projects') . '</h2>';
+                echo '<h2>' . sl_type_label('project', true) . '</h2>';
                 echo '<div class="projects-grid">';
                 foreach ($projects as $project) {
                     echo render_project_card($project);
@@ -518,7 +465,7 @@ function renderTagPage($tag, $data)
             echo '<p>' . __t('no_content_with_tag') . '</p>';
         } else {
             if (!empty($articles)) {
-                echo '<h2>' . __t('articles') . '</h2>';
+                echo '<h2>' . sl_type_label('article', true) . '</h2>';
                 echo '<div class="articles-grid">';
                 foreach ($articles as $article) {
                     echo render_article_card($article);
@@ -526,7 +473,7 @@ function renderTagPage($tag, $data)
                 echo '</div>';
             }
             if (!empty($projects)) {
-                echo '<h2>' . __t('projects') . '</h2>';
+                echo '<h2>' . sl_type_label('project', true) . '</h2>';
                 echo '<div class="projects-grid">';
                 foreach ($projects as $project) {
                     echo render_project_card($project);

@@ -1,0 +1,1 @@
+document.querySelectorAll("link.cms-async-css").forEach(function(e){"all"!==e.media&&(e.sheet?e.media="all":e.addEventListener("load",function(){this.media="all"}))});

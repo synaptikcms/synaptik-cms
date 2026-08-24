@@ -7,6 +7,14 @@ if (!defined('INCLUDED')) {
 
 require_once 'includes/admin-functions.php';
 
+// Role gate: this file serves two tiers — Menu Builder (admin+editor) and
+// everything else here, i.e. Settings tabs + save_settings/cache-clear (admin-only).
+$_settings_isMenuRequest = (($_GET['action'] ?? '') === 'menu_builder') || isset($_POST['save_menu']);
+if ($_settings_isMenuRequest ? !admin_can_manage_all_content() : !admin_is_admin()) {
+	http_response_code(403);
+	exit(__t('access_denied', 'Access denied.'));
+}
+
 // Load configuration
 $appSettings = admin_load_config();
 
@@ -18,13 +26,33 @@ $activeTab = $_POST['tab'] ?? 'general';
 
 // Handle cache clear request
 if (isset($_POST['clear_cache'])) {
+	admin_csrf_check();
 	sl_clear_all_cache();
 	// Also remove the media stats cache
 	$_mediaCacheFile = dirname(__DIR__) . '/cache/media-stats.json';
 	if (file_exists($_mediaCacheFile)) {
 		@unlink($_mediaCacheFile);
 	}
+	// Also purge the compiled language cache — otherwise a lang/*.json file
+	// edited directly on disk keeps serving stale strings after "Clear Cache".
+	if (function_exists('lang_cache_purge_all')) {
+		lang_cache_purge_all();
+	}
 	$_SESSION['message'] = __t('cache_cleared');
+	header('Location: index.php?action=settings&tab=general');
+	exit;
+}
+
+// Handle admin cache clear request
+if (isset($_POST['clear_admin_cache'])) {
+	admin_csrf_check();
+	$_adminCacheDir = __DIR__ . '/cache';
+	if (is_dir($_adminCacheDir)) {
+		foreach (glob($_adminCacheDir . '/*.json') ?: [] as $_f) {
+			@unlink($_f);
+		}
+	}
+	$_SESSION['message'] = __t('admin_cache_cleared');
 	header('Location: index.php?action=settings&tab=general');
 	exit;
 }
@@ -124,6 +152,9 @@ if (isset($_POST['save_settings'])) {
 	$appSettings['default_meta_title'] = trim($_POST['default_meta_title']);
 	$appSettings['default_meta_description'] = trim($_POST['default_meta_description']);
 	$appSettings['enable_seo'] = isset($_POST['enable_seo']);
+	$appSettings['schema_author_name']    = trim($_POST['schema_author_name'] ?? '');
+	$appSettings['schema_publisher_type'] = in_array($_POST['schema_publisher_type'] ?? '', ['Person', 'Organization'], true)
+		? $_POST['schema_publisher_type'] : 'Person';
 	$appSettings['show_site_title_in_header'] = isset($_POST['show_site_title_in_header']);
 	$appSettings['homepage_type'] = $_POST['homepage_type'];
 	$appSettings['homepage_page_id'] = $_POST['homepage_page_id'];
@@ -267,6 +298,40 @@ if (isset($_POST['save_settings'])) {
 		$appSettings['home_og_image'] = '';
 	}
 
+	// ── Content type labels (Settings > Reading > "Renommer les types de contenu")
+	// Empty field = revert to the built-in default label/URL for that type — not
+	// "leave the current override unchanged" — so defaults must be computed here
+	// without going through url_slug()'s override lookup (which would still see
+	// the old, pre-save config and defeat the "empty means revert" behavior).
+	$_tlSubmitted = [];
+	foreach (['article', 'page', 'project'] as $_tlType) {
+		$_tlSubmitted[$_tlType] = [
+			'singular' => trim($_POST['type_label_' . $_tlType . '_singular'] ?? ''),
+			'plural'   => trim($_POST['type_label_' . $_tlType . '_plural'] ?? ''),
+		];
+	}
+	$_tlSlugsSeen  = [];
+	$_tlCollision  = false;
+	foreach ($_tlSubmitted as $_tlType => $_tlPair) {
+		foreach (['singular', 'plural'] as $_tlField) {
+			$_tlKey   = $_tlType . ($_tlField === 'plural' ? 's' : '');
+			$_tlValue = $_tlPair[$_tlField];
+			$_tlSlug  = $_tlValue !== '' ? sanitizeSlug($_tlValue) : sanitizeSlug(__t('url_slug_' . $_tlKey, $_tlKey));
+			if ($_tlSlug === '' || in_array($_tlSlug, ['category', 'tag'], true) || isset($_tlSlugsSeen[$_tlSlug])) {
+				$_tlCollision = true;
+			} else {
+				$_tlSlugsSeen[$_tlSlug] = true;
+			}
+		}
+	}
+	if ($_tlCollision) {
+		$_SESSION['error'] = __t('type_labels_collision_error');
+		// Leave $appSettings['type_labels'] untouched — it already holds the
+		// last valid state loaded from config.json at the top of this file.
+	} else {
+		$appSettings['type_labels'] = $_tlSubmitted;
+	}
+
 	// Save settings
 	$saveResult = file_put_contents(dirname(__DIR__) . '/config.json', json_encode($appSettings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 	if ($saveResult === false) {
@@ -274,7 +339,12 @@ if (isset($_POST['save_settings'])) {
 		$_SESSION['error'] = __t('settings_save_failed');
 	} else {
 		if (function_exists('loadConfig_invalidate')) loadConfig_invalidate();
-		$_SESSION['message'] = __t('settings_saved');
+		// Don't overwrite the type-label collision error (if any) with a
+		// generic success toast — the rest of the settings did save, but the
+		// user still needs to see why their type labels were left unchanged.
+		if (!isset($_SESSION['error'])) {
+			$_SESSION['message'] = __t('settings_saved');
+		}
 	}
 	header('Location: index.php?action=settings&tab=' . $activeTab);
 	exit;

@@ -56,27 +56,6 @@ function get_custom_field(array $item, string $key, $default = '')
     return $item['custom_fields'][$key] ?? $default;
 }
 
-/**
- * Renders all custom fields as a plain definition list (no schema ordering).
- *
- * @param array $item Content item array.
- * @return string HTML or empty string.
- */
-function render_custom_fields(array $item): string
-{
-    $fields = $item['custom_fields'] ?? [];
-    if (empty($fields)) return '';
-
-    $html = '<dl class="custom-fields">';
-    foreach ($fields as $key => $value) {
-        if ($value === '' || $value === null) continue;
-        $html .= '<dt>' . htmlspecialchars($key) . '</dt>';
-        $html .= '<dd>' . nl2br(htmlspecialchars((string)$value)) . '</dd>';
-    }
-    $html .= '</dl>';
-    return $html;
-}
-
 // ── Home page sections ────────────────────────────────────────────────────────
 
 /**
@@ -166,7 +145,7 @@ function render_article_card($article)
         <?php if (!empty($article['image'])): ?>
         <div class="article-thumbnail">
             <a href="<?php echo $articleLink; ?>">
-                <img src="<?php echo getBaseUrl() . htmlspecialchars($article['image']); ?>" alt="<?php echo htmlspecialchars($article['title']); ?>">
+                <img src="<?php echo getBaseUrl() . htmlspecialchars($article['image']); ?>" alt="<?php echo htmlspecialchars(!empty($article['image_alt']) ? $article['image_alt'] : $article['title']); ?>" loading="lazy"<?php echo _image_dimensions_attr($article['image']); ?>>
             </a>
         </div>
         <?php endif; ?>
@@ -247,7 +226,7 @@ function render_project_card($project)
     <article class="<?php echo $cardClass; ?>">
         <?php if (!empty($project['image'])): ?>
         <div class="project-thumbnail">
-            <img src="<?php echo getBaseUrl() . htmlspecialchars($project['image']); ?>" alt="<?php echo htmlspecialchars($project['title']); ?>">
+            <img src="<?php echo getBaseUrl() . htmlspecialchars($project['image']); ?>" alt="<?php echo htmlspecialchars(!empty($project['image_alt']) ? $project['image_alt'] : $project['title']); ?>" loading="lazy"<?php echo _image_dimensions_attr($project['image']); ?>>
         </div>
         <?php endif; ?>
         <div class="project-overlay">

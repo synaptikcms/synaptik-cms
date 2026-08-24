@@ -4,61 +4,6 @@
  * All functions for building and rendering the front-end navigation.
  */
 
-/**
- * Renders the main navigation menu.
- * Uses the custom menu when enabled, otherwise falls back to renderDefaultMenu().
- */
-function render_menu($settings, $data)
-{
-    ob_start(); ?>
-<ul>
-    <?php if ($settings['use_custom_menu'] && !empty($settings['main_menu'])): ?>
-    <li><a href="<?php echo cleanUrl('home'); ?>"><?php echo __t('home'); ?></a></li>
-    <?php foreach ($settings['main_menu'] as $menuItem):
-        $url = '';
-        if ($menuItem['type'] === 'custom') {
-            $url = strpos($menuItem['url'], 'http') === 0
-                ? htmlspecialchars($menuItem['url'])
-                : getBaseUrl() . ltrim(htmlspecialchars($menuItem['url']), '/');
-        } elseif ($menuItem['type'] === 'content') {
-            if (isset($menuItem['content_type']) && $menuItem['content_type'] === 'list') {
-                $url = cleanUrl($menuItem['content_slug']);
-            } elseif (isset($menuItem['content_type']) && isset($menuItem['content_slug'])) {
-                $url = cleanUrl($menuItem['content_type'], $menuItem['content_slug']);
-            } else {
-                $url = getBaseUrl() . ltrim(htmlspecialchars($menuItem['url']), '/');
-            }
-        } ?>
-    <li>
-        <a href="<?php echo $url; ?>"<?php echo !empty($menuItem['target']) ? ' target="' . htmlspecialchars($menuItem['target']) . '"' : ''; ?>><?php echo htmlspecialchars($menuItem['label']); ?></a>
-    </li>
-    <?php endforeach; else: ?>
-    <li><a href="<?php echo cleanUrl('home'); ?>"><?php echo __t('home'); ?></a></li>
-    <li><a href="<?php echo cleanUrl('project'); ?>"><?php echo __t('projects'); ?></a></li>
-    <li><a href="<?php echo cleanUrl('article'); ?>"><?php echo __t('articles'); ?></a></li>
-    <li><a href="<?php echo cleanUrl('page'); ?>"><?php echo __t('pages'); ?></a></li>
-    <?php
-        if (isset($data['page'])) {
-            foreach ($data['page'] as $page) {
-                if (!empty($page['show_in_menu'])) {
-                    $pageSlug = !empty($page['custom_slug']) ? $page['custom_slug'] : $page['slug'];
-                    echo '<li><a href="' . cleanUrl('page', $pageSlug) . '">' . htmlspecialchars($page['title']) . '</a></li>';
-                }
-            }
-        }
-        if (isset($data['article'])) {
-            foreach ($data['article'] as $article) {
-                if (!empty($article['show_in_menu'])) {
-                    $articleSlug = !empty($article['custom_slug']) ? $article['custom_slug'] : $article['slug'];
-                    echo '<li><a href="' . cleanUrl('article', $articleSlug) . '">' . htmlspecialchars($article['title']) . '</a></li>';
-                }
-            }
-        }
-    endif; ?>
-</ul>
-<?php
-    return ob_get_clean();
-}
 
 /**
  * Renders a hierarchical menu with dropdown sub-menu support.
@@ -69,7 +14,10 @@ function renderHierarchicalMenu($settings, $data)
     if (!$settings['use_custom_menu'] || empty($settings['main_menu'])) {
         return renderDefaultMenu($data);
     }
-    return renderMenuTree(buildMenuTree($settings['main_menu']));
+    // Plugin filter: lets a plugin add, remove or reorder menu entries
+    // before they turn into HTML (e.g. inject a "Book now" link).
+    $tree = pl_apply_filter('menu_tree', buildMenuTree($settings['main_menu']));
+    return renderMenuTree($tree);
 }
 
 /**
@@ -180,21 +128,41 @@ function renderDefaultMenu($data)
     foreach (['page', 'article', 'project'] as $type) {
         if (empty($data[$type])) continue;
 
-        $items = array_filter($data[$type], fn($i) => !empty($i['show_in_menu']));
-        if (empty($items)) continue;
-
-        $items = sortMenuItems(array_values($items), $orderBy);
+        $flagged = array_filter($data[$type], fn($i) => !empty($i['show_in_menu']));
 
         if ($menuStyle === 'grouped') {
-            $html .= '<li class="has-submenu"><a href="' . cleanUrl($type) . '">' . htmlspecialchars(ucfirst($type) . 's') . '</a><ul>';
+            // The type's own listing page (e.g. /articles/) already lists
+            // every item of that type, so the group link belongs in the menu
+            // whenever the type has any content at all — independent of
+            // whether any single item opted into "Show in Main Menu". That
+            // flag only controls which items additionally get their own
+            // quick-link in the dropdown below.
+            $hasDropdown = !empty($flagged);
+            $html .= '<li' . ($hasDropdown ? ' class="has-submenu"' : '') . '>';
+            $html .= '<a href="' . cleanUrl($type) . '">' . htmlspecialchars(__t($type . 's', ucfirst($type) . 's')) . '</a>';
+            if ($hasDropdown) {
+                $flagged = sortMenuItems(array_values($flagged), $orderBy);
+                $html .= '<ul>';
+                foreach ($flagged as $item) {
+                    $slug     = !empty($item['custom_slug']) ? $item['custom_slug'] : $item['slug'];
+                    $category = !empty($item['category']) ? sanitizeSlug($item['category']) : null;
+                    $html    .= '<li><a href="' . cleanUrl($type, $slug, null, $category) . '">' . htmlspecialchars($item['title']) . '</a></li>';
+                }
+                $html .= '</ul>';
+            }
+            $html .= '</li>';
+            continue;
         }
-        foreach ($items as $item) {
+
+        // Flat style has no type grouping to fall back on, so only
+        // explicitly flagged items make sense here — showing every
+        // unflagged item would dump the entire content list into one menu.
+        if (empty($flagged)) continue;
+        $flagged = sortMenuItems(array_values($flagged), $orderBy);
+        foreach ($flagged as $item) {
             $slug     = !empty($item['custom_slug']) ? $item['custom_slug'] : $item['slug'];
             $category = !empty($item['category']) ? sanitizeSlug($item['category']) : null;
             $html    .= '<li><a href="' . cleanUrl($type, $slug, null, $category) . '">' . htmlspecialchars($item['title']) . '</a></li>';
-        }
-        if ($menuStyle === 'grouped') {
-            $html .= '</ul></li>';
         }
     }
 

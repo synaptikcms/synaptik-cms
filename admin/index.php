@@ -94,18 +94,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['batch_action']) && $_
 	exit;
 }
 
+// Handle batch trash actions (restore / permanent delete) — CSRF check required
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['trash_action']) && in_array($_POST['trash_action'], ['batch_restore', 'batch_purge'], true)) {
+	admin_csrf_check();
+	include_once 'content.php';
+	exit;
+}
+
 // Destructive GET actions that carry a CSRF token (delete, purge, category/tag delete)
-$_destructiveGetActions = ['delete', 'purge_all'];
 $_currentAction = $_GET['action'] ?? '';
 $_currentDraftAction = $_GET['draft_action'] ?? '';
+$_currentTrashAction = $_GET['trash_action'] ?? '';
 $_currentCategoryAction = $_GET['category_action'] ?? '';
 $_currentTagAction = $_GET['tag_action'] ?? '';
 
 $_isDestructiveGet = (
-	in_array($_currentDraftAction, ['delete', 'purge_all', 'batch_delete'], true) ||
+	in_array($_currentDraftAction, ['delete', 'batch_delete', 'restore'], true) ||
+	in_array($_currentTrashAction, ['restore', 'purge', 'purge_all'], true) ||
 	($_currentCategoryAction === 'delete') ||
 	($_currentTagAction === 'delete') ||
-	($_currentAction === 'delete')
+	($_currentAction === 'delete') ||
+	($_currentAction === 'revision_restore') ||
+	($_currentAction === 'delete_revision') ||
+	($_currentAction === 'duplicate') ||
+	($_currentAction === 'unpublish')
 );
 
 if ($_isDestructiveGet) {
@@ -131,10 +143,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_alt_save']) && (
 	if (!isset($_alt_data[$_post_type][$_post_index]['galleries'][$_gallery_idx]['images'][$_image_idx])) {
 		echo json_encode(['ok' => false, 'error' => 'not_found']); exit;
 	}
+	if (!admin_can_edit_item($_alt_data[$_post_type][$_post_index])) {
+		echo json_encode(['ok' => false, 'error' => 'not_authorized']); exit;
+	}
 	$_value = mb_substr(strip_tags($_value), 0, 500);
 	$_alt_data[$_post_type][$_post_index]['galleries'][$_gallery_idx]['images'][$_image_idx][$_field] = $_value;
 	$_result = saveData($_alt_data);
 	echo json_encode(['ok' => $_result !== false, 'value' => $_value]);
+	exit;
+}
+
+// AJAX: quick-add a custom field from the content editor sidebar
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cf_quick_add'])) {
+	header('Content-Type: application/json');
+	$_cfToken = $_POST['csrf_token'] ?? '';
+	if (empty($_cfToken) || !isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_cfToken)) {
+		echo json_encode(['ok' => false, 'error' => 'Invalid CSRF token']); exit;
+	}
+	if (!admin_is_admin()) {
+		echo json_encode(['ok' => false, 'error' => 'not_authorized']); exit;
+	}
+	$_cfField = admin_add_custom_field(
+		$_POST['cf_type']  ?? '',
+		$_POST['cf_label'] ?? '',
+		$_POST['cf_ftype'] ?? 'text'
+	);
+	echo json_encode($_cfField ? ['ok' => true, 'field' => $_cfField] : ['ok' => false, 'error' => 'invalid_input']);
 	exit;
 }
 
@@ -211,23 +245,53 @@ if ($action === 'plugin_page') {
 	exit;
 }
 
+// Role-gated actions: role required, or null to deny outright (reserved/removed).
+// Actions not listed here (add/edit/delete/drafts/trash/revisions/account/users/
+// tools/type=article|page|project) are open to all logged-in roles — either
+// ownership-scoped in content.php (Phase 7) or self-gated in their own template.
+$_adminOnlyActions        = ['settings', 'translations', 'system_info', 'activity_log', 'backup', 'update', 'plugins', 'manage_themes'];
+$_editorAndAboveActions   = ['menu_builder', 'manage_categories', 'manage_tags'];
+
+if (in_array($action, $_adminOnlyActions, true) && !admin_is_admin()) {
+	http_response_code(403);
+	ob_start();
+	echo '<div class="site-settings-section"><p>' . hsc(__t('access_denied', 'Access denied.')) . '</p></div>';
+	$pageContent = ob_get_clean();
+	$pageTitle   = __t('access_denied', 'Access denied.');
+	require_once 'includes/layout.php';
+	exit;
+}
+if (in_array($action, $_editorAndAboveActions, true) && !admin_can_manage_all_content()) {
+	http_response_code(403);
+	ob_start();
+	echo '<div class="site-settings-section"><p>' . hsc(__t('access_denied', 'Access denied.')) . '</p></div>';
+	$pageContent = ob_get_clean();
+	$pageTitle   = __t('access_denied', 'Access denied.');
+	require_once 'includes/layout.php';
+	exit;
+}
+
 ob_start();
-if ($action === 'add' || $action === 'edit' || $action === 'delete' || $action === 'drafts' || $action === 'manage_categories' || $action === 'manage_tags' || $action === 'manage_themes') {
+if ($action === 'add' || $action === 'edit' || $action === 'delete' || $action === 'unpublish' || $action === 'drafts' || $action === 'trash' || $action === 'revision_diff' || $action === 'revision_restore' || $action === 'delete_revision' || $action === 'pending_diff' || $action === 'manage_categories' || $action === 'manage_tags' || $action === 'manage_themes') {
 	include_once 'content.php';
 } elseif ($action === 'settings' || $action === 'menu_builder') {
 	include_once 'settings.php';
 } elseif ($action === 'account') {
 	include 'templates/account.php';
+} elseif ($action === 'users') {
+	include 'templates/users.php';
 } elseif ($action === 'translations') {
 	include 'templates/translations.php';
+} elseif ($action === 'system_info') {
+	include 'templates/system-info.php';
+} elseif ($action === 'activity_log') {
+	include 'templates/activity-log.php';
 } elseif ($action === 'tools') {
 	include 'templates/tools-view.php';
 } elseif ($action === 'backup') {
 	include 'templates/backup.php';
 } elseif ($action === 'update') {
 	include 'templates/update.php';
-} elseif ($action === 'drafts') {
-	include 'templates/drafts.php';
 } elseif ($action === 'plugins') {
 	include 'templates/plugins-manager.php';
 } elseif ($type === 'article' || $type === 'page' || $type === 'project') {

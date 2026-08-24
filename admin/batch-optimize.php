@@ -12,6 +12,17 @@ if (!admin_is_logged_in()) {
 	}
 	exit;
 }
+if (!admin_can_manage_all_content()) {
+	if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+		header('Content-Type: application/json');
+		http_response_code(403);
+		echo json_encode(['status' => 'error', 'message' => 'Not authorized']);
+	} else {
+		http_response_code(403);
+		exit('Access denied.');
+	}
+	exit;
+}
 if (empty($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
@@ -179,14 +190,6 @@ function processOneFile($filePath) {
 	}
 }
 
-function formatSize($bytes) {
-	$units = ['B', 'KB', 'MB', 'GB'];
-	$bytes = max(0, (int)$bytes);
-	$i     = $bytes > 0 ? (int)floor(log($bytes, 1024)) : 0;
-	$i     = min($i, count($units) - 1);
-	return round($bytes / pow(1024, $i), 2) . ' ' . $units[$i];
-}
-
 function listDirectories($dir, $rel = '') {
 	$dirs  = [];
 	$items = scandir($dir);
@@ -293,141 +296,6 @@ ob_start();
 <?php
 $pageContent = ob_get_clean();
 
-$extraFooterScripts = <<<'JSINLINE'
-<script>
-(function () {
-	'use strict';
-
-	var form       = document.getElementById('optimize-form');
-	var btn        = document.getElementById('start-optimization');
-	var select     = document.getElementById('directory');
-	var container  = document.getElementById('progress-container');
-	var fill       = document.getElementById('progress-fill');
-	var statusEl   = document.getElementById('current-status');
-	var resultsEl  = document.getElementById('optimization-results');
-	var warningEl  = document.getElementById('processing-warning');
-	var isRunning  = false;
-
-	form.addEventListener('submit', function (e) {
-		e.preventDefault();
-		if (isRunning) return;
-		isRunning = true;
-		container.style.display = 'block';
-		resultsEl.style.display = 'none';
-		warningEl.style.display = 'block';
-		fill.style.width        = '0%';
-		statusEl.textContent    = window.t('batch_scanning');
-		btn.disabled            = true;
-		btn.textContent         = window.t('optimizing');
-		select.disabled         = true;
-		ajaxGet(
-			'batch-optimize.php?scan=1&directory=' + encodeURIComponent(select.value),
-			function (data) {
-				if (data.status !== 'ok') { showError(data.message || window.t('error')); return; }
-				if (data.count === 0)    { showError(window.t('batch_no_images')); return; }
-				statusEl.textContent = window.t('batch_images_found').replace('%d', data.count);
-				processFiles(data.files, 0, { processed: 0, errors: 0, totalOriginal: 0, totalOptimized: 0, webpCount: 0 });
-			},
-			function (err) { showError(window.t('error') + ': ' + err); }
-		);
-	});
-
-	function processFiles(files, index, stats) {
-		if (index >= files.length) { finishProcessing(stats, files.length); return; }
-		var file    = files[index];
-		var percent = Math.min(99, Math.round((index / files.length) * 100));
-		fill.style.width     = percent + '%';
-		statusEl.textContent = (index + 1) + '/' + files.length + ' — ' + file.name;
-		ajaxPost('batch-optimize.php', 'process_one=1&file_path=' + encodeURIComponent(file.path),
-			function (result) {
-				if (result.status === 'ok') {
-					stats.processed++;
-					stats.totalOriginal  += result.original_size  || 0;
-					stats.totalOptimized += result.optimized_size || 0;
-					if (result.webp) stats.webpCount++;
-				} else { stats.errors++; }
-				processFiles(files, index + 1, stats);
-			},
-			function (err) { stats.errors++; processFiles(files, index + 1, stats); }
-		);
-	}
-
-	function finishProcessing(stats, total) {
-		fill.style.width        = '100%';
-		statusEl.textContent    = window.t('optimization_complete');
-		warningEl.style.display = 'none';
-		btn.disabled            = false;
-		btn.textContent         = window.t('batch_start_btn');
-		select.disabled         = false;
-		isRunning               = false;
-		var saved     = stats.totalOriginal - stats.totalOptimized;
-		var reduction = stats.totalOriginal > 0 ? Math.round((saved / stats.totalOriginal) * 10000) / 100 : 0;
-		setText('stat-processed', stats.processed);
-		setText('stat-errors',    stats.errors);
-		setText('stat-saved',     formatBytes(saved));
-		setText('stat-reduction', reduction + '%');
-		setText('stat-original',  formatBytes(stats.totalOriginal));
-		setText('stat-optimized', formatBytes(stats.totalOptimized));
-		if (document.getElementById('stat-webp')) setText('stat-webp', stats.webpCount);
-		resultsEl.style.display = 'block';
-		var msgHtml = window.t('batch_complete_msg').replace('%d', stats.processed).replace('%d', stats.errors).replace('%s', formatBytes(saved)).replace('%s', reduction + '%');
-		if (stats.webpCount > 0) msgHtml += window.t('batch_complete_msg_webp').replace('%d', stats.webpCount);
-		var msg = document.createElement('div');
-		msg.className = 'message success';
-		msg.innerHTML = msgHtml;
-		var content = document.querySelector('.content');
-		content.insertBefore(msg, content.firstChild);
-		setTimeout(function () { msg.style.transition = 'opacity 0.5s ease'; msg.style.opacity = '0'; setTimeout(function () { if (msg.parentNode) msg.parentNode.removeChild(msg); }, 500); }, 5000);
-	}
-
-	function showError(msg) {
-		statusEl.textContent    = msg;
-		warningEl.style.display = 'none';
-		btn.disabled            = false;
-		btn.textContent         = window.t('batch_start_btn');
-		select.disabled         = false;
-		isRunning               = false;
-	}
-
-	function ajaxGet(url, onSuccess, onError) {
-		var xhr = new XMLHttpRequest();
-		xhr.open('GET', url, true);
-		xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-		xhr.timeout = 30000;
-		xhr.onload = function () {
-			if (xhr.status === 200) { try { onSuccess(JSON.parse(xhr.responseText)); } catch (e) { onError('JSON parse error: ' + e.message); } }
-			else { onError('HTTP ' + xhr.status); }
-		};
-		xhr.onerror   = function () { onError(window.t('batch_network_error')); };
-		xhr.ontimeout = function () { onError('Timeout'); };
-		xhr.send();
-	}
-
-	function ajaxPost(url, body, onSuccess, onError) {
-		var xhr = new XMLHttpRequest();
-		xhr.open('POST', url, true);
-		xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-		xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-		xhr.timeout = 120000;
-		xhr.onload = function () {
-			if (xhr.status === 200) { try { onSuccess(JSON.parse(xhr.responseText)); } catch (e) { onError('JSON parse error: ' + e.message); } }
-			else { onError('HTTP ' + xhr.status); }
-		};
-		xhr.onerror   = function () { onError(window.t('batch_network_error')); };
-		xhr.ontimeout = function () { onError(window.t('batch_timeout')); };
-		xhr.send(body);
-	}
-
-	function setText(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
-
-	function formatBytes(bytes) {
-		if (!bytes || bytes <= 0) return '0 B';
-		var units = ['B', 'KB', 'MB', 'GB'];
-		var i = Math.min(3, Math.floor(Math.log(bytes) / Math.log(1024)));
-		return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + units[i];
-	}
-}());
-</script>
-JSINLINE;
+$extraFooterScripts = '<script src="assets/js/batch-optimize.js?v=' . @filemtime(__DIR__ . '/assets/js/batch-optimize.js') . '"></script>';
 
 require_once 'includes/layout.php';

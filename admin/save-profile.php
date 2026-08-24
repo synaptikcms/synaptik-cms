@@ -23,6 +23,12 @@ if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', 
 ob_clean();
 header('Content-Type: application/json');
 
+$currentUser = admin_find_user_by_id((string)admin_current_user_id());
+if ($currentUser === null) {
+	echo json_encode(['status' => 'error', 'message' => __t('settings_save_failed')]);
+	exit;
+}
+
 $newUsername    = trim($_POST['admin_username']     ?? '');
 $newDisplayName = trim($_POST['admin_display_name'] ?? '');
 $newEmail       = trim($_POST['admin_email']        ?? '');
@@ -55,9 +61,9 @@ if ($newEmail !== '') {
 	$fields['email'] = $newEmail;
 }
 
-$ok = admin_save_credentials($fields);
+$ok = admin_update_user($currentUser['id'], $fields);
 if (!$ok) {
-	echo json_encode(['status' => 'error', 'message' => __t('settings_save_failed')]);
+	echo json_encode(['status' => 'error', 'message' => __t('profile_username_taken')]);
 	exit;
 }
 

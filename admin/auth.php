@@ -15,10 +15,12 @@ if ($action === 'logout') {
 	exit;
 }
 
-include_once 'admin-credentials.php';
-$hashed_password    = isset($admin_password)     ? $admin_password     : '';
-$stored_username    = isset($admin_username)     ? $admin_username     : 'admin';
-$stored_displayname = isset($admin_display_name) ? $admin_display_name : $stored_username;
+// Fixed bcrypt hash of a string that is never a real account's password —
+// verified against on every failed lookup so "wrong password" and "no such
+// user" cost the same amount of time (password_verify() is the one
+// expensive step in this flow; the username lookup itself is cheap enough
+// that timing it doesn't leak anything worth hiding).
+const AUTH_DUMMY_HASH = '$2y$12$IK7g7s7.eXnvaS4Kc.ZTZ.FNIrARloa1EHRgM5h8IsgDv3wFjuk9a';
 
 $max_attempts = 5;
 $lockout_time = 15 * 60;
@@ -97,9 +99,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_locked) {
 		$username = trim($_POST['username'] ?? '');
 		$password = $_POST['password'] ?? '';
 
-		$usernameOk = hash_equals($stored_username, $username);
+		$matchedUser = admin_find_user_by_username($username);
 
-		if ($usernameOk && $hashed_password && password_verify($password, $hashed_password)) {
+		// Always exactly one password_verify() call, matched user or not —
+		// see AUTH_DUMMY_HASH above.
+		$passwordOk = password_verify($password, $matchedUser['password_hash'] ?? AUTH_DUMMY_HASH);
+
+		if ($matchedUser !== null && $passwordOk) {
 			unset($rateData[$ipKey]);
 			if ($_lockFp) {
 				ftruncate($_lockFp, 0);
@@ -112,8 +118,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_locked) {
 
 			$_SESSION['admin']               = true;
 			$_SESSION['admin_last_activity']  = time();
-			$_SESSION['admin_username']       = $stored_username;
-			$_SESSION['admin_display_name']   = $stored_displayname;
+			$_SESSION['admin_user_id']        = $matchedUser['id'];
+			$_SESSION['admin_role']           = $matchedUser['role'];
+			$_SESSION['admin_username']       = $matchedUser['username'];
+			$_SESSION['admin_display_name']   = $matchedUser['display_name'];
+
+			sl_admin_log_activity('login_success');
 
 			session_regenerate_id(true);
 
@@ -130,6 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_locked) {
 				$remaining_attempts = $max_attempts - $lockData['attempts'];
 				$error = str_replace('%d', $remaining_attempts, __t('auth_invalid_creds'));
 			}
+			sl_admin_log_activity('login_failed', $username);
 			$rateData[$ipKey] = $lockData;
 			if ($_lockFp) {
 				ftruncate($_lockFp, 0);
@@ -157,22 +168,10 @@ $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title><?php _e('auth_title'); ?></title>
-	<script>
-	(function() {
-		try {
-			var t = localStorage.getItem('synaptik_theme');
-			if (t !== 'dark' && t !== 'light') {
-				t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-			}
-			document.documentElement.setAttribute('data-theme', t);
-		} catch (e) {
-			document.documentElement.setAttribute('data-theme', 'light');
-		}
-	})();
-	</script>
+	<script src="assets/js/theme-boot.js?v=<?php echo @filemtime(__DIR__ . '/assets/js/theme-boot.js'); ?>"></script>
 	<link rel="stylesheet" href="assets/css/admin-base.css?v=<?php echo @filemtime(__DIR__ . '/assets/css/admin-base.css'); ?>">
 </head>
-<body style="background-color: var(--surface2);">
+<body class="auth-page" style="background-color: var(--surface);"<?php echo $is_locked ? ' data-locked-reload-ms="' . (int)($remaining_time * 1000) . '"' : ''; ?>>
 	<div class="login-container">
 		<div class="login-header">
 			<h1><?php _e('auth_title'); ?></h1>
@@ -209,10 +208,6 @@ $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 		</div>
 	</div>
 
-	<script>
-		<?php if ($is_locked): ?>
-		setTimeout(function() { window.location.reload(); }, <?php echo $remaining_time * 1000; ?>);
-		<?php endif; ?>
-	</script>
+	<script src="assets/js/auth.js?v=<?php echo @filemtime(__DIR__ . '/assets/js/auth.js'); ?>"></script>
 </body>
 </html>

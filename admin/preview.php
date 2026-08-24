@@ -18,18 +18,33 @@ if (empty($_SESSION['admin']) || $_SESSION['admin'] !== true
 }
 unset($_preview_timeout);
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-	http_response_code(405);
-	exit(__t('http_post_only'));
-}
-
 $rootDir = dirname(__DIR__);
+
+// Absolute URL to this admin folder, captured before SCRIPT_NAME is rewritten below.
+// Needed because some themes set <base href="..."> on the front-end pages this preview
+// borrows — a relative asset path would then resolve against the site root instead of
+// the admin folder and 404, leaving the close button's script never loaded.
+$adminBaseUrl = dirname($_SERVER['SCRIPT_NAME']);
 
 chdir($rootDir);
 
 $_SERVER['SCRIPT_NAME'] = dirname(dirname($_SERVER['SCRIPT_NAME'])) . '/index.php';
 
 require_once $rootDir . '/core/functions.php';
+
+// Marks this request as having reached content-purify.php through a real
+// include chain, not a direct URL hit — same convention admin-functions.php
+// uses for everything else under admin/includes/.
+if (!defined('INCLUDED')) define('INCLUDED', true);
+require_once __DIR__ . '/includes/content-purify.php';
+
+// A GET hit here (e.g. reloading this tab after the POST body is gone)
+// can never rebuild the preview — __t() only becomes available once
+// core/functions.php above has loaded, so this check has to come after it.
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+	http_response_code(405);
+	exit(__t('preview_expired', 'This preview has expired. Go back to the editor and click Preview again.'));
+}
 
 $settings = loadConfig();
 // Load lightweight indices — preview builds its own $item from POST data,
@@ -49,6 +64,19 @@ $contentType = in_array($_POST['type'] ?? '', ['article', 'page', 'project'])
 $str  = fn(string $k, string $d = '') => trim($_POST[$k] ?? $d);
 $bool = fn(string $k) => isset($_POST[$k]) && $_POST[$k] === '1';
 $chk  = fn(string $k) => isset($_POST[$k]);
+
+// Publish date/time — same combined datetime-local field + fallback logic
+// as the real save path (admin-functions.php), otherwise the preview reads
+// the stale hidden #date/#time inputs and shows a blank publish date.
+$dtRaw = trim($_POST['publish_datetime'] ?? '');
+if ($dtRaw !== '') {
+	$itemDate = str_replace('T', ' ', $dtRaw);
+} else {
+	$timeRaw = trim($_POST['time'] ?? '');
+	$itemDate = !empty($_POST['date'])
+		? ($timeRaw !== '' ? $_POST['date'] . ' ' . $timeRaw : $_POST['date'])
+		: date('Y-m-d H:i');
+}
 
 // Image à la une
 $rawImage  = $str('featured_image') ?: $str('selected_image_path');
@@ -107,14 +135,23 @@ $tags = is_array($rawTags)
 	? array_filter(array_map('trim', $rawTags))
 	: array_filter(array_map('trim', explode(',', $rawTags)));
 
+// Preview never goes through admin_build_content_item_from_post() (it renders
+// live $_POST content that may never be saved at all), so it needs the same
+// purification that path applies on its own — otherwise unsaved, unsanitized
+// content would render live in the previewer's browser.
+$previewContentFormat = in_array($_POST['content_format'] ?? 'html', ['html', 'markdown'], true)
+	? $_POST['content_format'] : 'html';
+$previewContent = $previewContentFormat === 'markdown'
+	? admin_purify_markdown($_POST['content'] ?? '')
+	: admin_purify_html($_POST['content'] ?? '');
+
 $item = [
 	'type'                => $contentType,
 	'title'               => $str('title', '(Sans titre)'),
-	'content'             => $_POST['content'] ?? '',
-	'content_format'      => in_array($_POST['content_format'] ?? 'html', ['html', 'markdown'])
-	? $_POST['content_format'] : 'html',
+	'content'             => $previewContent,
+	'content_format'      => $previewContentFormat,
 	'description'         => $str('description'),
-	'date'                => $str('date', date('Y-m-d')),
+	'date'                => $itemDate,
 	'category'            => $str('category'),
 	'tags'                => array_values($tags),
 	'image'               => $itemImage,
@@ -183,8 +220,9 @@ $previewBannerHtml = '
   <span class="pb-badge">⚡ ' . __t('preview_badge') . '</span>
   <span class="pb-title">' . htmlspecialchars($item['title'])
 	. '<span class="pb-type">— ' . htmlspecialchars(ucfirst($contentType)) . ' · ' . __t('preview_unpublished') . '</span></span>
-  <button class="pb-close" onclick="window.close()">' . __t('preview_close') . '</button>
-</div>';
+  <button class="pb-close" id="pb-close-btn">' . __t('preview_close') . '</button>
+</div>
+<script src="' . htmlspecialchars($adminBaseUrl) . '/assets/js/preview-banner.js?v=' . @filemtime(__DIR__ . '/assets/js/preview-banner.js') . '"></script>';
 
 
 $themeVars = [

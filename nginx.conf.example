@@ -93,6 +93,27 @@ server {
         try_files $uri $uri/ /index.php?$query_string;
     }
 
+    # ── Admin panel — stricter CSP, no hCaptcha/GA origins, CodeMirror/jQuery/
+    # Sortable allow-listed instead. Mirrors admin/.htaccess exactly — if you
+    # change one, change the other. Must come before the generic PHP-FPM block
+    # below: nginx picks the first matching regex location, so this has to be
+    # declared earlier to win for admin requests.
+    # Replace "admin" with your actual admin folder name if you renamed it at
+    # install time (see admin_dir in config.json).
+    location ~ ^/admin/.*\.php$ {
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://code.jquery.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.bunny.net; img-src 'self' data: blob:; font-src 'self' https://cdnjs.cloudflare.com https://fonts.bunny.net; connect-src 'self'; frame-ancestors 'none';" always;
+
+        try_files $uri =404;
+        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock; # adjust to your PHP version
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
     # ── PHP-FPM ───────────────────────────────────────────────────────────────
     location ~ \.php$ {
         try_files $uri =404;
@@ -113,7 +134,7 @@ server {
         add_header X-Content-Type-Options "nosniff" always;
         add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()" always;
-        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.hcaptcha.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.googletagmanager.com; frame-src https://newassets.hcaptcha.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.bunny.net https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://fonts.bunny.net https://cdn.jsdelivr.net; img-src 'self' data: blob: https://img.shields.io; connect-src 'self' https://hcaptcha.com https://api.hcaptcha.com https://www.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net; frame-ancestors 'self';" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-IKuAx5iLABAf9AVYuoYEKcDHFB1pntqdgWQf0L+elJM=' https://js.hcaptcha.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.googletagmanager.com; frame-src https://newassets.hcaptcha.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.bunny.net https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://fonts.bunny.net https://cdn.jsdelivr.net; img-src 'self' data: blob: https://img.shields.io; connect-src 'self' https://hcaptcha.com https://api.hcaptcha.com https://www.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net; frame-ancestors 'self';" always;
         access_log off;
     }
 
@@ -121,9 +142,18 @@ server {
     # CSP mirrors .htaccess exactly. If you change one, change the other.
     # hCaptcha requires: js.hcaptcha.com (script-src), newassets.hcaptcha.com (frame-src),
     #   hcaptcha.com + api.hcaptcha.com (connect-src). Removing them breaks the contact form.
+    # script-src has no 'unsafe-inline' — all front-end JS lives in external files,
+    #   server-rendered data reaches it via <script type="application/json"> islands.
+    #   One exception, allow-listed by hash instead: the pre-paint preference-
+    #   boot snippet (theme dark/light, sidebar-collapsed state) is inlined in
+    #   each theme's header.php to avoid an extra render-blocking request — it
+    #   must run synchronously before first paint. Every occurrence is required
+    #   to be byte-identical, so this one hash covers all of them. Recompute
+    #   and update it if that snippet's code is ever edited.
+    # style-src keeps 'unsafe-inline' — user-authored content can carry inline style="".
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.hcaptcha.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.googletagmanager.com; frame-src https://newassets.hcaptcha.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.bunny.net https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://fonts.bunny.net https://cdn.jsdelivr.net; img-src 'self' data: blob: https://img.shields.io; connect-src 'self' https://hcaptcha.com https://api.hcaptcha.com https://www.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net; frame-ancestors 'self';" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-IKuAx5iLABAf9AVYuoYEKcDHFB1pntqdgWQf0L+elJM=' https://js.hcaptcha.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.googletagmanager.com; frame-src https://newassets.hcaptcha.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.bunny.net https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://fonts.bunny.net https://cdn.jsdelivr.net; img-src 'self' data: blob: https://img.shields.io; connect-src 'self' https://hcaptcha.com https://api.hcaptcha.com https://www.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net; frame-ancestors 'self';" always;
 }

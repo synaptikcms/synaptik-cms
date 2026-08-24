@@ -42,9 +42,13 @@
 
     # CSP admin
     # script-src  : self + CodeMirror (cdnjs) + jQuery (code.jquery.com) + jsDelivr (cdn.jsdelivr.net)
-    # style-src   : self + CodeMirror (cdnjs) + Google Fonts CSS (fonts.googleapis.com)
-    # font-src    : self + CodeMirror (cdnjs) + Google Fonts fichiers (fonts.gstatic.com)
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://code.jquery.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'none';"
+    #               'unsafe-inline' dropped — all admin JS lives in external files now;
+    #               server-rendered data reaches it via <script type="application/json"> islands.
+    # style-src   : self + CodeMirror (cdnjs) + Bunny Fonts CSS (fonts.bunny.net)
+    #               'unsafe-inline' kept — admin templates still use inline style="" attributes.
+    # font-src    : self + CodeMirror (cdnjs) + Bunny Fonts files (fonts.bunny.net — same host
+    #               serves both the CSS and the font files, unlike Google's googleapis/gstatic split)
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://code.jquery.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.bunny.net; img-src 'self' data: blob:; font-src 'self' https://cdnjs.cloudflare.com https://fonts.bunny.net; connect-src 'self'; frame-ancestors 'none';"
 </IfModule>
 
 # ── Browser caching ────────────────────────────────────────────

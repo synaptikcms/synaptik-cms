@@ -6,11 +6,22 @@ if (!defined('INCLUDED')) {
 }
 
 // Check if we're restoring a draft
+$restoredDraftId        = '';
+$restoredDraftTimestamp = 0;
 if (isset($_GET['restore']) && $_GET['restore'] == 1 && isset($_SESSION['draft_data'])) {
 	$draftData = $_SESSION['draft_data'];
 
 	if ($draftData['type'] === $contentType || $draftData['type'] === $selectedType) {
-		$_SESSION['form_data'] = $draftData;
+		// Kept as its own variable rather than only relying on $editItem['id']
+		// below — a custom field could theoretically be keyed "id" and shadow
+		// it after the merge.
+		$restoredDraftId        = $draftData['id'] ?? '';
+		$restoredDraftTimestamp = $draftData['timestamp'] ?? 0;
+		// Unlike content-add.php, this template reads fields from $editItem,
+		// never from $_SESSION['form_data'] — so it's not set here. It used to
+		// be, but nothing in this file consumed it, which meant it lingered in
+		// the session and could leak into a later, unrelated content-add.php
+		// visit (wrong title/content/draft_id pre-filled on a brand-new item).
 		if (isset($editItem)) {
 			$editItem = array_merge($editItem, $draftData);
 		}
@@ -29,9 +40,26 @@ if (!$editItem) {
 				<!-- Main Content Area -->
 				<div class="editor-main">
 					<form method="post" action="index.php?action=edit&type=<?php echo urlencode($contentType); ?>&index=<?php echo $index; ?>" enctype="multipart/form-data" id="content-form">
+						<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token']); ?>">
 						<input type="hidden" name="type" value="<?php echo $contentType; ?>">
+						<!-- Carries the original draft id forward after a restore, so the next
+						     autosave updates that same file instead of creating a new one. -->
+						<input type="hidden" name="draft_id" value="<?php echo hsc($restoredDraftId); ?>">
 						<input type="hidden" name="remove_featured_image" id="remove-featured-image-flag" value="0">
-			
+
+						<?php if ($restoredDraftId !== ''): ?>
+						<!-- Landed here via the "unsaved changes" badge — this is a pending
+						     autosave snapshot, not what's currently published. Say so, since
+						     otherwise there's no visible sign the content differs from what's
+						     live (see the "pending_diff" view for a full comparison). -->
+						<div class="pending-autosave-banner">
+							<p><?php echo hsc(sprintf(__t('pending_banner_text', 'You\'re viewing an unsaved autosaved version from %s — it differs from what\'s currently published.'), $restoredDraftTimestamp ? date('Y-m-d H:i', $restoredDraftTimestamp) : '?')); ?></p>
+							<div class="banner-actions">
+								<a href="index.php?action=pending_diff&type=<?php echo urlencode($contentType); ?>&index=<?php echo $index; ?>&draft_id=<?php echo urlencode($restoredDraftId); ?>" class="btn-cl"><?php _e('view_pending_diff', 'View Differences'); ?></a>
+							</div>
+						</div>
+						<?php endif; ?>
+
 						<!-- Title Field -->
 						<div class="title-container">
 							<input type="text" id="title" name="title" class="title-input" placeholder="<?php _e('add_title'); ?>" value="<?php echo hsc($editItem['title'] ?? ''); ?>" required>
@@ -49,11 +77,8 @@ if (!$editItem) {
 						<?php if ($contentType === 'article'): ?>
 						<!-- Article Summary -->
 						<div class="editor-section">
-							<div class="form-group">
-								<label for="summary"><?php _e('article_summary_label', 'Short summary'); ?></label>
-								<textarea id="summary" name="summary" rows="3" placeholder="<?php echo hsc(__t('article_summary_placeholder', 'Write a short summary displayed in article listings…')); ?>"><?php echo hsc($editItem['summary'] ?? ''); ?></textarea>
-								<p class="help-text"><?php _e('article_summary_help', 'Replaces the auto-generated excerpt in article cards. Leave empty to use the content excerpt.'); ?></p>
-							</div>
+								<label for="summary" style="margin: 0 0 7px;"><?php _e('article_summary_label', 'Short summary'); ?></label>
+								<textarea id="summary" name="summary" rows="3" placeholder="<?php echo hsc(__t('article_summary_placeholder', 'Summary shown in article cards — leave empty to use a content excerpt…')); ?>"><?php echo hsc($editItem['summary'] ?? ''); ?></textarea>
 						</div>
 						<?php endif; ?>
 			
@@ -72,7 +97,7 @@ if (!$editItem) {
 						<!-- Named Galleries Section -->
 						<div class="editor-section" id="galleries-section">
 							<div class="galleries-section-header" style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-								<h3 style="margin:0;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> <?php _e('galleries'); ?></h3>
+								<h3 style="margin:0;"><?php echo admin_icon('images', 'style="vertical-align:-4px"', 20); ?> <?php _e('galleries'); ?></h3>
 								<button type="button" id="add-gallery-block" class="btn btn-primary btn-sm">+ <?php _e('new_gallery'); ?></button>
 								<span class="help-text" style="margin:0;font-size:11px;"><?php _e('gallery_shortcode_help'); ?></span>
 							</div>
@@ -134,7 +159,7 @@ if (!$editItem) {
 				<!-- Sidebar -->
 				<div class="editor-sidebar-wrap">
 					<button type="button" id="sidebar-toggle-handle" class="sidebar-toggle-handle" title="<?php echo hsc(__t('toggle_sidebar', 'Toggle sidebar')); ?>" aria-label="<?php echo hsc(__t('toggle_sidebar', 'Toggle sidebar')); ?>">
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="14" y1="4" x2="14" y2="20"/></svg>
+						<?php echo admin_icon('panel', '', 25); ?>
 					</button>
 				<aside class="editor-sidebar">
 					<div class="sidebar-tabs" id="sidebar-tabs">
@@ -142,19 +167,15 @@ if (!$editItem) {
 						<?php if (!empty($appSettings['enable_seo'])): ?>
 						<button type="button" class="sidebar-tab" data-panel="panel-seo">SEO</button>
 						<?php endif; ?>
-						<?php
-							$_cf_schema_edit = $appSettings['custom_fields_schema'][$contentType] ?? [];
-							if (!empty($_cf_schema_edit)):
-						?>
+						<?php $_cf_schema_edit = $appSettings['custom_fields_schema'][$contentType] ?? []; ?>
 						<button type="button" class="sidebar-tab" data-panel="panel-cf"><?php _e('cf_tab'); ?></button>
-						<?php endif; ?>
 					</div>
 			
 					<!-- TAB 1: Content -->
 					<div class="sidebar-tab-panel active" id="panel-content">
 						<div class="sidebar-panel">
-							<div class="form-group" style="margin-bottom: 15px;">
-								<label for="publish_datetime"><span class="label-icon">📅</span> <?php _e('publish_date'); ?></label>
+							<div class="form-group" style="margin-bottom: 14px;">
+								<label for="publish_datetime"><span class="label-icon"><?php echo admin_icon('calendar', '', 14); ?></span> <?php _e('publish_date'); ?></label>
 								<?php
 							$_edit_stored = $editItem['date'] ?? '';
 							$_edit_date   = substr($_edit_stored, 0, 10) ?: date('Y-m-d');
@@ -164,93 +185,97 @@ if (!$editItem) {
 								<input type="datetime-local" id="publish_datetime" name="publish_datetime" form="content-form" value="<?php echo hsc($_edit_dt_val); ?>">
 								<input type="hidden" id="date" name="date" form="content-form" value="">
 								<input type="hidden" id="time" name="time" form="content-form" value="">
+								<?php if (!empty($editItem['last_modified'])): ?>
+								<p class="help-text"><?php _e('last_modified'); ?>: <?php echo admin_format_date($editItem['last_modified']); ?><?php $lmTime = admin_format_time($editItem['last_modified']); if ($lmTime): ?> - <?php echo hsc($lmTime); ?><?php endif; ?></p>
+								<?php endif; ?>
 							</div>
-							<div class="form-group" style="margin-bottom: 15px;">
-								<label for="publish_at"><span class="label-icon">🕐</span> <?php _e('schedule_publish'); ?></label>
-								<?php if (($editItem['status'] ?? 'published') === 'scheduled'): ?>
-								<div class="badge badge-scheduled" style="margin-bottom:8px;">🕐 <?php _e('scheduled_for'); ?> <?php echo hsc($editItem['publish_at'] ?? ''); ?></div>
+							<?php $_edit_status = $editItem['status'] ?? 'published'; ?>
+							<div class="form-group" style="margin-bottom: 14px;">
+								<label for="status-select"><?php _e('status_col'); ?></label>
+								<select id="status-select" name="status" form="content-form">
+									<option value="published" <?php echo $_edit_status === 'published' ? 'selected' : ''; ?>><?php _e('status_published'); ?></option>
+									<option value="scheduled" <?php echo $_edit_status === 'scheduled' ? 'selected' : ''; ?>><?php _e('scheduled'); ?></option>
+									<option value="draft" <?php echo $_edit_status === 'draft' ? 'selected' : ''; ?>><?php _e('status_draft'); ?></option>
+									<option value="unpublished" <?php echo $_edit_status === 'unpublished' ? 'selected' : ''; ?>><?php _e('status_unpublished'); ?></option>
+								</select>
+							</div>
+							<div class="form-group" id="schedule-field" style="margin-bottom: 15px; display: <?php echo $_edit_status === 'scheduled' ? 'block' : 'none'; ?>;">
+								<label for="publish_at"><?php _e('schedule_publish'); ?></label>
+								<?php if ($_edit_status === 'scheduled'): ?>
+								<div class="badge badge-scheduled" style="margin-bottom:8px;"><?php echo admin_icon('clock', 'style="vertical-align:-2px"', 13); ?> <?php _e('scheduled_for'); ?> <?php echo hsc($editItem['publish_at'] ?? ''); ?></div>
 								<?php endif; ?>
 								<input type="datetime-local" id="publish_at" name="publish_at" form="content-form" value="<?php echo !empty($editItem['publish_at']) ? hsc(str_replace(' ', 'T', $editItem['publish_at'])) : ''; ?>">
-								<p class="help-text"><?php _e('schedule_help'); ?></p>
 							</div>
-							<?php if (!empty($editItem['last_modified'])): ?>
-							<div class="form-group" style="margin-bottom: 15px;">
-								<label><span class="label-icon">🕒</span> <?php _e('last_modified'); ?></label>
-								<div class="meta-value"><?php echo admin_format_date($editItem['last_modified']); ?><?php $lmTime = admin_format_time($editItem['last_modified']); if ($lmTime): ?><span class="meta-time"> - <?php echo hsc($lmTime); ?></span><?php endif; ?></div>
+							<div class="form-group" style="margin-bottom: 14px;">
+								<label for="custom_slug"><?php _e('custom_url_slug'); ?></label>
+								<div class="slug-field-row">
+									<input type="text" id="custom_slug" name="custom_slug" form="content-form" value="<?php echo hsc($editItem['custom_slug'] ?? ''); ?>" placeholder="<?php _e('slug_autogenerate_placeholder'); ?>">
+									<?php if (!empty($editItem['slug'])): ?>
+									<a href="<?php echo htmlspecialchars(admin_content_url($contentType, $editItem['slug'] ?? '', $editItem['custom_slug'] ?? '', $editItem['category'] ?? '')); ?>" class="btn btn-outline btn-sm btn-icon-action slug-view-btn" target="_blank" rel="noopener" title="<?php _e('view_online'); ?>">
+										<?php echo admin_icon('external-link', '', 14); ?>
+									</a>
+									<?php endif; ?>
+								</div>
 							</div>
-							<?php endif; ?>
-							<div class="form-group">
-								<label for="custom_slug">🔗 <?php _e('custom_url_slug'); ?></label>
-								<input type="text" id="custom_slug" name="custom_slug" form="content-form" value="<?php echo hsc($editItem['custom_slug'] ?? ''); ?>" placeholder="<?php _e('slug_autogenerate_placeholder'); ?>">
-								<p class="help-text"><?php _e('slug_help'); ?></p>
-							</div>
-						</div>
-			
-						<!-- Categories & Tags -->
-						<?php
-							$existingCategories = []; // slug => display name
-							if (isset($data['categories'])) {
-							 foreach ($data['categories'] as $slug => $cd) {
-							  if (!empty($cd['name'])) $existingCategories[$slug] = $cd['name'];
-							}
-							}
-							// Collect inline categories from items not yet in the store (legacy resilience)
-							foreach (['article', 'project', 'page'] as $type) {
-						if (!isset($data[$type])) continue;
-						foreach ($data[$type] as $item) {
-							if (empty($item['category'])) continue;
-							$slug = sanitizeSlug($item['category']);
-							if ($slug && !isset($existingCategories[$slug])) $existingCategories[$slug] = $item['category'];
-						}
-					}
-					asort($existingCategories); // sort by display name
-							$existingTags = []; // slug => display name
-							if (isset($data['tags'])) {
-							 foreach ($data['tags'] as $slug => $td) {
-							  if (!empty($td['name'])) $existingTags[$slug] = $td['name'];
-							}
-							}
-							// Collect inline tags from items not yet in the store (legacy resilience)
-							foreach (['article', 'project', 'page'] as $type) {
-						if (!isset($data[$type])) continue;
-						foreach ($data[$type] as $item) {
-							if (empty($item['tags']) || !is_array($item['tags'])) continue;
-							foreach ($item['tags'] as $tagRaw) {
-								$slug = sanitizeSlug($tagRaw);
-								if ($slug && !isset($existingTags[$slug])) $existingTags[$slug] = $tagRaw;
+							<?php
+								$existingCategories = []; // slug => display name
+								if (isset($data['categories'])) {
+								 foreach ($data['categories'] as $slug => $cd) {
+								  if (!empty($cd['name'])) $existingCategories[$slug] = $cd['name'];
+								}
+								}
+								// Collect inline categories from items not yet in the store (legacy resilience)
+								foreach (['article', 'project', 'page'] as $type) {
+							if (!isset($data[$type])) continue;
+							foreach ($data[$type] as $item) {
+								if (empty($item['category'])) continue;
+								$slug = sanitizeSlug($item['category']);
+								if ($slug && !isset($existingCategories[$slug])) $existingCategories[$slug] = $item['category'];
 							}
 						}
-					}
-					asort($existingTags); // sort by display name
+						asort($existingCategories); // sort by display name
+								$existingTags = []; // slug => display name
+								if (isset($data['tags'])) {
+								 foreach ($data['tags'] as $slug => $td) {
+								  if (!empty($td['name'])) $existingTags[$slug] = $td['name'];
+								}
+								}
+								// Collect inline tags from items not yet in the store (legacy resilience)
+								foreach (['article', 'project', 'page'] as $type) {
+							if (!isset($data[$type])) continue;
+							foreach ($data[$type] as $item) {
+								if (empty($item['tags']) || !is_array($item['tags'])) continue;
+								foreach ($item['tags'] as $tagRaw) {
+									$slug = sanitizeSlug($tagRaw);
+									if ($slug && !isset($existingTags[$slug])) $existingTags[$slug] = $tagRaw;
+								}
+							}
+						}
+						asort($existingTags); // sort by display name
 							?>
-						<div class="sidebar-panel panel-collapsible">
-							<h3 class="panel-header"><?php _e('category_and_tags'); ?></h3>
-							<div class="panel-content">
-								<?php if ($contentType !== 'page'): ?>
-								<div class="form-group" style="margin-bottom: 15px;">
-									<label><?php _e('category'); ?></label>
-									<?php
+							<?php if ($contentType !== 'page'): ?>
+							<div class="form-group" style="margin-bottom: 14px;">
+								<label><?php _e('category'); ?></label>
+								<?php
 							$_catDisplayVal = '';
 							if (!empty($editItem['category'])) {
 								$_cs = sanitizeSlug($editItem['category']);
 								$_catDisplayVal = $data['categories'][$_cs]['name'] ?? $editItem['category'];
 							}
 							?>
-							<input type="text" id="category" name="category" form="content-form" placeholder="<?php _e('type_or_select'); ?>" value="<?php echo hsc($_catDisplayVal); ?>" list="category-datalist">
-									<datalist id="category-datalist">
-									<option value=""><?php _e('no_category'); ?></option>
-									<?php foreach ($existingCategories as $slug => $name): ?><option value="<?php echo hsc($name); ?>"><?php endforeach; ?>
-									</datalist>
-									<button type="button" class="btn btn-outline btn-sm" onclick="toggleSuggestions('category-suggestions')"><?php _e('browse_all'); ?></button>
-									</div>
-									<div id="category-suggestions" class="suggestions-box" style="display:none;">
-									<span class="item-badge category-badge" data-value=""><?php _e('no_category'); ?></span>
-									<?php foreach ($existingCategories as $slug => $name): ?><span class="item-badge category-badge" data-value="<?php echo hsc($name); ?>"><?php echo hsc($name); ?></span><?php endforeach; ?>
-									</div>
-								<?php endif; ?>
-								<div class="form-group">
-									<label><?php _e('tags'); ?></label>
-									<?php
+							<div class="ip-picker">
+								<div class="ip-field" id="category-field">
+									<input type="text" id="category-search" class="ip-input" placeholder="<?php _e('type_or_select'); ?>" autocomplete="off">
+								</div>
+								<div id="category-dropdown" class="ip-dropdown"></div>
+							</div>
+							<input type="hidden" id="category-data" name="category" form="content-form" value="<?php echo hsc($_catDisplayVal); ?>">
+							<script type="application/json" id="category-source"><?php echo json_encode(array_values($existingCategories), JSON_UNESCAPED_UNICODE); ?></script>
+							</div>
+							<?php endif; ?>
+							<div class="form-group" style="margin-bottom: 8px;">
+								<label><?php _e('tags'); ?></label>
+								<?php
 							$_tagDisplayVals = [];
 							if (!empty($editItem['tags']) && is_array($editItem['tags'])) {
 								$_tagStore = $data['tags'] ?? [];
@@ -260,26 +285,28 @@ if (!$editItem) {
 								}
 							}
 							?>
-							<input type="text" id="tags" name="tags" form="content-form" placeholder="<?php _e('tags_placeholder'); ?>" value="<?php echo hsc(implode(', ', $_tagDisplayVals)); ?>">
-									<button type="button" class="btn btn-outline btn-sm" onclick="toggleSuggestions('tag-suggestions')"><?php _e('browse_all'); ?></button>
+							<div class="ip-picker">
+								<div class="ip-field" id="tags-field">
+									<input type="text" id="tags-search" class="ip-input" placeholder="<?php _e('type_or_select'); ?>" autocomplete="off">
 								</div>
-								<div id="tag-suggestions" class="suggestions-box" style="display:none;">
-								<?php foreach ($existingTags as $slug => $name): ?><span class="item-badge tag-badge" data-value="<?php echo hsc($name); ?>"><?php echo hsc($name); ?></span><?php endforeach; ?>
-								</div>
-								<label class="checkbox-label">
-									<input type="checkbox" name="show_tags_at_bottom" form="content-form" <?php echo isset($editItem['show_tags_at_bottom']) && $editItem['show_tags_at_bottom'] ? 'checked' : ''; ?>>
-									<?php _e('show_tags_at_bottom'); ?>
-								</label>
+								<div id="tags-dropdown" class="ip-dropdown"></div>
 							</div>
+							<input type="hidden" id="tags-data" name="tags" form="content-form" value="<?php echo hsc(implode(', ', $_tagDisplayVals)); ?>">
+							<script type="application/json" id="tags-source"><?php echo json_encode(array_values($existingTags), JSON_UNESCAPED_UNICODE); ?></script>
+							</div>
+							<label class="checkbox-label">
+								<input type="checkbox" name="show_tags_at_bottom" form="content-form" <?php echo isset($editItem['show_tags_at_bottom']) && $editItem['show_tags_at_bottom'] ? 'checked' : ''; ?>>
+								<?php _e('show_tags_at_bottom'); ?>
+							</label>
 						</div>
-			
+
 						<?php if ($contentType === 'page'):
 							$pageTemplates    = getPageTemplates();
 							$selectedTemplate = $editItem['page_template'] ?? '';
 							?>
-						<div class="sidebar-panel panel-collapsible">
-							<h3 class="panel-header"><span class="toggle-icon">▶</span> 📐 <?php _e('page_template'); ?></h3>
-							<div class="panel-content panel-collapsible">
+						<div class="sidebar-panel panel-collapsible collapsed">
+							<h3 class="panel-header"><span class="toggle-icon">▶</span> <?php echo admin_icon('ruler', 'style="vertical-align:-2px"', 14); ?> <?php _e('page_template'); ?></h3>
+							<div class="panel-content panel-collapsible" style="display:none;opacity:0;max-height:0">
 								<div class="form-group">
 								<label><?php _e('page_template_label'); ?></label>
 								<select id="page_template" name="page_template" form="content-form">
@@ -312,19 +339,10 @@ if (!$editItem) {
 										<input type="number" name="menu_order" id="menu_order" form="content-form" value="<?php echo (int)($editItem['menu_order'] ?? 0); ?>" min="0" max="999">
 										<p class="help-text"><?php _e('menu_order_help'); ?></p>
 									</div>
-									<script>
-										document.getElementById('show_in_menu').addEventListener('change', function() {
-											document.getElementById('menu_order_field').style.display = this.checked ? 'block' : 'none';
-										});
-									</script>
+									<script src="assets/js/menu-order-toggle.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/menu-order-toggle.js'); ?>"></script>
 								</div>
-							</div>
-						</div>
-			
-						<div class="sidebar-panel panel-collapsible">
-							<h3 class="panel-header"><?php _e('featured_image'); ?></h3>
-							<div class="panel-content">
-								<div class="featured-image-container">
+								<div class="featured-image-container" style="margin-top:16px;border-top:1px solid var(--border);">
+									<label><?php _e('featured_image'); ?></label>
 									<?php
 											$featuredRawPath    = $editItem['image'] ?? '';
 								$featuredCleanPath  = strpos($featuredRawPath, 'files/') === 0 ? substr($featuredRawPath, 6) : $featuredRawPath;
@@ -344,178 +362,59 @@ if (!$editItem) {
 									<?php endif; ?>
 									<input type="file" id="image" name="image" form="content-form" accept="image/*" style="width:100%;">
 									<button type="button" id="select-featured-image" class="btn btn-outline btn-sm" style="margin-top:10px;"><?php _e('select_from_files'); ?></button>
-									<p class="help-text"><?php _e('upload_or_select'); ?></p>
 									<input type="hidden" id="selected-image-path" name="selected_image_path" form="content-form" value="<?php echo hsc($selectedImagePathValue); ?>">
 								</div>
 							</div>
 						</div>
-			
+
 						<?php
 							// Prepare existing related items for the panel
 							$_ri_edit = (is_array($editItem['related_items'] ?? null)) ? $editItem['related_items'] : [];
 							$_ri_current_slug = !empty($editItem['custom_slug']) ? $editItem['custom_slug'] : ($editItem['slug'] ?? '');
 							?>
-						<div class="sidebar-panel panel-collapsible">
+						<div class="sidebar-panel panel-collapsible collapsed">
 							<h3 class="panel-header"><span class="toggle-icon">▶</span> <?php _e('related_content'); ?></h3>
-							<div class="panel-content panel-collapsible panel-content--ri">
+							<div class="panel-content panel-collapsible" style="display:none;opacity:0;max-height:0">
 								<label class="checkbox-label" style="margin-bottom:10px;">
 									<input type="checkbox" name="show_related_items" form="content-form" <?php echo isset($editItem['show_related_items']) && $editItem['show_related_items'] ? 'checked' : ''; ?>>
 									<?php _e('show_related_items'); ?>
 								</label>
-								<div id="ri-selected"></div>
-								<div style="position:relative;margin-top:10px;">
-									<input type="text" id="ri-search" placeholder="<?php echo hsc(__t('related_content_search_ph')); ?>" autocomplete="off" style="width:100%;box-sizing:border-box;">
-									<div id="ri-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;
-										background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);
-										max-height:350px;overflow-y:auto;box-shadow:var(--shadow-md);"></div>
+								<div class="ip-picker" style="margin-top:10px;">
+									<div class="ip-field" id="ri-field">
+										<input type="text" id="ri-search" class="ip-input" placeholder="<?php echo hsc(__t('related_content_search_ph')); ?>" autocomplete="off">
+									</div>
+									<div id="ri-dropdown" class="ip-dropdown"></div>
 								</div>
 								<p class="help-text" style="margin-top:8px;"><?php _e('related_content_help'); ?></p>
-								<input type="hidden" id="ri-data" name="related_items" form="content-form" value="<?php echo hsc(json_encode($_ri_edit, JSON_UNESCAPED_UNICODE)); ?>">
+								<input type="hidden" id="ri-data" name="related_items" form="content-form" value="<?php echo hsc(json_encode($_ri_edit, JSON_UNESCAPED_UNICODE)); ?>"
+									data-cur-type="<?php echo hsc($contentType); ?>" data-cur-slug="<?php echo hsc($_ri_current_slug); ?>">
 							</div>
 						</div>
-			
-						<script>
-							(function() {
-								'use strict';
-								var hidden = document.getElementById('ri-data');
-								var selDiv = document.getElementById('ri-selected');
-								var inp = document.getElementById('ri-search');
-								var drop = document.getElementById('ri-dropdown');
-								if (!hidden || !selDiv || !inp || !drop) return;
-			
-								var sel = [];
-								var timer;
-								var curType = <?php echo json_encode($contentType); ?>;
-								var curSlug = <?php echo json_encode($_ri_current_slug); ?>;
-								var i18n = {
-									empty: <?php echo json_encode(__t('related_content_empty')); ?> ,
-									none : <?php echo json_encode(__t('related_content_no_results')); ?> ,
-									loading : <?php echo json_encode(__t('related_content_loading')); ?>
-								};
-			
-								function esc(s) {
-									return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-								}
-			
-								function save() {
-									hidden.value = JSON.stringify(sel);
-								}
-			
-								function hasSel(type, slug) {
-									return sel.some(function(i) {
-										return i.type === type && i.slug === slug;
-									});
-								}
-			
-								function renderSel() {
-									if (!sel.length) {
-										selDiv.innerHTML = '<p style="font-size:11px;color:var(--text-muted);margin:0 0 8px;">' + esc(i18n.empty) + '</p>';
-										return;
-									}
-									selDiv.innerHTML = sel.map(function(it, idx) {
-										return '<div style="display:flex;align-items:center;gap:6px;padding:10px 0;border-bottom:1px solid var(--border);">' +
-										'<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:var(--primary);color:#fff;text-transform:uppercase;flex-shrink:0;">' + esc(it.type) + '</span>' +
-										'<span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + esc(it.title) + '">' + esc(it.title) + '</span>' +
-										'<button type="button" data-idx="' + idx + '" style="flex-shrink:0;background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;line-height:1;padding:2px 4px;" title="Remove">&times;</button>' +
-											'</div>';
-									}).join('');
-									selDiv.querySelectorAll('button[data-idx]').forEach(function(btn) {
-										btn.addEventListener('click', function() {
-											sel.splice(parseInt(this.dataset.idx, 10), 1);
-											save();
-											renderSel();
-										});
-									});
-								}
-			
-								inp.addEventListener('input', function() {
-									clearTimeout(timer);
-									var q = this.value.trim().toLowerCase();
-									if (q.length < 2) {
-										drop.style.display = 'none';
-										return;
-									}
-									timer = setTimeout(function() {
-										doSearch(q);
-									}, 300);
-								});
-								inp.addEventListener('blur', function() {
-									setTimeout(function() {
-										drop.style.display = 'none';
-									}, 200);
-								});
-			
-								function doSearch(q) {
-									var types = ['article', 'page', 'project'];
-									var pending = types.length;
-									var results = [];
-									drop.innerHTML = '<div style="padding:8px;font-size:12px;color:var(--text-muted);">' + esc(i18n.loading) + '</div>';
-									drop.style.display = 'block';
-									types.forEach(function(type) {
-										fetch('index.php?action=get_content_items&type=' + type)
-											.then(function(r) {
-												return r.json();
-											})
-											.then(function(items) {
-												items.forEach(function(it) {
-													if (type === curType && it.slug === curSlug) return;
-													if (hasSel(type, it.slug)) return;
-													if (it.title.toLowerCase().indexOf(q) === -1 && it.slug.toLowerCase().indexOf(q) === -1) return;
-													results.push({
-														type: type,
-														slug: it.slug,
-														title: it.title
-													});
-												});
-											})
-											.catch(function() {})
-											.finally(function() {
-												pending--;
-												if (pending === 0) renderDrop(results);
-											});
-									});
-								}
-			
-								function renderDrop(results) {
-									if (!results.length) {
-										drop.innerHTML = '<div style="padding:8px;font-size:12px;color:var(--text-muted);">' + esc(i18n.none) + '</div>';
-										return;
-									}
-									drop.innerHTML = results.slice(0, 10).map(function(it) {
-										return '<div class="ri-res" data-type="' + esc(it.type) + '" data-slug="' + esc(it.slug) + '" data-title="' + esc(it.title) + '"' +
-											' style="display:flex;align-items:center;gap:6px;padding:7px 10px;cursor:pointer;border-bottom:1px solid var(--border);">' +
-											'<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:var(--primary);color:#fff;text-transform:uppercase;flex-shrink:0;">' + esc(it.type) + '</span>' +
-											'<span style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(it.title) + '</span>' +
-											'</div>';
-									}).join('');
-									drop.style.display = 'block';
-									drop.querySelectorAll('.ri-res').forEach(function(el) {
-										el.addEventListener('mousedown', function(e) {
-											e.preventDefault();
-											sel.push({
-												type: this.dataset.type,
-												slug: this.dataset.slug,
-												title: this.dataset.title
-											});
-											save();
-											renderSel();
-											inp.value = '';
-											drop.style.display = 'none';
-										});
-									});
-								}
-			
-								try {
-									sel = JSON.parse(hidden.value) || [];
-								} catch (e) {
-									sel = [];
-								}
-								renderSel();
-							})();
-						</script>
-			
+
+						<!-- Revision History -->
+						<div class="sidebar-panel panel-collapsible collapsed">
+							<h3 class="panel-header"><span class="toggle-icon">▶</span> <?php _e('revision_history'); ?></h3>
+							<div class="panel-content panel-collapsible" style="display:none;opacity:0;max-height:0">
+								<?php if (empty($revisions)): ?>
+								<p class="help-text"><?php _e('no_revisions_yet'); ?></p>
+								<?php else: ?>
+								<div class="revision-rows">
+									<?php foreach ($revisions as $rev): ?>
+									<div class="revision-row">
+										<span class="revision-date"><?php echo hsc(admin_format_date(date('Y-m-d', $rev['timestamp']))); ?><?php $revTime = date('H:i', $rev['timestamp']); if ($revTime): ?><span class="meta-time"> - <?php echo hsc($revTime); ?></span><?php endif; ?></span>
+										<span class="revision-row-actions">
+											<a href="index.php?action=revision_diff&type=<?php echo urlencode($contentType); ?>&index=<?php echo $index; ?>&timestamp=<?php echo $rev['timestamp']; ?>" class="revision-icon-btn" title="<?php echo hsc(__t('view_diff')); ?>"><?php echo admin_icon('eye', '', 12); ?></a>
+											<button type="button" class="revision-icon-btn revision-icon-btn--danger revision-delete-btn" data-url="index.php?action=delete_revision&type=<?php echo urlencode($contentType); ?>&index=<?php echo $index; ?>&timestamp=<?php echo $rev['timestamp']; ?>&csrf_token=<?php echo urlencode($_SESSION['csrf_token'] ?? ''); ?>" title="<?php echo hsc(__t('delete')); ?>"><?php echo admin_icon('trash', '', 12); ?></button>
+										</span>
+									</div>
+									<?php endforeach; ?>
+								</div>
+								<?php endif; ?>
+							</div>
+						</div>
+						<script src="assets/js/item-picker.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/item-picker.js'); ?>"></script>
 					</div><!-- /#panel-content -->
-			
+
 					<!-- TAB 2: SEO — only rendered when SEO features are enabled in settings -->
 					<?php if (!empty($appSettings['enable_seo'])): ?>
 					<div class="sidebar-tab-panel" id="panel-seo">
@@ -525,13 +424,11 @@ if (!$editItem) {
 							<div class="panel-content panel-collapsible">
 								<div class="form-group">
 									<label for="meta_title"><?php _e('meta_title'); ?></label>
-									<input type="text" id="meta_title" name="meta_title" form="content-form" maxlength="80" value="<?php echo hsc($editItem['meta_title'] ?? ''); ?>">
-									<p class="help-text"><?php _e('meta_title_help'); ?></p>
+									<input type="text" id="meta_title" name="meta_title" form="content-form" maxlength="80" placeholder="<?php _e('meta_title_help'); ?>" value="<?php echo hsc($editItem['meta_title'] ?? ''); ?>">
 								</div>
 								<div class="form-group">
 									<label for="meta_description"><?php _e('meta_description'); ?></label>
-									<textarea id="meta_description" name="meta_description" form="content-form" rows="3" maxlength="200"><?php echo hsc($editItem['meta_description'] ?? ''); ?></textarea>
-									<p class="help-text"><?php _e('meta_description_help'); ?></p>
+									<textarea id="meta_description" name="meta_description" form="content-form" rows="3" maxlength="200" placeholder="<?php _e('meta_description_help'); ?>"><?php echo hsc($editItem['meta_description'] ?? ''); ?></textarea>
 								</div>
 								<div class="form-group">
 									<label for="meta_keywords"><?php _e('meta_keywords'); ?></label>
@@ -598,9 +495,12 @@ if (!$editItem) {
 					<?php endif; // enable_seo ?>
 			
 					<!-- TAB 3: Custom Fields -->
-					<?php if (!empty($_cf_schema_edit)): ?>
 					<div class="sidebar-tab-panel" id="panel-cf">
 						<div class="sidebar-panel">
+							<div id="cf-quick-add-list">
+							<?php if (empty($_cf_schema_edit)): ?>
+							<p class="help-text"><?php _e('cf_none_for_type'); ?></p>
+							<?php endif; ?>
 							<?php
 									$_cf_saved = $editItem['custom_fields'] ?? [];
 									foreach ($_cf_schema_edit as $cf):
@@ -612,7 +512,7 @@ if (!$editItem) {
 									$cfVal   = hsc($cfRaw);
 									$cfName  = 'custom_fields[' . ($cf['key'] ?? '') . ']';
 									?>
-							<div class="form-group" style="margin-bottom:14px;">
+							<div class="form-group" style="margin-bottom:8px;">
 								<label for="cf_<?php echo $cfKey; ?>"><?php echo $cfLabel; ?><?php if ($cfReq): ?> <span style="color:var(--danger);">*</span><?php endif; ?></label>
 								<?php if ($cfType === 'textarea'): ?>
 								<textarea id="cf_<?php echo $cfKey; ?>" name="<?php echo $cfName; ?>" form="content-form" rows="3" <?php echo $cfReq ? 'required' : ''; ?>><?php echo $cfVal; ?></textarea>
@@ -637,10 +537,31 @@ if (!$editItem) {
 								<?php endif; ?>
 							</div>
 							<?php endforeach; ?>
+							</div>
+							<button type="button" id="cf-quick-add-btn" class="btn btn-outline btn-sm" data-cf-type="<?php echo hsc($contentType); ?>" style="margin-top:6px;">+ <?php _e('cf_add_field'); ?></button>
+							<div id="cf-quick-add-form" style="display:none;margin-top:10px;">
+								<div class="form-group" style="margin-bottom:8px;">
+									<label for="cf-quick-add-label"><?php _e('cf_field_label'); ?></label>
+									<input type="text" id="cf-quick-add-label" placeholder="<?php echo hsc(__t('cf_field_label_ph')); ?>">
+								</div>
+								<div class="form-group" style="margin-bottom:10px;">
+									<label for="cf-quick-add-type"><?php _e('cf_field_type'); ?></label>
+									<select id="cf-quick-add-type">
+										<option value="text"><?php _e('cf_type_text'); ?></option>
+										<option value="textarea"><?php _e('cf_type_textarea'); ?></option>
+										<option value="number"><?php _e('cf_type_number'); ?></option>
+										<option value="url"><?php _e('cf_type_url'); ?></option>
+										<option value="checkbox"><?php _e('cf_type_checkbox'); ?></option>
+									</select>
+								</div>
+								<button type="button" id="cf-quick-add-submit" class="btn btn-primary btn-sm"><?php _e('cf_add_field'); ?></button>
+								<button type="button" id="cf-quick-add-cancel" class="btn btn-outline btn-sm"><?php _e('cancel'); ?></button>
+							</div>
+							<a href="index.php?action=settings&amp;tab=custom_fields#cf-section-<?php echo hsc($contentType); ?>" class="btn btn-outline btn-sm" style="margin-top:16px;">+ <?php _e('cf_manage_link'); ?></a>
 						</div>
 					</div><!-- /#panel-cf -->
-					<?php endif; // custom fields ?>
-			
+					<script src="assets/js/cf-quick-add.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/cf-quick-add.js'); ?>"></script>
+
 				</aside>
 				</div><!-- /.editor-sidebar-wrap -->
 			</div>
@@ -685,179 +606,18 @@ if (!$editItem) {
 
 				</div>
 			</div>
-	<script>
-	window.AUTOSAVE_ENABLED_BY_SETTINGS = <?php echo isset($appSettings['autosave_enabled']) && $appSettings['autosave_enabled'] ? 'true' : 'false'; ?>;
-	window.CONTENT_FORMAT = <?php echo json_encode($editItem['content_format'] ?? 'html'); ?>;
-
-	// Sync topbar format buttons to the stored content_format
-	(function _initFormatTabs() {
-		var tabs  = document.querySelectorAll('#topbar-format-switcher .editor-format-tab');
-		var input = document.getElementById('content-format');
-		if (!tabs.length || !input) return;
-		var fmt = input.value || 'html';
-		tabs.forEach(function(btn) { btn.classList.toggle('active', btn.dataset.format === fmt); });
-		tabs.forEach(function(btn) {
-			btn.addEventListener('click', function() {
-				var newFmt = this.dataset.format;
-				if (newFmt === window.CONTENT_FORMAT) return;
-				var msg = newFmt === 'markdown'
-					? <?php echo json_encode(__t('editor_switch_to_md_confirm', 'Switch to Markdown editor? Your current content will be preserved as-is — it will NOT be converted.')); ?>
-					: <?php echo json_encode(__t('editor_switch_to_html_confirm', 'Switch to WYSIWYG editor? Your current content will be preserved as-is — it will NOT be converted.')); ?>;
-				if (!confirm(msg)) return;
-				input.value = newFmt;
-				window.CONTENT_FORMAT = newFmt;
-				tabs.forEach(function(t) { t.classList.toggle('active', t.dataset.format === newFmt); });
-				if (window.EditorCommon && window.EditorCommon.switchFormat) {
-					window.EditorCommon.switchFormat(newFmt);
-				}
-			});
-		});
-	})();
-
-	function toggleSuggestions(id) {
-		const element = document.getElementById(id);
-		if (element.style.display === 'none') {
-			element.style.display = 'flex';
-			setTimeout(() => element.classList.add('show'), 10);
-		} else {
-			element.classList.remove('show');
-			setTimeout(() => element.style.display = 'none', 300);
-		}
-	}
-
-	// ── Schedule publish button label ───────────────────────────────────────────
-	(function () {
-		var input = document.getElementById('publish_at');
-		var label = document.getElementById('publish-btn-label');
-		var icon  = document.getElementById('publish-btn-icon');
-		var updateLabel   = <?php echo json_encode(__t('update',   'Update')); ?>;
-		var scheduleLabel = <?php echo json_encode(__t('schedule', 'Schedule')); ?>;
-
-		function syncBtn() {
-			var scheduled = input && input.value && new Date(input.value) > new Date();
-			if (label) label.textContent = scheduled ? scheduleLabel : updateLabel;
-			if (icon)  icon.textContent  = scheduled ? '🕐' : '✓';
-		}
-
-		if (input) input.addEventListener('input', syncBtn);
-		syncBtn();
-	})();
-
-	document.addEventListener('DOMContentLoaded', function() {
-		// Sidebar tabs — always start on Content tab (no localStorage persistence)
-		document.querySelectorAll('.sidebar-tab').forEach(tab => {
-			tab.addEventListener('click', function() {
-				document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
-				document.querySelectorAll('.sidebar-tab-panel').forEach(p => p.classList.remove('active'));
-				this.classList.add('active');
-				document.getElementById(this.dataset.panel)?.classList.add('active');
-			});
-		});
-
-		// — Toggle sidebar éditeur (persisté) —
-		(function () {
-			var layout = document.getElementById('editor-layout');
-			var handle = document.getElementById('sidebar-toggle-handle');
-			if (!layout || !handle) return;
-			var STORAGE_KEY = 'synaptik_editor_sidebar_hidden';
-			try {
-				if (localStorage.getItem(STORAGE_KEY) === '1') layout.classList.add('sidebar-hidden');
-			} catch (e) {}
-			handle.addEventListener('click', function () {
-				var hidden = layout.classList.toggle('sidebar-hidden');
-				try { localStorage.setItem(STORAGE_KEY, hidden ? '1' : '0'); } catch (e) {}
-			});
-		})();
-
-		document.querySelectorAll('.sidebar-panel').forEach(panel => {
-			panel.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-		});
-
-		document.querySelectorAll('.badge-category, .badge-tag').forEach(badge => {
-			badge.addEventListener('click', function() {
-				const value    = this.dataset.value;
-				const targetId = this.classList.contains('badge-category') ? 'category' : 'tags';
-				const input    = document.getElementById(targetId);
-
-				this.style.transform = 'scale(0.95)';
-				setTimeout(() => this.style.transform = 'scale(1)', 150);
-
-				if (targetId === 'tags' && input.value) {
-					input.value += ', ' + value;
-				} else {
-					input.value = value;
-				}
-
-				input.style.backgroundColor = 'var(--primary-soft)';
-				setTimeout(() => input.style.backgroundColor = '', 500);
-			});
-		});
-
-		// ── Aperçu live ──────────────────────────────────────────────────────
-		const previewBtn = document.getElementById('preview-btn');
-		if (previewBtn) {
-			previewBtn.addEventListener('click', function () {
-				openContentPreview();
-			});
-		}
-	});
-
-	function openContentPreview() {
-		const form = document.getElementById('content-form');
-		const data = new FormData(form);
-
-		// Inclut les champs liés au formulaire via form="content-form"
-		document.querySelectorAll('[form="content-form"]').forEach(function (el) {
-			if (el.name && el.type !== 'file' && !data.has(el.name)) {
-				if (el.type === 'checkbox') {
-					if (el.checked) data.append(el.name, el.value || '1');
-				} else {
-					data.append(el.name, el.value);
-				}
-			}
-		});
-
-		// Sync current editor content into FormData before posting
-		const activeFormat = window.CONTENT_FORMAT || 'html';
-		if (activeFormat === 'markdown') {
-			const contentArea = document.getElementById('content');
-			if (contentArea) data.set('content', contentArea.value);
-		} else {
-			const contentArea = document.getElementById('content');
-			if (contentArea) data.set('content', contentArea.value);
-		}
-		data.set('content_format', activeFormat);
-
-		// Images sélectionnées (hidden inputs)
-		['selected_image_path', 'featured_image', 'og_image'].forEach(function (name) {
-			const el = document.querySelector('input[name="' + name + '"]');
-			if (el && !data.has(name)) data.set(name, el.value);
-		});
-
-		// Alias : preview.php attend "featured_image", on mappe depuis selected_image_path
-		if (!data.get('featured_image') && data.get('selected_image_path')) {
-			data.set('featured_image', data.get('selected_image_path'));
-		}
-
-		// Création d'un formulaire temporaire invisible → POST target="_blank"
-		const tmpForm    = document.createElement('form');
-		tmpForm.method   = 'POST';
-		tmpForm.action   = 'preview.php';
-		tmpForm.target   = '_blank';
-		tmpForm.style.display = 'none';
-
-		data.forEach(function (value, key) {
-			if (typeof value === 'string') {
-				const input = document.createElement('input');
-				input.type  = 'hidden';
-				input.name  = key;
-				input.value = value;
-				tmpForm.appendChild(input);
-			}
-		});
-
-		document.body.appendChild(tmpForm);
-		tmpForm.submit();
-		document.body.removeChild(tmpForm);
-	}
-	</script>
+<script type="application/json" id="content-editor-data"><?php echo json_encode([
+	'i18n' => [
+		'update'             => __t('update', 'Update'),
+		'schedule'           => __t('schedule', 'Schedule'),
+		'publish'            => __t('publish', 'Publish'),
+		'save'               => __t('save', 'Save'),
+		'cancel'             => __t('cancel', 'Cancel'),
+		'deleteRevisionConfirm' => __t('delete_revision_confirm', 'Delete this revision? This cannot be undone.'),
+		'confirmDeleteRevision' => __t('confirm_delete_revision', 'Confirm Delete'),
+		'delete'             => __t('delete', 'Delete'),
+	],
+	'contentFormat' => $editItem['content_format'] ?? 'html',
+	'currentStatus' => $editItem['status'] ?? 'published',
+], JSON_HEX_TAG); ?></script>
+<script src="assets/js/content-edit-editor.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/content-edit-editor.js'); ?>"></script>

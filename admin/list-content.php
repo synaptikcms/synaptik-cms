@@ -36,6 +36,7 @@ if (!in_array($type, $allowedTypes, true)) {
 
 $q        = mb_strtolower(trim($_GET['q']        ?? ''), 'UTF-8');
 $category = trim($_GET['category'] ?? '');
+$status   = trim($_GET['status']   ?? '');
 $sort     = $_GET['sort']     ?? 'date-desc';
 $page     = max(1, (int)($_GET['page']     ?? 1));
 $perPage  = max(0, (int)($_GET['per_page'] ?? 25));
@@ -49,6 +50,8 @@ if (!is_array($index)) $index = [];
 
 $filtered = [];
 foreach ($index as $idx => $item) {
+    if (!admin_can_edit_item($item)) continue;
+
     if ($q !== '') {
         $haystack = mb_strtolower(
             ($item['title']    ?? '') . ' ' .
@@ -62,6 +65,10 @@ foreach ($index as $idx => $item) {
 
     if ($category !== '') {
         if (mb_strtolower($item['category'] ?? '', 'UTF-8') !== mb_strtolower($category, 'UTF-8')) continue;
+    }
+
+    if ($status !== '') {
+        if (($item['status'] ?? 'published') !== $status) continue;
     }
 
     $filtered[] = ['_idx' => $idx, 'item' => $item];
@@ -82,6 +89,13 @@ $total   = count($filtered);
 $perPage = ($perPage === 0) ? $total : $perPage;
 $offset  = ($page - 1) * max(1, $perPage);
 $slice   = array_slice($filtered, $offset, $perPage ?: null);
+
+// Author name shown per item only on multi-user sites — see content-list.php.
+$authors = [];
+foreach (admin_load_users() as $u) {
+    $authors[$u['id']] = $u['display_name'] ?: $u['username'];
+}
+$showAuthors = count($authors) > 1;
 
 $items = [];
 foreach ($slice as $entry) {
@@ -112,6 +126,7 @@ foreach ($slice as $entry) {
         'publish_at'              => $item['publish_at'] ?? '',
         'slug'                    => $effectiveSlug,
         'custom_slug'             => $item['custom_slug'] ?? '',
+        'author_name'             => $showAuthors ? ($authors[$item['author_id'] ?? ''] ?? '') : '',
         'view_url'                => admin_content_url(
             $type,
             $item['slug']        ?? '',

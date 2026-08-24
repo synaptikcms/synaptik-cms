@@ -133,7 +133,102 @@ function render_meta_tags($settings, $metaTitle, $metaDescription, $pageData = n
         } ?>
 <?php endif; ?>
 <?php
-    return ob_get_clean();
+    // Plugin filter: lets a plugin add or adjust <head> meta output (e.g.
+    // an analytics <meta> tag, an extra OG property) without patching core.
+    return pl_apply_filter('head_meta_tags', ob_get_clean(), $pageData);
+}
+
+/**
+ * Generates a Schema.org JSON-LD <script> block for a single content item.
+ * Returns an empty string when schema_type is not set, SEO is disabled, or
+ * the page is not a single-item view (list pages, homepage, category/tag pages).
+ *
+ * @param  array  $settings  Site config (from loadConfig()).
+ * @param  string $type      Routing type (article, page, project).
+ * @param  string $slug      Item slug (empty for non-single-item pages).
+ * @param  array  $data      Full data array.
+ * @return string            <script type="application/ld+json">…</script> or ''.
+ */
+function render_schema_jsonld(array $settings, string $type, string $slug, array $data): string
+{
+    if (empty($settings['enable_seo']) || empty($type) || empty($slug)) return '';
+
+    $contentTypes = ['article', 'page', 'project'];
+    if (!in_array($type, $contentTypes, true)) return '';
+
+    $item = null;
+    foreach ($data[$type] ?? [] as $candidate) {
+        $effectiveSlug = !empty($candidate['custom_slug']) ? $candidate['custom_slug'] : ($candidate['slug'] ?? '');
+        if ($effectiveSlug === $slug) { $item = $candidate; break; }
+    }
+    if ($item === null) return '';
+
+    $schemaType = trim($item['schema_type'] ?? '');
+    if ($schemaType === '') return '';
+
+    $allowedTypes = ['Article', 'BlogPosting', 'NewsArticle', 'WebPage', 'CreativeWork'];
+    if (!in_array($schemaType, $allowedTypes, true)) return '';
+
+    $base        = getBaseUrl();
+    $siteTitle   = $settings['site_title']       ?? '';
+    $authorName  = trim($settings['schema_author_name'] ?? '');
+    $pubType     = in_array($settings['schema_publisher_type'] ?? '', ['Person', 'Organization'], true)
+                     ? $settings['schema_publisher_type'] : 'Person';
+
+    // Item-level author name (display name stored at save time) overrides the global default
+    if (!empty($item['author_name'])) {
+        $authorName = $item['author_name'];
+    } elseif ($authorName === '') {
+        $authorName = $siteTitle;
+    }
+
+    $effectiveSlug = !empty($item['custom_slug']) ? $item['custom_slug'] : ($item['slug'] ?? '');
+    if ($type === 'page') {
+        $itemUrl = $base . $effectiveSlug . '/';
+    } else {
+        $itemUrl = cleanUrl($type, $effectiveSlug, null, $item['category'] ?? null);
+    }
+
+    $ld = [
+        '@context' => 'https://schema.org',
+        '@type'    => $schemaType,
+        'headline' => $item['title'] ?? '',
+        'url'      => $itemUrl,
+    ];
+
+    if (!empty($item['date'])) {
+        $ts = strtotime($item['date']);
+        if ($ts !== false) $ld['datePublished'] = date('Y-m-d', $ts);
+    }
+    if (!empty($item['last_modified'])) {
+        $ts = strtotime($item['last_modified']);
+        if ($ts !== false) $ld['dateModified'] = date('Y-m-d', $ts);
+    }
+    if (!empty($item['image'])) {
+        $ld['image'] = $base . ltrim($item['image'], '/');
+    }
+    if (!empty($item['meta_description'])) {
+        $ld['description'] = $item['meta_description'];
+    } elseif (!empty($item['summary'])) {
+        $ld['description'] = $item['summary'];
+    } elseif (!empty($item['description'])) {
+        $ld['description'] = $item['description'];
+    }
+    if ($authorName !== '') {
+        $ld['author'] = ['@type' => 'Person', 'name' => $authorName];
+    }
+    // Publisher is always the site entity, typed per the global setting
+    $publisher = ['@type' => $pubType, 'name' => $siteTitle];
+    if (!empty($settings['site_logo'])) {
+        $publisher['logo'] = [
+            '@type' => 'ImageObject',
+            'url'   => $base . ltrim($settings['site_logo'], '/'),
+        ];
+    }
+    $ld['publisher'] = $publisher;
+
+    $json = json_encode($ld, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG);
+    return '    <script type="application/ld+json">' . $json . '</script>';
 }
 
 /**
@@ -179,16 +274,42 @@ function render_header_scripts($headerScripts)
     $theme    = $settings['active_theme'] ?? 'default';
     $root     = CMS_ROOT;
 
+    // synaptikCSS.php is served `immutable` for a year, so without a version in
+    // the URL an edit to any bundled stylesheet never reaches a returning
+    // visitor — `immutable` tells the browser not to revalidate, which also
+    // makes the bundle's own ETag unreachable. _asset_version() can't be used
+    // here: the bundle's content comes from the files it concatenates, and
+    // editing one of those leaves synaptikCSS.php's own mtime untouched. Take
+    // the newest of the bundled sources instead — the same value the bundle
+    // derives its ETag from, so URL and payload can never disagree.
+    $sysCssV = 0;
+    foreach (['search.css', 'shortcodes.css', 'gallery-layout.css'] as $_f) {
+        $_p = $root . '/assets/css/' . $_f;
+        if (file_exists($_p)) $sysCssV = max($sysCssV, filemtime($_p));
+    }
+    $sysCssV = $sysCssV ? '?v=' . $sysCssV : '';
+
     $system = [
         '<base href="' . htmlspecialchars($base) . '">',
         '    <meta name="generator" content="SynaptikCMS — https://synaptikcms.com">',
+        // window.CMS_BASE_URL / window.CMS_LANG are read by main.js and theme
+        // script.js. Emitted as inert JSON islands (not an executable inline
+        // <script>) + front-boot.js, which assigns them — keeps script-src free
+        // of 'unsafe-inline'. front-boot.js is loaded WITHOUT `defer` so it runs
+        // before main.js / theme script.js, which are both deferred.
+        '    <script type="application/json" id="cms-base-json">' . json_encode($base) . '</script>',
+        '    <script type="application/json" id="cms-lang-json">' . lang_js_bridge() . '</script>',
+        '    <script src="' . $base . 'assets/js/front-boot.js'
+            . _asset_version($root . '/assets/js/front-boot.js') . '"></script>',
         // synaptikCSS.php bundles search/shortcodes/gallery CSS — none of these
         // are critical above-the-fold on most pages, so load it non-blocking.
         // The `media="print"` trick lets the browser fetch it without blocking
-        // render; `onload` swaps the media back to `all` once downloaded.
+        // render; css-async.js swaps the media back to `all` once downloaded.
         // The <noscript> fallback keeps the styles available for no-JS visitors.
-        '    <link rel="stylesheet" href="' . $base . 'assets/css/synaptikCSS.php" media="print" onload="this.media=\'all\'">',
-        '    <noscript><link rel="stylesheet" href="' . $base . 'assets/css/synaptikCSS.php"></noscript>',
+        '    <link rel="stylesheet" class="cms-async-css" href="' . $base . 'assets/css/synaptikCSS.php' . $sysCssV . '" media="print">',
+        '    <script src="' . $base . 'assets/js/css-async.js'
+            . _asset_version($root . '/assets/js/css-async.js') . '"></script>',
+        '    <noscript><link rel="stylesheet" href="' . $base . 'assets/css/synaptikCSS.php' . $sysCssV . '"></noscript>',
         '    <link rel="stylesheet" href="' . $base . 'theme/' . $theme . '/css/style.css'
             . _asset_version($root . '/theme/' . $theme . '/css/style.css') . '">',
         // main.js is deferred so it never blocks HTML parsing — it runs after
@@ -200,8 +321,6 @@ function render_header_scripts($headerScripts)
             . '" href="' . $base . 'core/feed.php">',
     ];
 
-    $lang = '    <script>window.CMS_BASE_URL=' . json_encode($base) . ';window.CMS_LANG=' . lang_js_bridge() . ';</script>';
-
     $themeScript = [];
     $themeScriptPath = $root . '/theme/' . $theme . '/js/script.js';
     if (file_exists($themeScriptPath)) {
@@ -209,7 +328,67 @@ function render_header_scripts($headerScripts)
             . _asset_version($themeScriptPath) . '"></script>';
     }
 
-    return implode("\n", array_merge($system, $headerScripts, $themeScript, [$lang])) . "\n";
+    $hljs = render_hljs_scripts($base, $root, $theme);
+
+    return implode("\n", array_merge($system, $hljs, $headerScripts, $themeScript)) . "\n";
+}
+
+/**
+ * Conditionally emits highlight.js (core + the languages SynaptikCMS content
+ * can produce a fenced code block in) plus its own init script — only when
+ * the current page's actual rendered HTML contains a code block, so pages
+ * without one carry zero extra weight. $pageContent is mirrored into
+ * $GLOBALS by index.php once the page body is fully rendered, since this
+ * function runs from a separate scope (reached via loadThemeTemplate()).
+ *
+ * @return string[] `<script>` tag lines, or [] when nothing is needed.
+ */
+function render_hljs_scripts(string $base, string $root, string $theme): array
+{
+    global $pageContent;
+    if (empty($pageContent) || stripos($pageContent, 'language-') === false) {
+        return [];
+    }
+
+    // Pinned to the same highlight.js version + CDN the synaptik-docs theme
+    // already used, with real SRI hashes (computed from the exact files
+    // this loads, not guessed). One file per language render_content_html()
+    // can actually tag a fenced code block with — see core/render/tf-markdown.php.
+    $cdnBase = 'https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/';
+    $files = [
+        'highlight.min.js'           => 'sha384-F/bZzf7p3Joyp5psL90p/p89AZJsndkSoGwRpXcZhleCWhd8SnRuoYo4d0yirjJp',
+        'languages/xml.min.js'        => 'sha384-jgkY4GMNWfQcLLIoP1vg3FWXflDrRhcSXGBW6ONIWC2SOIv5H1Pa57sXs+aomCuZ',
+        'languages/javascript.min.js' => 'sha384-44q2s9jxk8W5N9gAB0yn7UYLi9E2oVw8eHyaTZLkDS3WuZM/AttkAiVj6JoZuGS4',
+        'languages/css.min.js'        => 'sha384-EO/jSdjpPTVnKfaKudbmOTZBYv471ACLOeLdy0zhCEJrQAtjgUSCbn/Cc+9QWjIx',
+        'languages/php.min.js'        => 'sha384-c1RNlWYUPEU/QhgCUumvQSdSFaq+yFhv3VfGTG/OTh8oirAi/Jnp6XbnqOLePgjg',
+        'languages/python.min.js'     => 'sha384-FWJTgPmIGm1+zpNhubuHRC/ulS1UK7hAZ7qiUUmKD8yGfPcn5ZXYBd2qRgi6L8Tu',
+        'languages/sql.min.js'        => 'sha384-8q00eP+tyV9451aJYD5ML3ftuHKsGnDcezp7EXMEclDg1fZVSoj8O+3VyJTkXmWp',
+        'languages/bash.min.js'       => 'sha384-OqfnIfpOmAlErKRs2a525ZcwLuZ8Z1x8hPdIwBcMtHkJBbHnpJ6wX5/LVzASHkD5',
+        'languages/json.min.js'       => 'sha384-RbRhXcXx5VHUdUaC5R0oV+XBXA5GhkaVCUzK8xN19K3FmtWSHyGVgulK92XnhBsI',
+    ];
+
+    $tags = [];
+
+    // highlight.js only adds .hljs-* class names — it ships no colors of its
+    // own. Skip the shared fallback theme for any theme that already styles
+    // .hljs itself (synaptik-docs does, with its own light/dark palette);
+    // loading it there would just add rules its own CSS already overrides
+    // less predictably, since the fallback loads after the theme stylesheet.
+    $themeStylePath = $root . '/theme/' . $theme . '/css/style.css';
+    $themeHasOwnHljsTheme = file_exists($themeStylePath)
+        && str_contains(file_get_contents($themeStylePath), '.hljs');
+    if (!$themeHasOwnHljsTheme) {
+        $tags[] = '    <link rel="stylesheet" href="' . $base . 'assets/css/hljs-theme.css'
+            . _asset_version($root . '/assets/css/hljs-theme.css') . '">';
+    }
+
+    foreach ($files as $path => $integrity) {
+        $tags[] = '    <script defer src="' . $cdnBase . $path . '" integrity="' . $integrity . '" crossorigin="anonymous"></script>';
+    }
+    $tags[] = '    <script defer src="' . $base . 'assets/js/hljs-init.js'
+        . _asset_version($root . '/assets/js/hljs-init.js') . '"></script>';
+
+    return $tags;
 }
 
 /**
@@ -220,9 +399,12 @@ function render_featured_image($item)
     if (!isset($item['image']) || (isset($item['show_featured_image']) && !$item['show_featured_image'])) {
         return '';
     }
+    // No loading="lazy" here on purpose — this is a single content item's
+    // one prominent image, almost always the page's LCP candidate, and
+    // lazy-loading the LCP image delays it rather than speeding anything up.
     ob_start(); ?>
 <div class="featured-image">
-    <img src="<?php echo getBaseUrl() . htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars($item['title']); ?>">
+    <img src="<?php echo getBaseUrl() . htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars(!empty($item['image_alt']) ? $item['image_alt'] : $item['title']); ?>"<?php echo _image_dimensions_attr($item['image']); ?>>
 </div>
 <?php
     return ob_get_clean();
@@ -434,24 +616,35 @@ function loadThemePartial(string $name, array $vars = []): ?string
  * Renders the full search overlay HTML.
  * Always generated regardless of show_search_icon — ensures Ctrl+K works
  * even when the visible icon is disabled.
+ *
+ * Structure must stay in exact sync with the overlay assets/js/main.js builds
+ * at runtime when a theme does NOT call this function — main.js's own result
+ * rendering, loading indicator and CSS (assets/css/search.css) all target
+ * .search-bar / .search-results / .search-loading / .search-results-content
+ * by class name, regardless of which side created the surrounding markup. A
+ * structural mismatch here means the overlay opens but silently never shows
+ * results — see changelog.
  */
 function render_search_ui()
 {
     ob_start(); ?>
 <div id="search-overlay" class="search-overlay">
-    <div class="search-container">
-        <button id="close-search">&#215;</button>
+    <button id="close-search" class="close-btn">&#215;</button>
+    <div class="search-bar">
         <div class="search-input-container">
             <input type="text" id="search-input" placeholder="<?php echo htmlspecialchars(__t('search_placeholder')); ?>">
             <button class="search-clear-btn">&#215;</button>
         </div>
         <div class="search-options">
-            <label><input type="checkbox" id="search-in-content" checked> <?php echo __t('search_in_content'); ?></label>
-            <label><input type="checkbox" id="search-articles"   checked> <?php echo __t('articles'); ?></label>
-            <label><input type="checkbox" id="search-pages"      checked> <?php echo __t('pages'); ?></label>
-            <label><input type="checkbox" id="search-projects"   checked> <?php echo __t('projects'); ?></label>
+            <label><input type="checkbox" id="search-in-content"> <?php echo __t('search_in_content'); ?></label>
+            <label><input type="checkbox" id="search-articles" checked> <?php echo __t('search_filter_articles'); ?></label>
+            <label><input type="checkbox" id="search-pages"    checked> <?php echo __t('search_filter_pages'); ?></label>
+            <label><input type="checkbox" id="search-projects" checked> <?php echo __t('search_filter_projects'); ?></label>
         </div>
-        <div id="search-results"></div>
+    </div>
+    <div class="search-results" id="search-results">
+        <div class="search-loading" style="display: none;"><?php echo __t('search_loading'); ?></div>
+        <div class="search-results-content"></div>
     </div>
 </div>
 <?php

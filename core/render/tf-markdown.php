@@ -52,10 +52,17 @@ function _md_to_html(string $md): string
     $md = trim($md);
 
     // Container directives  :::type [optional title]\n...\n:::
+    // Replaced with an opaque token, not the HTML directly — the paragraph
+    // pass further down wraps any line it doesn't recognize in <p>...</p>,
+    // and a <div> nested inside a <p> is invalid HTML that browsers "fix" by
+    // closing the <p> early, breaking the layout. The token is restored to
+    // the real HTML in the main loop below, the same way fenced code blocks
+    // (search $codeBlocks) are protected from paragraph-wrapping.
+    $calloutBlocks = [];
     if (strpos($md, ':::') !== false) {
         $md = preg_replace_callback(
             '/^:::([\w]+)([^\n]*)\n([\s\S]*?)^:::[ \t]*$/m',
-            static function ($m) {
+            static function ($m) use (&$calloutBlocks) {
                 $alias   = strtolower(trim($m[1]));
                 $title   = trim($m[2]);
                 $body    = trim($m[3]);
@@ -75,10 +82,14 @@ function _md_to_html(string $md): string
                 $titleHtml = $title !== ''
                     ? '<p class="sc-callout-title"><strong>' . htmlspecialchars($title) . '</strong></p>'
                     : '';
-                return '<div class="sc-callout sc-callout-' . $cssType . '">'
-                     . '<span class="sc-callout-icon">' . $icon . '</span>'
-                     . '<div class="sc-callout-body">' . $titleHtml . $bodyHtml . '</div>'
-                     . '</div>';
+                $html = '<div class="sc-callout sc-callout-' . $cssType . '">'
+                      . '<span class="sc-callout-icon">' . $icon . '</span>'
+                      . '<div class="sc-callout-body">' . $titleHtml . $bodyHtml . '</div>'
+                      . '</div>';
+
+                $token = '\x00CALLOUT' . count($calloutBlocks) . '\x00';
+                $calloutBlocks[$token] = $html;
+                return $token . "\n";
             },
             $md
         );
@@ -126,6 +137,12 @@ function _md_to_html(string $md): string
 
         if (strpos($line, '\x00CODE') === 0) {
             $output .= $codeBlocks[rtrim($line)] ?? rtrim($line);
+            $i++;
+            continue;
+        }
+
+        if (strpos($line, '\x00CALLOUT') === 0) {
+            $output .= ($calloutBlocks[rtrim($line)] ?? rtrim($line)) . "\n";
             $i++;
             continue;
         }
@@ -200,6 +217,7 @@ function _md_to_html(string $md): string
             && !preg_match('/^>/', $lines[$i])
             && !preg_match('/^\s*([-*_])\1{2,}\s*$/', $lines[$i])
             && strpos($lines[$i], '\x00CODE') !== 0
+            && strpos($lines[$i], '\x00CALLOUT') !== 0
         ) {
             $paraLines[] = $lines[$i];
             $i++;
@@ -331,7 +349,7 @@ function _md_sanitize_url(string $url): string
 }
 
 /**
- * Process inline Markdown: images, links, bold, italic, strikethrough.
+ * Process inline Markdown: images, links, bold, italic, strikethrough, text color.
  * CMS shortcodes are preserved intact.
  */
 function _md_inline(string $text): string
@@ -357,7 +375,10 @@ function _md_inline(string $text): string
             if ($h !== '') {
                 $attrs .= ' height="' . $h . '"';
             }
-            return '<img src="' . $src . '" alt="' . $alt . '"' . $attrs . ' style="' . $style . '">';
+            // Body-content images sit below the header, title and intro, so
+            // they are never the LCP element — unlike the site logo and the
+            // featured image, which stay eager on purpose.
+            return '<img src="' . $src . '" alt="' . $alt . '"' . $attrs . ' loading="lazy" decoding="async" style="' . $style . '">';
         },
         $text
     );
@@ -370,6 +391,19 @@ function _md_inline(string $text): string
             $url    = _md_sanitize_url($url);
             $label  = htmlspecialchars($m[1], ENT_QUOTES, 'UTF-8');
             return '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '"' . $target . '>' . $label . '</a>';
+        },
+        $text
+    );
+
+    // Text color — {#hex:text} -> <span style="color:#hex">text</span>. Runs
+    // before bold/italic/strike below so those can still apply inside colored
+    // text (e.g. {#e74c3c:some **bold** word}). The editor's color picker
+    // inserts this syntax directly (see editor-markdown.js) instead of raw
+    // HTML, matching the plain-text feel of the rest of the Markdown editor.
+    $text = preg_replace_callback(
+        '/\{(#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?):([^{}]+)\}/',
+        function ($m) {
+            return '<span style="color:' . htmlspecialchars($m[1], ENT_QUOTES, 'UTF-8') . '">' . $m[2] . '</span>';
         },
         $text
     );

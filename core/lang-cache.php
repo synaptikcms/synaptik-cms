@@ -38,12 +38,14 @@ function _lang_cms_root(): string {
 }
 
 /**
- * Returns the source JSON directory for the current context.
+ * Returns the source JSON directory for the given scope, or the current
+ * context (_lang_context()) when $scope is omitted.
  *   front → lang/
  *   admin → lang/admin/
  */
-function _lang_json_dir(): string {
-	$sub = _lang_context() === 'admin' ? '/lang/admin/' : '/lang/front/';
+function _lang_json_dir(?string $scope = null): string {
+	$scope = $scope ?? _lang_context();
+	$sub = $scope === 'admin' ? '/lang/admin/' : '/lang/front/';
 	return _lang_cms_root() . $sub;
 }
 
@@ -51,8 +53,8 @@ function _lang_json_dir(): string {
  * Returns the absolute path to the source JSON file for a given locale.
  * Falls back to en.json if the requested locale does not exist.
  */
-function _lang_json_path(string $locale): string {
-	$dir  = _lang_json_dir();
+function _lang_json_path(string $locale, ?string $scope = null): string {
+	$dir  = _lang_json_dir($scope);
 	$file = $dir . $locale . '.json';
 	return file_exists($file) ? $file : $dir . 'en.json';
 }
@@ -67,8 +69,8 @@ function _lang_json_path(string $locale): string {
  * the CMS root the same way via _lang_cms_root(), so neither context
  * needs to cross into the other's directory.
  */
-function _lang_cache_path(string $locale): string {
-	$sub = _lang_context() === 'admin' ? 'admin' : 'front';
+function _lang_cache_path(string $locale, ?string $scope = null): string {
+	$sub = ($scope ?? _lang_context()) === 'admin' ? 'admin' : 'front';
 	return _lang_cms_root() . '/cache/lang/' . $sub . '/' . $locale . '.php';
 }
 
@@ -114,7 +116,7 @@ function _lang_opcache_invalidate(string $path): void {
  *
  * @return array  The loaded strings (avoids a double read on first hit).
  */
-function _lang_build_cache(string $locale, string $jsonPath, string $cachePath): array {
+function _lang_build_cache(string $locale, string $jsonPath, string $cachePath, ?string $scope = null): array {
 	$strings = [];
 
 	if (file_exists($jsonPath)) {
@@ -130,7 +132,7 @@ function _lang_build_cache(string $locale, string $jsonPath, string $cachePath):
 		mkdir($cacheDir, 0755, true);
 	}
 
-	$context  = _lang_context();
+	$context  = $scope ?? _lang_context();
 	$exported = var_export($strings, true);
 	$content  = "<?php\n"
 			  . "/**\n"
@@ -210,6 +212,64 @@ function lang_load(): array {
 	// 3. Cache missing or stale — regenerate from source JSON
 	$_LANG_STRINGS = _lang_build_cache($locale, $jsonPath, $cachePath);
 	return $_LANG_STRINGS;
+}
+
+/**
+ * Loads language strings for an explicit scope ('front' or 'admin'),
+ * independent of the request's actual LANG_CONTEXT — e.g. so an admin page
+ * can read the site's front-end translations (like url_slug_* keys, which
+ * only exist in lang/front/) without switching the whole request's context.
+ * Uses the same PHP-cache mechanism as lang_load(), just parameterized
+ * instead of derived from _lang_context().
+ *
+ * @param string      $scope  'front' or 'admin'.
+ * @param string|null $locale Defaults to that scope's configured language.
+ */
+function lang_load_for_scope(string $scope, ?string $locale = null): array {
+	static $cache = [];
+
+	$scope = $scope === 'admin' ? 'admin' : 'front';
+
+	if ($locale === null) {
+		$settingsFile = _lang_cms_root() . '/config.json';
+		$locale = 'en';
+		if (file_exists($settingsFile)) {
+			$s = json_decode(file_get_contents($settingsFile), true);
+			if (is_array($s)) {
+				$locale = $scope === 'admin'
+					? ($s['admin_language'] ?? $s['active_language'] ?? 'en')
+					: ($s['active_language'] ?? 'en');
+			}
+		}
+	}
+
+	$cacheKey = $scope . ':' . $locale;
+	if (isset($cache[$cacheKey])) {
+		return $cache[$cacheKey];
+	}
+
+	$jsonPath  = _lang_json_path($locale, $scope);
+	$cachePath = _lang_cache_path($locale, $scope);
+
+	if (_lang_cache_is_valid($cachePath, $jsonPath)) {
+		$strings = include $cachePath;
+		$cache[$cacheKey] = is_array($strings) ? $strings : [];
+		return $cache[$cacheKey];
+	}
+
+	$cache[$cacheKey] = _lang_build_cache($locale, $jsonPath, $cachePath, $scope);
+	return $cache[$cacheKey];
+}
+
+if (!function_exists('__t_for_scope')) {
+	/**
+	 * Same as __t(), but reads from an explicit scope instead of the
+	 * request's current LANG_CONTEXT. See lang_load_for_scope().
+	 */
+	function __t_for_scope(string $scope, string $key, ?string $fallback = null): string {
+		$strings = lang_load_for_scope($scope);
+		return $strings[$key] ?? ($fallback ?? $key);
+	}
 }
 
 if (!function_exists('lang_current')) {

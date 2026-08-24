@@ -9,7 +9,7 @@
  */
 $settings = loadConfig(); ?>
         <article class="content-single">
-            <a href="<?php echo cleanUrl('article'); ?>" class="back-link"><?php echo __t('articles') ?: 'Articles'; ?></a>
+            <a href="<?php echo cleanUrl('article'); ?>" class="back-link"><?php echo sl_type_label('article', true); ?></a>
             <?php if (!empty($item['category'])): ?>
             <div class="content-eyebrow">
                 <a href="<?php echo getBaseUrl() . url_slug('category') . '/' . sanitizeSlug($item['category']) . '/'; ?>"

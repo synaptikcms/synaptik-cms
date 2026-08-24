@@ -2,11 +2,14 @@
 /**
  * CMS System Styles — css/synaptik.php
  *
- * Serves search.css, shortcodes.css, gallery-layout.css and lightbox.css
- * as a single cached HTTP response, reducing 4 requests to 1.
+ * Serves search.css, shortcodes.css and gallery-layout.css as a single cached
+ * HTTP response, reducing 3 requests to 1. (lightbox.css is deliberately not
+ * bundled — themes that need it link it themselves.)
  *
- * Cache strategy: ETag based on the most recent mtime of the source files.
- * The browser revalidates with If-None-Match — returns 304 if nothing changed.
+ * Cache strategy: `immutable` for a year, busted by the ?v=<newest mtime>
+ * render_header_scripts() appends to the URL — see tf-page.php. `immutable`
+ * means the browser will not revalidate, so the ETag below is only a
+ * fallback for any caller that requests this file without that parameter.
  */
 
 $files = [

@@ -55,7 +55,7 @@ $i18n = [
         'security_note'         => '✅ <code>install.php</code> has been automatically deleted from your server.',
         'footer_note_label'     => 'Security note:',
         'footer_note'           => '<code>install.php</code> self-deletes after installation. If it is still present, remove it manually.',
-        'summary_password'      => 'Hash your password and write <code>admin-credentials.php</code>',
+        'summary_password'      => 'Hash your password and create your admin account in <code>private/users.json</code>',
         'summary_rename'        => 'Rename the admin folder (the new name is saved in config.json — no file patching needed)',
         'summary_settings'      => 'Write site settings to <code>config.json</code>',
         'summary_htaccess'      => 'Add deny-all <code>.htaccess</code> to <code>/data/</code>, <code>/bckps/</code>, <code>/private/</code> — and PHP-execution block to <code>/files/</code>',
@@ -77,7 +77,7 @@ $i18n = [
         'err_no_admin_folder'   => 'Admin folder could not be located. Check your installation files.',
         'err_folder_exists'     => 'A folder named "%s" already exists. Choose a different name.',
         'err_rename_failed'     => 'Could not rename the admin folder. Check filesystem write permissions.',
-        'err_credentials'       => 'Could not write admin-credentials.php. Check folder permissions.',
+        'err_credentials'       => 'Could not write private/users.json. Check folder permissions.',
         'req_php'               => 'PHP version (8.3+)',
         'req_json'              => 'JSON extension',
         'req_password_hash'     => 'password_hash()',
@@ -129,7 +129,7 @@ $i18n = [
         'security_note'         => '✅ <code>install.php</code> a été automatiquement supprimé de votre serveur.',
         'footer_note_label'     => 'Note de sécurité :',
         'footer_note'           => '<code>install.php</code> se supprime automatiquement après l\'installation. S\'il est encore présent, supprimez-le manuellement.',
-        'summary_password'      => 'Hacher votre mot de passe et écrire <code>admin-credentials.php</code>',
+        'summary_password'      => 'Hacher votre mot de passe et créer votre compte admin dans <code>private/users.json</code>',
         'summary_rename'        => 'Renommer le dossier admin (le nouveau nom est sauvegardé dans config.json — aucun patch de fichiers)',
         'summary_settings'      => 'Écrire les paramètres dans <code>config.json</code>',
         'summary_htaccess'      => 'Ajouter <code>.htaccess</code> deny-all sur <code>/data/</code>, <code>/bckps/</code>, <code>/private/</code> — et blocage PHP sur <code>/files/</code>',
@@ -151,7 +151,7 @@ $i18n = [
         'err_no_admin_folder'   => 'Le dossier admin est introuvable. Vérifiez vos fichiers d\'installation.',
         'err_folder_exists'     => 'Un dossier nommé "%s" existe déjà. Choisissez un autre nom.',
         'err_rename_failed'     => 'Impossible de renommer le dossier admin. Vérifiez les permissions du système de fichiers.',
-        'err_credentials'       => 'Impossible d\'écrire admin-credentials.php. Vérifiez les permissions du dossier.',
+        'err_credentials'       => 'Impossible d\'écrire private/users.json. Vérifiez les permissions du dossier.',
         'req_php'               => 'Version PHP (8.3+)',
         'req_json'              => 'Extension JSON',
         'req_password_hash'     => 'password_hash()',
@@ -203,7 +203,7 @@ $i18n = [
         'security_note'         => '✅ <code>install.php</code> ha sido eliminado automáticamente de su servidor.',
         'footer_note_label'     => 'Nota de seguridad:',
         'footer_note'           => '<code>install.php</code> se elimina automáticamente tras la instalación. Si todavía está presente, elimínelo manualmente.',
-        'summary_password'      => 'Cifrar su contraseña y escribir <code>admin-credentials.php</code>',
+        'summary_password'      => 'Cifrar su contraseña y crear su cuenta de administrador en <code>private/users.json</code>',
         'summary_rename'        => 'Renombrar la carpeta admin (el nuevo nombre se guarda en config.json — sin parcheo de archivos)',
         'summary_settings'      => 'Escribir la configuración en <code>config.json</code>',
         'summary_htaccess'      => 'Añadir <code>.htaccess</code> deny-all en <code>/data/</code>, <code>/bckps/</code>, <code>/private/</code> — y bloqueo PHP en <code>/files/</code>',
@@ -225,7 +225,7 @@ $i18n = [
         'err_no_admin_folder'   => 'No se encontró la carpeta admin. Compruebe sus archivos de instalación.',
         'err_folder_exists'     => 'Ya existe una carpeta llamada "%s". Elija otro nombre.',
         'err_rename_failed'     => 'No se pudo renombrar la carpeta admin. Compruebe los permisos del sistema de archivos.',
-        'err_credentials'       => 'No se pudo escribir admin-credentials.php. Compruebe los permisos de la carpeta.',
+        'err_credentials'       => 'No se pudo escribir private/users.json. Compruebe los permisos de la carpeta.',
         'req_php'               => 'Versión PHP (8.3+)',
         'req_json'              => 'Extensión JSON',
         'req_password_hash'     => 'password_hash()',
@@ -485,34 +485,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         if (!$currentAdminName) {
             $errors[] = __i('err_no_admin_folder');
-        } else {
-            $dstAdminPath = __DIR__ . '/' . $adminDir;
-
-            // Step 1 — Rename admin folder if the user picked a different name
-            if ($currentAdminName !== $adminDir) {
-                if (is_dir($dstAdminPath)) {
-                    $errors[] = __i('err_folder_exists', htmlspecialchars($adminDir));
-                } elseif (!rename(__DIR__ . '/' . $currentAdminName, $dstAdminPath)) {
-                    $errors[] = __i('err_rename_failed');
-                }
-            }
+        } elseif ($currentAdminName !== $adminDir && is_dir(__DIR__ . '/' . $adminDir)) {
+            // Fail fast on a name collision before writing anything.
+            $errors[] = __i('err_folder_exists', htmlspecialchars($adminDir));
         }
     }
 
     if (empty($errors)) {
-        $dstAdminPath = __DIR__ . '/' . $adminDir;
+        // Step 1 — Create the initial admin account in private/users.json first.
+        // The rename (Step 2, right after) is the one irreversible move in
+        // this sequence — writing the account before it means a failed
+        // rename still leaves a fully configured, re-runnable installer,
+        // instead of a renamed-but-empty folder with no account and no way
+        // back in. private/ lives outside the admin folder (unaffected by
+        // the rename), so it's created here rather than waiting for Step 4
+        // below, which only re-writes its .htaccess if it already exists.
+        $privateDir = __DIR__ . '/private';
+        if (!is_dir($privateDir)) @mkdir($privateDir, 0755, true);
+        if (is_dir($privateDir)) {
+            file_put_contents($privateDir . '/.htaccess',
+                "<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n"
+                . "<IfModule !mod_authz_core.c>\n    Deny from all\n</IfModule>\n"
+            );
+        }
 
-        // Step 2 — Write credentials (username, display_name, password, email)
-        $hash        = password_hash($password, PASSWORD_BCRYPT);
-        $esc         = fn(string $v): string => str_replace("'", "\\'", $v);
-        $credContent = "<?php\n// Admin credentials — generated by SynaptikCMS installer\n"
-                     . "\$admin_username     = '" . $esc($adminUsername ?: 'admin') . "';\n"
-                     . "\$admin_display_name = '" . $esc($adminDisplayName) . "';\n"
-                     . "\$admin_password     = '" . $esc($hash) . "';\n"
-                     . "\$admin_email        = '" . $esc($contactEmail) . "';\n"
-                     . "?>\n";
-        if (!file_put_contents($dstAdminPath . '/admin-credentials.php', $credContent)) {
+        $users = [[
+            'id'            => bin2hex(random_bytes(8)),
+            'username'      => $adminUsername ?: 'admin',
+            'display_name'  => $adminDisplayName !== '' ? $adminDisplayName : ($adminUsername ?: 'admin'),
+            'email'         => $contactEmail,
+            'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+            'role'          => 'admin',
+            'created_at'    => time(),
+        ]];
+        $usersJson = json_encode($users, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($usersJson === false || !file_put_contents($privateDir . '/users.json', $usersJson)) {
             $errors[] = __i('err_credentials');
+        }
+    }
+
+    if (empty($errors) && $currentAdminName !== $adminDir) {
+        // Step 2 — Rename the admin folder now that it holds valid credentials.
+        if (!rename(__DIR__ . '/' . $currentAdminName, __DIR__ . '/' . $adminDir)) {
+            $errors[] = __i('err_rename_failed');
         }
     }
 
@@ -644,8 +659,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         file_put_contents($coreDir . '/.htaccess', $coreHtaccess);
 
         // Admin sub-directories: includes and templates are PHP includes only;
-        // drafts and cache hold internal JSON — none should be reachable directly.
-        foreach (['includes', 'templates', 'drafts', 'cache'] as $sub) {
+        // cache holds internal JSON — none should be reachable directly.
+        foreach (['includes', 'templates', 'cache'] as $sub) {
             $sp = $dstAdminPath . '/' . $sub;
             if (is_dir($sp)) file_put_contents($sp . '/.htaccess', $denyAll);
         }
@@ -794,14 +809,10 @@ select option { background: var(--secondary); }
             <h3><?= __i('success_title') ?></h3>
             <p><?= __i('success_desc') ?></p>
             <p><?= __i('success_admin') ?> <strong><a href="<?= htmlspecialchars($redirectUrl) ?>">/<?= htmlspecialchars($redirectUrl) ?></a></strong></p>
-            <p style="margin-top:12px;font-size:.85rem;color:#388e3c;"><?= sprintf(__i('success_redirect'), '<span id="cd">5</span>') ?></p>
+            <p style="margin-top:12px;font-size:.85rem;color:#388e3c;"><?= sprintf(__i('success_redirect'), '<span id="cd" data-redirect-url="' . htmlspecialchars($redirectUrl, ENT_QUOTES) . '">5</span>') ?></p>
         </div>
     </div>
     <div class="installer-footer"><?= __i('security_note') ?></div>
-    <script>
-        var n = 5, el = document.getElementById('cd');
-        setInterval(function() { n--; if (el) el.textContent = n; if (n <= 0) window.location.href = '<?= htmlspecialchars($redirectUrl) ?>'; }, 1000);
-    </script>
 
     <?php else: ?>
 
@@ -888,6 +899,7 @@ select option { background: var(--secondary); }
             <div class="form-group">
                 <label for="admin_dir"><?= __i('lbl_admin_dir') ?></label>
                 <input type="text" id="admin_dir" name="admin_dir"
+                       data-reserved="<?= htmlspecialchars(json_encode($reservedNames), ENT_QUOTES) ?>"
                        value="<?= htmlspecialchars($pv['admin_dir']) ?>"
                        required pattern="[a-zA-Z0-9\-_]{3,}" autocomplete="off" spellcheck="false">
                 <div class="dir-preview"><?= __i('dir_preview') ?><span id="dir-val"><?= htmlspecialchars($pv['admin_dir']) ?></span>/</div>
@@ -912,7 +924,7 @@ select option { background: var(--secondary); }
             <div class="form-row">
                 <div class="form-group">
                     <label for="password"><?= __i('lbl_password') ?></label>
-                    <div class="pw-wrap"><input type="password" id="password" name="password" required autocomplete="new-password"><button type="button" class="pw-toggle" aria-label="Show password" onclick="togglePw('password',this)"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+                    <div class="pw-wrap"><input type="password" id="password" name="password" required autocomplete="new-password"><button type="button" class="pw-toggle" aria-label="Show password" data-toggle-password="password"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
                     <div class="pw-rules">
                         <span class="pw-rule" id="r-len"><?= __i('rule_length') ?></span>
                         <span class="pw-rule" id="r-up"><?= __i('rule_upper') ?></span>
@@ -922,7 +934,7 @@ select option { background: var(--secondary); }
                 </div>
                 <div class="form-group">
                     <label for="password_confirm"><?= __i('lbl_password_confirm') ?></label>
-                    <div class="pw-wrap"><input type="password" id="password_confirm" name="password_confirm" required autocomplete="new-password"><button type="button" class="pw-toggle" aria-label="Show password" onclick="togglePw('password_confirm',this)"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+                    <div class="pw-wrap"><input type="password" id="password_confirm" name="password_confirm" required autocomplete="new-password"><button type="button" class="pw-toggle" aria-label="Show password" data-toggle-password="password_confirm"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
                     <div class="pw-rules">
                         <span class="pw-rule" id="r-match"><?= __i('rule_match') ?></span>
                     </div>
@@ -942,7 +954,7 @@ select option { background: var(--secondary); }
             </ul>
         </div>
 
-        <button type="submit" class="btn-install" <?= $requirementsOk ? '' : 'disabled' ?>>
+        <button type="submit" class="btn-install" data-requirements-ok="<?= $requirementsOk ? '1' : '0' ?>" <?= $requirementsOk ? '' : 'disabled' ?>>
             <?= __i('btn_install') ?>
         </button>
     </form>
@@ -952,71 +964,6 @@ select option { background: var(--secondary); }
     <?php endif; ?>
 </div>
 
-<script>
-(function () {
-    // ── Admin folder name live preview + reserved-name guard ─────────────────
-    var dirInput   = document.getElementById('admin_dir');
-    var dirVal     = document.getElementById('dir-val');
-    var dirErr     = document.getElementById('dir-reserved-error');
-    var installBtn = document.querySelector('.btn-install');
-    var reserved   = <?= json_encode($reservedNames) ?>;
-
-    function checkAdminDir() {
-        if (!dirInput) return;
-        var raw = dirInput.value.toLowerCase().replace(/[^a-z0-9\-_]/g, '');
-        if (dirVal) dirVal.textContent = raw || '\u2026';
-        var isReserved = reserved.indexOf(raw) !== -1;
-        if (dirErr) {
-            if (isReserved) {
-                dirErr.textContent = '\u26A0 \u201C' + raw + '\u201D is a reserved folder name. Choose another.';
-                dirErr.style.display = 'block';
-            } else {
-                dirErr.style.display = 'none';
-            }
-        }
-        dirInput.style.borderColor = isReserved ? 'var(--danger)' : '';
-        if (installBtn) installBtn.disabled = isReserved || <?= $requirementsOk ? 'false' : 'true' ?>;
-    }
-
-    if (dirInput) {
-        dirInput.addEventListener('input', checkAdminDir);
-        checkAdminDir();
-    }
-
-    // ── Password strength badges ──────────────────────────────────────────────
-    // Mirrors the 4 criteria in change-password.php:
-    //   mb_strlen >= 8  |  /[A-Z]/  |  /[0-9]/  |  /[\W_]/
-    var pw  = document.getElementById('password');
-    var pwc = document.getElementById('password_confirm');
-
-    /** Toggles the 'valid' CSS class on a rule badge element. */
-    function setRule(id, valid) {
-        var el = document.getElementById(id);
-        if (el) el.classList.toggle('valid', valid);
-    }
-
-    function checkPassword() {
-        var v = pw  ? pw.value  : '';
-        var c = pwc ? pwc.value : '';
-        setRule('r-len',   v.length >= 8);
-        setRule('r-up',    /[A-Z]/.test(v));
-        setRule('r-dig',   /[0-9]/.test(v));
-        setRule('r-spc',   /[\W_]/.test(v));
-        setRule('r-match', v.length > 0 && v === c);
-    }
-
-    if (pw)  pw.addEventListener('input',  checkPassword);
-    if (pwc) pwc.addEventListener('input', checkPassword);
-    checkPassword();
-})();
-
-function togglePw(id, btn) {
-    var inp = document.getElementById(id);
-    if (!inp) return;
-    var isHidden = inp.type === 'password';
-    inp.type = isHidden ? 'text' : 'password';
-    btn.style.opacity = isHidden ? '1' : '0.4';
-}
-</script>
+<script src="assets/js/install.js?v=<?php echo @filemtime(__DIR__ . "/assets/js/install.js"); ?>"></script>
 </body>
 </html>

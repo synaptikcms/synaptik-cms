@@ -23,7 +23,11 @@ if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', 
 ob_clean();
 header('Content-Type: application/json');
 
-include_once 'admin-credentials.php';
+$currentUser = admin_find_user_by_id((string)admin_current_user_id());
+if ($currentUser === null) {
+	echo json_encode(['status' => 'error', 'message' => 'password_update_failed']);
+	exit;
+}
 
 $currentPassword = $_POST['current_password'] ?? '';
 $newPassword     = $_POST['new_password']     ?? '';
@@ -49,19 +53,17 @@ if (
 	exit;
 }
 
-if (!password_verify($currentPassword, $admin_password)) {
+if (!password_verify($currentPassword, $currentUser['password_hash'] ?? '')) {
 	echo json_encode(['status' => 'error', 'message' => 'password_current_incorrect']);
 	exit;
 }
 
-if (password_verify($newPassword, $admin_password)) {
+if (password_verify($newPassword, $currentUser['password_hash'] ?? '')) {
 	echo json_encode(['status' => 'error', 'message' => 'password_same_as_current']);
 	exit;
 }
 
-$ok = admin_save_credentials([
-	'password_hash' => password_hash($newPassword, PASSWORD_BCRYPT),
-]);
+$ok = admin_update_user($currentUser['id'], ['password' => $newPassword]);
 
 if (!$ok) {
 	echo json_encode(['status' => 'error', 'message' => 'password_update_failed']);

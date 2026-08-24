@@ -10,8 +10,8 @@
  *
  * Resolution order:
  *   1. config.json → admin_dir key (fastest — normal runtime path)
- *   2. Filesystem scan for a folder containing admin-credentials.php (fallback
- *      for fresh installs or renamed folders not yet saved to settings)
+ *   2. Filesystem scan for a folder containing auth.php (fallback for fresh
+ *      installs or renamed folders not yet saved to settings)
  *   3. Hard default 'admin'
  *
  * Result is cached in $GLOBALS for the lifetime of the request.
@@ -35,7 +35,7 @@ function resolve_admin_dir(): string
     }
 
     // 2. Filesystem scan
-    foreach (glob(CMS_ROOT . '/*/admin-credentials.php') ?: [] as $f) {
+    foreach (glob(CMS_ROOT . '/*/auth.php') ?: [] as $f) {
         $found = basename(dirname($f));
         $GLOBALS['_resolved_admin_dir'] = $found;
         return $found;
@@ -75,9 +75,8 @@ function getBreadcrumbs($type, $slug = '', $title = '', $category = '')
 
     // ── List page: Home › Articles ────────────────────────────────────────────
     if (!empty($type) && empty($slug) && $type !== 'category' && $type !== 'tag') {
-        // Use the localized plural slug as the display label
-        $listLabel = __t('url_slug_' . $type . 's', ucfirst($type) . 's');
-        $output .= ' &raquo; <span>' . htmlspecialchars(ucfirst($listLabel)) . '</span>';
+        $listLabel = sl_type_label($type, true);
+        $output .= ' &raquo; <span>' . htmlspecialchars($listLabel) . '</span>';
     }
 
     // ── Category listing page: Home › Category: name ──────────────────────────
@@ -95,9 +94,9 @@ function getBreadcrumbs($type, $slug = '', $title = '', $category = '')
     // ── Single content item ───────────────────────────────────────────────────
     elseif (!empty($type) && !empty($slug)) {
         // 1. Content-type list link (localized plural label)
-        $listLabel = __t('url_slug_' . $type . 's', ucfirst($type) . 's');
-        $output .= ' &raquo; 
-            <a href="' . cleanUrl($type) . '">' . htmlspecialchars(ucfirst($listLabel)) . '</a>';
+        $listLabel = sl_type_label($type, true);
+        $output .= ' &raquo;
+            <a href="' . cleanUrl($type) . '">' . htmlspecialchars($listLabel) . '</a>';
 
         // 2. Category crumbs — resolve full hierarchical path so each segment links correctly
         if (!empty($category)) {
@@ -339,7 +338,7 @@ function processContent($type, $slug, $data, $settings, $category = '', $tag = '
                         if (isset($page['image']) && isset($page['show_featured_image']) && $page['show_featured_image']) {
                             echo '
         <div class="featured-image homepage-featured">
-            <img src="' . getBaseUrl() . htmlspecialchars($page['image']) . '" alt="' . htmlspecialchars($page['title']) . '">
+            <img src="' . getBaseUrl() . htmlspecialchars($page['image']) . '" alt="' . htmlspecialchars(!empty($page['image_alt']) ? $page['image_alt'] : $page['title']) . '"' . _image_dimensions_attr($page['image']) . '>
         </div>';
                         }
 
@@ -432,6 +431,12 @@ function getGalleryScripts($galleryLayout)
             break;
     }
 
+    // Shared init script — reads the .sc-gallery-config JSON islands renderGallery()
+    // emits and wires up whichever plugin the layout needs. Deferred so it runs
+    // after the synchronous dependency scripts above.
+    $scripts[] = '    <script defer src="' . getBaseUrl() . 'assets/js/gallery-init.js'
+        . (($_v = @filemtime(CMS_ROOT . '/assets/js/gallery-init.js')) ? '?v=' . $_v : '') . '"></script>';
+
     return $scripts;
 }
 
@@ -470,104 +475,19 @@ function renderGallery($galleryItems, $layout = 'grid')
             break;
     }
 
-    // Initialize the gallery.
-    //
-    // Dependencies (jQuery, justifiedGallery, masonry, imagesLoaded) are expected
-    // to be loaded in <head> by the theme via render_header_scripts($headerScripts).
-    // index.php scans the page's data, calls getGalleryScripts() for each detected
-    // layout, and passes the resulting <script>/<link> tags to the theme header.
-    // Because synchronous <script src> tags in <head> block parsing until executed,
-    // the deps are guaranteed to be present (and in the correct order: jQuery first,
-    // then plugin) by the time this inline init runs.
-    //
-    // If a dependency is missing, we log a clear console error rather than silently
-    // fail — this almost always means the active theme is not calling
-    // render_header_scripts($headerScripts) in its <head>.
-    echo '<script>document.addEventListener("DOMContentLoaded", function() {';
-    switch ($layout) {
-        case 'masonry':
-            echo '
-            if (typeof Masonry === "undefined" || typeof imagesLoaded === "undefined") {
-                console.error("[Gallery] Masonry/imagesLoaded missing. Verify the active theme outputs render_header_scripts($headerScripts) in <head>.");
-                return;
-            }
-            var masonryGallery = document.querySelector("#' . $galleryId . '");
-            if (masonryGallery) {
-                imagesLoaded(masonryGallery, function() {
-                    new Masonry(masonryGallery, {
-                        itemSelector: ".masonry-item",
-                        percentPosition: true,
-                        gutter: 15
-                    });
-                });
-            }';
-            break;
-        case 'justified':
-            echo '
-            (function() {
-                if (typeof jQuery === "undefined") {
-                    console.error("[Gallery] jQuery missing. Verify the active theme outputs render_header_scripts($headerScripts) in <head>.");
-                    return;
-                }
-                var $jg = jQuery("#' . $galleryId . '");
-                function apply() {
-                    $jg.justifiedGallery({
-                        rowHeight: 200,
-                        margins: 5,
-                        lastRow: "justify",
-                        captions: true
-                    });
-                }
-                if (typeof jQuery.fn.justifiedGallery !== "undefined") {
-                    apply();
-                } else {
-                    // Plugin not on the current jQuery instance. Most common cause:
-                    // the theme loads its own jQuery AFTER render_header_scripts(),
-                    // overwriting window.jQuery and wiping $.fn.justifiedGallery
-                    // that the head-loaded plugin had registered. Re-load the plugin
-                    // now onto whichever jQuery is currently active.
-                    var s = document.createElement("script");
-                    s.src = "https://cdn.jsdelivr.net/npm/justifiedGallery@3.8.1/dist/js/jquery.justifiedGallery.min.js";
-                    s.onload = apply;
-                    s.onerror = function() {
-                        console.error("[Gallery] Failed to load justifiedGallery plugin from CDN.");
-                    };
-                    document.head.appendChild(s);
-                }
-            })();';
-            break;
-        case 'carousel':
-            echo '
-            var carousel = document.getElementById("' . $galleryId . '");
-            if (carousel) {
-                var currentSlide = 0;
-                var slides = carousel.querySelectorAll(".carousel-item");
-                var totalSlides = slides.length;
-
-                // Activate first slide
-                if (slides.length > 0) {
-                    slides[0].classList.add("active");
-                }
-
-                // Next button
-                carousel.querySelector(".carousel-control-next").addEventListener("click", function(e) {
-                    e.preventDefault();
-                    slides[currentSlide].classList.remove("active");
-                    currentSlide = (currentSlide + 1) % totalSlides;
-                    slides[currentSlide].classList.add("active");
-                });
-
-                // Previous button
-                carousel.querySelector(".carousel-control-prev").addEventListener("click", function(e) {
-                    e.preventDefault();
-                    slides[currentSlide].classList.remove("active");
-                    currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
-                    slides[currentSlide].classList.add("active");
-                });
-            }';
-            break;
+    // Config island for assets/js/gallery-init.js (loaded once, in <head>, via
+    // getGalleryScripts()). Dependencies (jQuery, justifiedGallery, masonry,
+    // imagesLoaded) are loaded in <head> by the theme via
+    // render_header_scripts($headerScripts) — index.php scans the page's data,
+    // calls getGalleryScripts() for each detected layout, and passes the
+    // resulting <script>/<link> tags to the theme header. gallery-init.js is
+    // deferred so it always runs after those synchronous <head> scripts.
+    if (in_array($layout, ['masonry', 'justified', 'carousel'], true)) {
+        echo '<script type="application/json" class="sc-gallery-config" data-gallery-id="'
+            . htmlspecialchars($galleryId, ENT_QUOTES) . '">'
+            . json_encode(['layout' => $layout]) . '</script>';
     }
-    echo '});</script>';
+
     // Return buffered output
     return ob_get_clean();
 }
@@ -595,7 +515,7 @@ function renderGridGallery($galleryItems, $galleryId)
             echo ' data-title="' . htmlspecialchars(decodeHtmlEntities($galleryImage['caption'])) . '"';
         }
         echo '>
-                        <img src="' . $imageUrl . '" alt="';
+                        <img src="' . $imageUrl . '" loading="lazy"' . _image_dimensions_attr($imageSrc) . ' alt="';
         // Get alt text, fallback to caption if alt text isn't available
         $altText = !empty($galleryImage['alt_text']) ?
             htmlspecialchars(decodeHtmlEntities($galleryImage['alt_text'])) :
@@ -650,7 +570,7 @@ function renderMasonryGallery($galleryItems, $galleryId)
             ? htmlspecialchars(decodeHtmlEntities($galleryImage['alt_text']))
             : (!empty($galleryImage['caption']) ? htmlspecialchars(decodeHtmlEntities($galleryImage['caption'])) : '');
         echo '>
-                        <img src="' . $imageUrl . '" alt="' . $altMasonry . '">
+                        <img src="' . $imageUrl . '" loading="lazy"' . _image_dimensions_attr($imageSrc) . ' alt="' . $altMasonry . '">
                     </a>';
 
         // Show caption if exists
@@ -695,7 +615,7 @@ function renderJustifiedGallery($galleryItems, $galleryId)
             ? htmlspecialchars(decodeHtmlEntities($galleryImage['alt_text']))
             : (!empty($galleryImage['caption']) ? htmlspecialchars(decodeHtmlEntities($galleryImage['caption'])) : '');
         echo '>
-                    <img src="' . $imageUrl . '" alt="' . $altJustified . '">';
+                    <img src="' . $imageUrl . '" loading="lazy"' . _image_dimensions_attr($imageSrc) . ' alt="' . $altJustified . '">';
 
         // This caption will be used by the justified gallery plugin
         if (!empty($galleryImage['caption'])) {
@@ -736,9 +656,12 @@ function renderCarouselGallery($galleryItems, $galleryId)
         $altCarousel = !empty($galleryImage['alt_text'])
             ? htmlspecialchars(decodeHtmlEntities($galleryImage['alt_text']))
             : (!empty($galleryImage['caption']) ? htmlspecialchars(decodeHtmlEntities($galleryImage['caption'])) : '');
+        // The active slide is visible immediately — lazy-loading it would
+        // only delay it. Every other slide is off-screen until navigated to.
+        $lazyAttr = ($index === 0) ? '' : ' loading="lazy"';
         echo '
                     <div class="carousel-item' . $activeClass . '">
-                        <img src="' . $imageUrl . '" alt="' . $altCarousel . '">';
+                        <img src="' . $imageUrl . '"' . $lazyAttr . _image_dimensions_attr($imageSrc) . ' alt="' . $altCarousel . '">';
 
         // Show caption if exists
         if (!empty($galleryImage['caption'])) {
@@ -763,112 +686,3 @@ function renderCarouselGallery($galleryItems, $galleryId)
             </div>';
 }
 
-/**
- * Helper function to generate the search icon HTML
- * @return string Search icon HTML
- */
-function get_search_icon_html()
-{
-    global $settings;
-
-    // Check if search icon should be shown
-    if (isset($settings['show_search_icon']) && !$settings['show_search_icon']) {
-        return '';
-    }
-
-    ob_start(); ?>
-<li class="search-icon">
-    <a href="#" id="search-toggle" aria-label="Search">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </svg>
-    </a>
-</li>
-<?php
-    return ob_get_clean();
-}
-
-/**
- * Helper function to get the search overlay HTML
- * @return string Search overlay HTML
- */
-function get_search_overlay_html()
-{
-    global $settings;
-
-    // Only output search overlay if search is enabled
-    if (isset($settings['show_search_icon']) && !$settings['show_search_icon']) {
-        return '';
-    }
-
-    ob_start(); ?>
-<div id="search-overlay" class="search-overlay">
-    <div class="search-container">
-        <div class="search-input-container">
-            <input type="text" id="search-overlay-input" placeholder="<?php echo htmlspecialchars(__t('search_placeholder')); ?>">
-            <button class="search-clear-btn" id="overlay-clear-btn" aria-label="<?php echo htmlspecialchars(__t('search_clear')); ?>">×</button>
-        </div>
-        <div class="search-options">
-            <label>
-                <input type="checkbox" id="search-in-content" checked>
-                <?php echo __t('search_in_content'); ?>
-            </label>
-            <label>
-                <input type="checkbox" id="search-articles" checked>
-                <?php echo __t('articles'); ?>
-            </label>
-            <label>
-                <input type="checkbox" id="search-pages" checked>
-                <?php echo __t('pages'); ?>
-            </label>
-            <label>
-                <input type="checkbox" id="search-projects" checked>
-                <?php echo __t('projects'); ?>
-            </label>
-        </div>
-        <div id="search-results-overlay"></div>
-    </div>
-</div>
-<?php
-    return ob_get_clean();
-}
-
-/**
- * Function to include search functionality in a theme
- * Now uses consolidated CSS/JS
- */
-function include_search_functionality()
-{
-    global $settings;
-
-    // If search is disabled, don't add anything
-    if (isset($settings['show_search_icon']) && !$settings['show_search_icon']) {
-        return;
-    }
-
-    // Add search icon to navigation only if not already added by JS or HTML
-    echo '
-    <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        // Check if search icon or toggle already exists anywhere in the document
-        if (document.querySelector(".search-icon, .search-toggle, #search-toggle")) {
-            return; // Already exists, dont add another one
-        }
-        
-        // Check if we\'re using a custom menu
-        const customMenuMarker = document.querySelector(".custom-menu-marker");
-        
-        // Only add search icon if we\'re NOT using a custom menu
-        if (!customMenuMarker) {
-            const navMenu = document.querySelector("nav ul");
-            if (navMenu) {
-                const searchListItem = document.createElement("li");
-                searchListItem.classList.add("search-icon");
-                searchListItem.innerHTML = "<a href=\"#\" id=\"search-toggle\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"11\" cy=\"11\" r=\"8\"></circle><line x1=\"21\" y1=\"21\" x2=\"16.65\" y2=\"16.65\"></line></svg></a>";
-                navMenu.appendChild(searchListItem);
-            }
-        }
-    });
-    </script>';
-}

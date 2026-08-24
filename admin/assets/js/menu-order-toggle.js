@@ -1,0 +1,1 @@
+document.getElementById("show_in_menu").addEventListener("change",function(){document.getElementById("menu_order_field").style.display=this.checked?"block":"none"}),document.getElementById("status-select").addEventListener("change",function(){document.getElementById("schedule-field").style.display="scheduled"===this.value?"block":"none"});

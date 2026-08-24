@@ -6,6 +6,10 @@ if (!admin_is_logged_in()) {
     header('Location: auth.php');
     exit;
 }
+if (!admin_is_admin()) {
+    http_response_code(403);
+    exit('Access denied.');
+}
 
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -26,14 +30,11 @@ if (!is_dir($backupDir)) {
 
 $fileGroups = theme_editor_scan_files($themeDir);
 
-// Flatten groups into a single ordered list for fallback/validation purposes.
 $allFiles = [];
 foreach ($fileGroups as $files) {
     foreach ($files as $f) $allFiles[] = $f;
 }
 
-// Resolve which file is being edited: request param, falling back to style.css
-// then to the first available file.
 $requestedFile = $_GET['file'] ?? $_POST['theme_file'] ?? '';
 if ($requestedFile === '' && in_array('css/style.css', $allFiles, true)) {
     $requestedFile = 'css/style.css';
@@ -43,11 +44,8 @@ if ($requestedFile === '' && in_array('css/style.css', $allFiles, true)) {
 
 $activeFile = theme_editor_resolve_path($themeDir, $requestedFile);
 
-// A backup filename must not collide across files with the same basename in
-// different folders (e.g. partials/article-card.php vs page-templates/article-card.php).
 $backupKey = $activeFile ? str_replace('/', '__', $requestedFile) : '';
 
-// CSRF check — applies to every POST action on this page
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token'])
         || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
@@ -69,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['file_content'])
             $error = __t('te_save_backup_failed') . ' <code>' . hsc($backupDir) . '</code>';
         } elseif (file_put_contents($activeFile, $newContent) !== false) {
             $message = __t('te_save_success') . ' <code>' . hsc(basename($backupFile)) . '</code>';
+            sl_admin_log_activity('template_save', $requestedFile);
         } else {
             $error = __t('te_save_write_failed') . ' <code>' . hsc($activeFile) . '</code>';
         }
@@ -91,6 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['restore_backup'])) {
             if (copy($fullBackupPath, $activeFile)) {
                 $message = __t('te_restore_success_prefix') . ' <code>' . hsc($backupToRestore) . '</code>. '
                          . __t('te_restore_success_suffix') . ' <code>' . hsc(basename($safetyBackup)) . '</code>';
+                sl_admin_log_activity('template_restore', $requestedFile . ' <- ' . $backupToRestore);
             } else {
                 $error = __t('te_restore_failed');
             }
@@ -123,8 +123,6 @@ $cmModes = [
     'json' => 'application/json',
 ];
 $cmMode = $cmModes[$fileExt] ?? 'php';
-$cmModeJson = json_encode($cmMode);
-$requestedFileJson = json_encode($requestedFile);
 
 // Backups belonging to the currently selected file only
 $backups = [];
@@ -143,7 +141,6 @@ if ($activeFile && is_dir($backupDir)) {
 }
 
 $pageTitle = __t('template_editor_title');
-
 $extraHead = <<<HTML
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" integrity="sha384-zaeBlB/vwYsDRSlFajnDd7OydJ0cWk+c2OWybl3eSUf6hW2EbhlCsQPqKr3gkznT" crossorigin="anonymous">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css" integrity="sha384-ccdJwIIg/K0Ab6aXF4MPACh7ckk61tvQFTrfkhXZEALgAETURNZIAuQLcS/aPbrM" crossorigin="anonymous">
@@ -164,6 +161,8 @@ $extraHead = <<<HTML
     flex-wrap: wrap;
     border-radius: 5px 5px 0 0;
     padding: 10px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
 }
 .te-file-select {
     max-width: 250px;
@@ -308,7 +307,7 @@ ob_start();
     <div class="te-editor-wrap">
         <div class="editor-main" id="editor-wrap">
             <div class="editor-toolbar">
-                <select class="te-file-select" id="te-file-select" onchange="if(this.value) window.location.href='template-editor.php?file=' + encodeURIComponent(this.value);">
+                <select class="te-file-select" id="te-file-select" data-cm-mode="<?php echo hsc($cmMode); ?>" data-requested-file="<?php echo hsc($requestedFile); ?>">
                     <?php foreach ($fileGroups as $groupLabel => $files): ?>
                         <?php if ($groupLabel === ''): ?>
                             <?php foreach ($files as $f): ?>
@@ -392,6 +391,7 @@ ob_start();
 <?php
 $pageContent = ob_get_clean();
 
+$teJsVersion = @filemtime(__DIR__ . '/assets/js/template-editor.js');
 $extraFooterScripts = <<<HTML
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js" integrity="sha384-ZYmwuq4n2gOcNxMSiJ6jyTj+BbIrilr7p6dlq6q5nmSWKmsH9UU4K1qqjycMkfmR" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js" integrity="sha384-fpeIC2FZuPmw7mIsTvgB5BNc8QVxQC/nWg2W+CgPYOAiBiYVuHe2E8HiTWHBMIJQ" crossorigin="anonymous"></script>
@@ -406,97 +406,7 @@ $extraFooterScripts = <<<HTML
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/search.min.js" integrity="sha384-v64L7YTJ/ullw5v36qIJcvWAxuEnRGu9E326vUV3Ro7sx4HCZHIDTphKO53htazT" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js" integrity="sha384-ILkploZWukdp1VMmzMnE+32H0mgy2e+w29evc4grALGOqIRGBgbBGrwkX7a6zK7y" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.js" integrity="sha384-3COleknUtlGKoEOR9Wm7WKVRyS6ljwYU2x1ebD8nd6ujaLMqwY+q3F8+yDcefbXr" crossorigin="anonymous"></script>
-<script>
-(function () {
-    const t = (k, fb) => window.CMS_LANG?.[k] ?? fb ?? k;
-
-    var editor = CodeMirror.fromTextArea(document.getElementById('te-textarea'), {
-        mode:              {$cmModeJson},
-        theme:             'dracula',
-        lineNumbers:       true,
-        matchBrackets:     true,
-        autoCloseBrackets: true,
-        lineWrapping:      false,
-        tabSize:           2,
-        indentWithTabs:    false,
-        extraKeys: {
-            'Ctrl-S': function(cm) { syncAndSubmit(cm); },
-            'Cmd-S':  function(cm) { syncAndSubmit(cm); },
-            'Ctrl-/': function(cm) { cm.toggleComment(); },
-            'Cmd-/':  function(cm) { cm.toggleComment(); },
-        }
-    });
-
-    var isDirty    = false;
-    var dirtyEl    = document.getElementById('dirty-indicator');
-    var editorWrap = document.getElementById('editor-wrap');
-    var form       = document.getElementById('template-editor-form');
-
-    editor.on('change', function () {
-        if (!isDirty) {
-            isDirty = true;
-            editorWrap.classList.add('is-dirty');
-        }
-    });
-
-    form.addEventListener('submit', function () { editor.save(); isDirty = false; });
-
-    function syncAndSubmit(cm) { cm.save(); form.submit(); }
-
-    window.addEventListener('beforeunload', function (e) {
-        if (isDirty) { e.preventDefault(); e.returnValue = ''; }
-    });
-
-    document.getElementById('te-file-select').addEventListener('change', function (e) {
-        if (isDirty && !window.confirm(t('confirm_cancel'))) {
-            e.preventDefault();
-            this.value = {$requestedFileJson};
-        }
-    });
-
-    document.querySelectorAll('.btn-restore').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            var backupName = btn.getAttribute('data-backup');
-            showModal(
-                '<strong>' + backupName + '</strong><br><br>' + t('te_restore_confirm_body'),
-                t('restore_backup_btn'),
-                {
-                    danger: true, showCancel: true,
-                    cancelText: t('cancel'), confirmText: t('restore'),
-                    onConfirm: function () {
-                        var input = document.createElement('input');
-                        input.type = 'hidden'; input.name = 'restore_backup'; input.value = backupName;
-                        form.appendChild(input);
-                        isDirty = false;
-                        form.submit();
-                    }
-                }
-            );
-        });
-    });
-
-    document.querySelectorAll('.btn-delete-backup').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            var backupName = btn.getAttribute('data-backup');
-            showModal(
-                '<strong>' + backupName + '</strong><br><br>' + t('te_delete_confirm_body'),
-                t('backup_delete_confirm_title'),
-                {
-                    danger: true, showCancel: true,
-                    cancelText: t('cancel'), confirmText: t('delete'),
-                    onConfirm: function () {
-                        var input = document.createElement('input');
-                        input.type = 'hidden'; input.name = 'delete_backup'; input.value = backupName;
-                        form.appendChild(input);
-                        isDirty = false;
-                        form.submit();
-                    }
-                }
-            );
-        });
-    });
-})();
-</script>
+<script src="assets/js/template-editor.js?v={$teJsVersion}"></script>
 HTML;
 
 require_once 'includes/layout.php';

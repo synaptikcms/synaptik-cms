@@ -97,6 +97,19 @@ function decodeHtmlEntities($text) {
 }
 
 /**
+ * Returns ' width="W" height="H"' for a stored image path (e.g. 'files/x.jpg'),
+ * read directly from the file so the browser can reserve layout space before
+ * the image loads — avoiding layout shift. Empty string if the path is empty,
+ * remote, or the file's dimensions can't be read.
+ */
+function _image_dimensions_attr(string $relativePath): string {
+	if ($relativePath === '' || strpos($relativePath, '://') !== false) return '';
+	$size = @getimagesize(CMS_ROOT . '/' . ltrim($relativePath, '/'));
+	if (!$size) return '';
+	return ' width="' . (int)$size[0] . '" height="' . (int)$size[1] . '"';
+}
+
+/**
  * Get the base URL with proper trailing slash.
  *
  * Derives the sub-directory from CMS_ROOT vs DOCUMENT_ROOT so the result
@@ -125,11 +138,41 @@ function getBaseUrl() {
 	return $origin . $subDir . '/';
 }
 
+/**
+ * Returns the effective display label for a content type (article/page/project),
+ * honoring a per-site override from Settings > Reading before falling back to
+ * the active language's translation. Empty override = use the default label.
+ */
+function sl_type_label(string $type, bool $plural = false): string {
+	$settings = loadConfig();
+	$override = $settings['type_labels'][$type][$plural ? 'plural' : 'singular'] ?? '';
+	if ($override !== '') return $override;
+	return __t($plural ? $type . 's' : $type, ucfirst($type));
+}
+
 function url_slug(string $type): string {
 	// No static cache here: lang_load() already keeps strings in $GLOBALS['_LANG_STRINGS'],
 	// so this is a plain array lookup — fast enough without a second cache layer.
 	// A static cache here caused stale English values when the locale was not yet
 	// loaded on the first call (e.g. 'category' instead of 'categorie').
+	//
+	// Content-type slugs (article/page/project, singular or plural) can be
+	// overridden per site via Settings > Reading — see sl_type_label(). The
+	// override drives the label AND the URL together, so renaming a type
+	// renames its URL section too. No override → falls through unchanged
+	// to the normal per-locale url_slug_* lookup below.
+	foreach (['article', 'page', 'project'] as $_baseType) {
+		$_plural = null;
+		if ($type === $_baseType) $_plural = false;
+		elseif ($type === $_baseType . 's') $_plural = true;
+		if ($_plural !== null) {
+			$settings = loadConfig();
+			$override = $settings['type_labels'][$_baseType][$_plural ? 'plural' : 'singular'] ?? '';
+			if ($override !== '') return sanitizeSlug($override);
+			break;
+		}
+	}
+
 	$raw = __t('url_slug_' . $type, $type);
 	return sanitizeSlug($raw);
 }
@@ -260,6 +303,26 @@ function adminCleanUrl($contentType, $slug, $customSlug = '', $category = '') {
  *
  * @return array Merged settings array (defaults + config.json overrides)
  */
+
+/**
+ * Dedicated per-install secret backing the theme-preview HMAC token.
+ * Previously derived from the single admin's password hash — broke
+ * conceptually once there could be more than one account/password. Same
+ * generate-once, private/-stored convention used by several plugins
+ * (Analytics, Newsletter) for their own secrets.
+ */
+function themePreviewSecret(): string {
+    if (!defined('CMS_ROOT')) return '';
+    $secretFile = CMS_ROOT . '/private/theme_preview.secret';
+    if (file_exists($secretFile)) {
+        $secret = file_get_contents($secretFile);
+        if ($secret !== false && strlen(trim($secret)) >= 32) return trim($secret);
+    }
+    $secret = bin2hex(random_bytes(32));
+    @file_put_contents($secretFile, $secret, LOCK_EX);
+    return $secret;
+}
+
 function loadConfig() {
 	// Per-request cache — avoids repeated file_get_contents / json_decode
 	// on the same config.json within a single PHP request.
@@ -285,7 +348,7 @@ function loadConfig() {
 	}
 
 	// Theme preview override via signed GET token (_tp).
-	// Token is HMAC-SHA256(themeName, adminPasswordHash) with a TTL of 2 hours.
+	// Token is HMAC-SHA256(themeName, themePreviewSecret()) with a TTL of 2 hours.
 	// No session state is used — the token is self-contained and per-request only.
 	if (isset($_GET['_tp']) && session_status() === PHP_SESSION_ACTIVE &&
 		isset($_SESSION['admin']) && $_SESSION['admin'] === true
@@ -299,20 +362,12 @@ function loadConfig() {
 				$tpTheme = basename($tpTheme);
 				// Validate TTL (2 hours)
 				if (is_numeric($tpTs) && (time() - (int)$tpTs) < 7200) {
-					// Read admin_dir directly from the already-parsed settings to avoid
-					// calling resolve_admin_dir() which would re-enter loadConfig() and loop.
-					$adminDir = rtrim($settings['admin_dir'] ?? 'admin', '/');
-					$credFile = CMS_ROOT . '/' . $adminDir . '/admin-credentials.php';
-					if (file_exists($credFile)) {
-						$admin_password = '';
-						require $credFile; // Sets $admin_password
-						$secret   = hash('sha256', $admin_password . 'theme_preview_salt');
-						$expected = hash_hmac('sha256', $tpTheme . '|' . $tpTs, $secret);
-						if (hash_equals($expected, $tpMac) &&
-							in_array($tpTheme, $settings['available_themes'])
-						) {
-							$settings['active_theme'] = $tpTheme;
-						}
+					$secret   = themePreviewSecret();
+					$expected = hash_hmac('sha256', $tpTheme . '|' . $tpTs, $secret);
+					if (hash_equals($expected, $tpMac) &&
+						in_array($tpTheme, $settings['available_themes'])
+					) {
+						$settings['active_theme'] = $tpTheme;
 					}
 				}
 			}

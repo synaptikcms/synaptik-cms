@@ -14,10 +14,13 @@
  *
  * Cache strategy (3 levels, fastest first):
  *   1. APCu  — shared memory, survives across requests (TTL: SL_CACHE_TTL seconds)
- *   2. File  — serialized PHP array in /cache/ (TTL: SL_CACHE_TTL seconds)
+ *   2. File  — PHP-literal array in /cache/ (`<?php return [...];`), read via
+ *      include so OPcache caches the compiled bytecode instead of re-parsing
+ *      JSON on every request (TTL: SL_CACHE_TTL seconds)
  *   3. Disk  — raw JSON read (always available)
  *
- * APCu is used when available; the file cache is the fallback.
+ * APCu is used when available; the file cache is the fallback — this matters
+ * on shared hosting where APCu is opt-in but OPcache is on by default.
  * The in-request GLOBALS cache (level 0) sits on top and avoids any I/O
  * for repeated reads within the same PHP request.
  *
@@ -69,12 +72,13 @@ function _sl_cache_dir(): string
 
 /**
  * Returns the file path for a given persistent cache key.
+ * PHP extension so OPcache treats it like any other compiled script.
  *
  * @param string $key  Cache key (e.g. 'sl_idx_article').
  */
 function _sl_cache_file(string $key): string
 {
-    return _sl_cache_dir() . '/' . $key . '.cache';
+    return _sl_cache_dir() . '/' . $key . '.cache.php';
 }
 
 /**
@@ -93,15 +97,12 @@ function _sl_persistent_get(string $key)
         if ($success) return $value;
     }
 
-    // File cache
+    // File cache — PHP-literal, compiled/cached by OPcache on include()
     $file = _sl_cache_file($key);
     if (!file_exists($file)) return null;
     if ((time() - filemtime($file)) >= SL_CACHE_TTL) return null;
 
-    $raw = file_get_contents($file);
-    if ($raw === false) return null;
-
-    $data = json_decode($raw, true);
+    $data = @include $file;
     return is_array($data) ? $data : null;
 }
 
@@ -119,16 +120,23 @@ function _sl_persistent_set(string $key, $value): void
         apcu_store($key, $value, SL_CACHE_TTL);
     }
 
-    // File cache
+    // File cache — write as a PHP-literal `<?php return [...];` file so
+    // OPcache serves the compiled bytecode instead of re-parsing JSON.
     $dir = _sl_cache_dir();
     if (!is_dir($dir)) {
         @mkdir($dir, 0755, true);
     }
     if (is_writable($dir)) {
-        $tmp  = _sl_cache_file($key) . '.tmp';
         $file = _sl_cache_file($key);
-        if (file_put_contents($tmp, json_encode($value), LOCK_EX) !== false) {
+        $tmp  = $file . '.' . getmypid() . '.tmp';
+        $php  = "<?php\nreturn " . var_export($value, true) . ";\n";
+        if (file_put_contents($tmp, $php, LOCK_EX) !== false) {
             rename($tmp, $file);
+            // Avoid serving a stale compiled version if OPcache already
+            // cached the previous file at this path.
+            if (function_exists('opcache_invalidate')) {
+                opcache_invalidate($file, true);
+            }
         }
     }
 }
@@ -149,6 +157,9 @@ function _sl_persistent_del(string $key): void
     $file = _sl_cache_file($key);
     if (file_exists($file)) {
         @unlink($file);
+        if (function_exists('opcache_invalidate')) {
+            opcache_invalidate($file, true);
+        }
     }
 }
 
@@ -172,14 +183,18 @@ function sl_clear_all_cache(): void
         }
     }
 
-    // File cache — delete all *.cache files
+    // File cache — delete all *.cache.php files
     $dir = _sl_cache_dir();
+    $canInvalidate = function_exists('opcache_invalidate');
     if (is_dir($dir)) {
-        foreach (glob($dir . '/*.cache') ?: [] as $f) {
+        foreach (glob($dir . '/*.cache.php') ?: [] as $f) {
             @unlink($f);
+            if ($canInvalidate) {
+                opcache_invalidate($f, true);
+            }
         }
-        // Also remove stale .tmp leftovers
-        foreach (glob($dir . '/*.cache.tmp') ?: [] as $f) {
+        // Also remove stale .tmp leftovers from interrupted writes
+        foreach (glob($dir . '/*.cache.php.*.tmp') ?: [] as $f) {
             @unlink($f);
         }
     }
@@ -252,15 +267,15 @@ function sl_load_index(string $type): array
     $decoded = ($raw !== false && $raw !== '') ? json_decode($raw, true) : null;
     $result  = is_array($decoded) ? $decoded : [];
 
-    // On the front-end, exclude drafts and future scheduled items so they
-    // never leak into footers, shortcodes, menus, or any other call site.
-    // The admin panel defines LANG_CONTEXT === 'admin' and needs the full
-    // unfiltered index to manage scheduled/draft content.
+    // On the front-end, exclude drafts, unpublished and future scheduled
+    // items so they never leak into footers, shortcodes, menus, or any
+    // other call site. The admin panel defines LANG_CONTEXT === 'admin'
+    // and needs the full unfiltered index to manage this content.
     if (!$isAdmin) {
         $now    = time();
         $result = array_values(array_filter($result, function (array $item) use ($now): bool {
             $status = $item['status'] ?? 'published';
-            if ($status === 'draft') return false;
+            if ($status === 'draft' || $status === 'unpublished') return false;
             if ($status === 'scheduled') {
                 $at = isset($item['publish_at']) ? strtotime($item['publish_at']) : false;
                 return $at !== false && $at <= $now;
@@ -519,7 +534,10 @@ function sl_build_data_array(
         $data[$type] = $items;
     }
 
-    return $data;
+    // Plugin filter: lets a plugin add, hide or reorder items in the list
+    // every front-end page (including the homepage) renders from — without
+    // this, a plugin can only add pages, never influence what's on them.
+    return pl_apply_filter('content_data_array', $data);
 }
 
 // ─── Shared utility functions ──────────────────────────────────────────────────
@@ -598,5 +616,8 @@ function loadDefaultConfig(): array
         'footer_social_links'        => [],
         'autosave_enabled'           => true,
         'autosave_interval'          => 10,
+        'type_labels'                => [],
+        'schema_author_name'         => '',
+        'schema_publisher_type'      => 'Person',
     ];
 }

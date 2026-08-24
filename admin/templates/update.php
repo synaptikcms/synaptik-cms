@@ -9,8 +9,8 @@ require_once dirname(__DIR__) . '/includes/backup-functions.php';
 $root      = dirname(dirname(__DIR__));
 $_upd_info = admin_check_for_update();
 
-$_skipPrefixes = ['__MACOSX/', 'data/', 'files/', 'bckps/', 'cache/', 'private/', 'admin/cache/', 'admin/drafts/', 'theme/default/'];
-$_skipFiles    = ['.DS_Store', 'config.json', 'install.lock', 'install.php', 'admin/admin-credentials.php'];
+$_skipPrefixes = ['__MACOSX/', 'data/', 'files/', 'bckps/', 'cache/', 'private/', 'admin/cache/', 'theme/default/'];
+$_skipFiles    = ['.DS_Store', 'config.json', 'install.lock', 'install.php'];
 
 // Sweep orphaned tmp-update-* directories left behind by a previous update
 // that was interrupted (PHP timeout, fatal error, connection loss) before
@@ -138,9 +138,23 @@ if (isset($_POST['apply_update'])) {
 	$zip->close();
 
 	// ── Safety backup ──────────────────────────────────────────────────────────
+	// Two separate archives: _backup_build_zip() covers data/files/config —
+	// exactly what an update does NOT touch — so on its own it cannot roll
+	// back a failed update. _backup_build_core_zip() covers core/, the admin
+	// folder and index.php — the paths the update actually overwrites —
+	// making a manual rollback possible if the update fails partway.
 	$safetyZip = $bckpsDir . '/pre-update-backup-' . date('Y-m-d-His') . '.zip';
 	if (!_backup_build_zip($root, $safetyZip)) {
 		@unlink($releaseZip);
+		$_SESSION['error'] = __t('update_failed_safety');
+		header('Location: index.php?action=update');
+		exit;
+	}
+
+	$coreSafetyZip = $bckpsDir . '/pre-update-core-backup-' . date('Y-m-d-His') . '.zip';
+	if (!_backup_build_core_zip($root, $coreSafetyZip, basename(dirname(__DIR__)))) {
+		@unlink($releaseZip);
+		@unlink($safetyZip);
 		$_SESSION['error'] = __t('update_failed_safety');
 		header('Location: index.php?action=update');
 		exit;
@@ -187,8 +201,9 @@ if (isset($_POST['apply_update'])) {
 	// and remap every 'admin/...' path to the actual folder name before copying.
 	$_adminFolderName = basename(dirname(__DIR__)); // e.g. 'adminy'
 
-	$ok      = true;
-	$dirIter = new RecursiveDirectoryIterator($tmpDir, RecursiveDirectoryIterator::SKIP_DOTS);
+	$ok          = true;
+	$failedFiles = [];
+	$dirIter     = new RecursiveDirectoryIterator($tmpDir, RecursiveDirectoryIterator::SKIP_DOTS);
 	$items   = new RecursiveIteratorIterator($dirIter, RecursiveIteratorIterator::SELF_FIRST);
 	foreach ($items as $item) {
 		$rel = str_replace('\\', '/', $items->getSubPathname());
@@ -217,7 +232,10 @@ if (isset($_POST['apply_update'])) {
 		} else {
 			$destDir = dirname($dest);
 			if (!is_dir($destDir)) mkdir($destDir, 0755, true);
-			if (!copy($item->getRealPath(), $dest)) $ok = false;
+			if (!copy($item->getRealPath(), $dest)) {
+				$ok            = false;
+				$failedFiles[] = $rel;
+			}
 		}
 	}
 
@@ -233,7 +251,14 @@ if (isset($_POST['apply_update'])) {
 		$_SESSION['message'] = __t('update_success');
 		header('Location: index.php');
 	} else {
-		$_SESSION['error'] = __t('update_failed_apply');
+		// Show which files failed instead of a bare "partially failed" —
+		// an admin cannot tell if the site is usable without this list.
+		$_shown = array_slice($failedFiles, 0, 10);
+		$_list  = implode(', ', $_shown);
+		if (count($failedFiles) > count($_shown)) {
+			$_list .= sprintf(__t('update_failed_files_more', ' and %d more'), count($failedFiles) - count($_shown));
+		}
+		$_SESSION['error'] = __t('update_failed_apply') . ' ' . sprintf(__t('update_failed_files_list', 'Failed files: %s'), $_list);
 		header('Location: index.php?action=update');
 	}
 	exit;
@@ -293,8 +318,8 @@ if (file_exists($_vPath)) {
 				<?php if ($_canAutoUpdate): ?>
 					<div class="message warning" style="margin-bottom:16px;"><?php _e('update_warning'); ?></div>
 					<form method="POST" action="index.php?action=update" id="update-form">
-						<button type="button" class="btn btn-primary" onclick="confirmUpdate();">
-							<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:5px;vertical-align:-1px"><polyline points="17 11 12 6 7 11"/><line x1="12" y1="6" x2="12" y2="18"/></svg><?php _e('update_apply_btn'); ?>
+						<button type="button" class="btn btn-primary" id="confirm-update-btn">
+							<?php echo admin_icon('arrow-up', 'style="margin-right:5px;vertical-align:-1px"', 13); ?><?php _e('update_apply_btn'); ?>
 						</button>
 					</form>
 				<?php else: ?>
@@ -308,26 +333,4 @@ if (file_exists($_vPath)) {
 		</div>
 	<?php endif; ?>
 
-	<script>
-	function confirmUpdate() {
-		showModal(
-			t('update_apply_confirm'),
-			t('update_apply_confirm_title'),
-			{
-				showCancel:  true,
-				confirmText: t('update_apply_btn'),
-				cancelText:  t('cancel'),
-				danger:      false,
-				onConfirm: function() {
-					const form  = document.getElementById('update-form');
-					const input = document.createElement('input');
-					input.type  = 'hidden';
-					input.name  = 'apply_update';
-					input.value = '1';
-					form.appendChild(input);
-					form.submit();
-				}
-			}
-		);
-	}
-	</script>
+	<script src="assets/js/update.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/update.js'); ?>"></script>

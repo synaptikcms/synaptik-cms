@@ -611,7 +611,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 $pageTitle = __t('file_manager');
 
 $extraHead = '<link rel="stylesheet" href="assets/css/admin-filemanager.css?v=' . @filemtime(__DIR__ . '/assets/css/admin-filemanager.css') . '">'
-           . "\n<script>window.CMS_CSRF_TOKEN = " . json_encode($_SESSION['csrf_token']) . ";</script>"
            . "\n<style>"
            . "\n.folder-drag-overlay { display: none; }"
            . "\n.folder-item.drag-over { z-index:100!important; background-color:var(--primary-soft)!important; border:2px dashed var(--primary)!important; box-shadow:0 0 12px rgba(79,167,92,.3)!important; transform:translateY(-2px); transition:transform .2s ease,box-shadow .2s ease; }"
@@ -680,7 +679,7 @@ ob_start();
 				<span class="folder-info"><?php echo sprintf(__t('fm_folder_file_count'), count($folders), count($files)); ?></span>
 			</div>
 			<div class="view-controls">
-				<button id="toggle-view-mode" class="btn-cl" data-mode="grid"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:4px"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><?php _e('fm_list_view'); ?></button>
+				<button id="toggle-view-mode" class="btn-cl" data-mode="grid"><?php echo admin_icon('list', 'style="vertical-align:-2px;margin-right:4px"', 13); ?><?php _e('fm_list_view'); ?></button>
 			</div>
 		</div>
 	</div>
@@ -735,10 +734,10 @@ ob_start();
 			<div class="folder-drag-overlay"><?php _e('fm_drop_here'); ?></div>
 			<div class="file-actions">
 				<a href="#" class="rename-btn fm-icon-btn" data-name="<?php echo htmlspecialchars($folder); ?>" data-type="folder" title="<?php _e('file_rename'); ?>">
-					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+					<?php echo admin_icon('writing', '', 14); ?>
 				</a>
 				<a href="?path=<?php echo urlencode($currentPath); ?>&delete_folder=<?php echo urlencode($folder); ?>" class="delete-folder-link fm-icon-btn" title="<?php _e('delete'); ?>">
-					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+					<?php echo admin_icon('trash', '', 14); ?>
 				</a>
 			</div>
 		</div>
@@ -778,16 +777,16 @@ ob_start();
 			<div class="file-size"><?php echo $file['size']; ?></div>
 			<div class="file-actions">
 				<a href="<?php echo getPublicUrl($currentPath, $file['name']); ?>" class="view-img-btn fm-icon-btn" target="_blank" title="<?php _e('view'); ?>">
-					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+					<?php echo admin_icon('eye', '', 14); ?>
 				</a>
 				<a href="#" class="copy-url-btn fm-icon-btn" data-url="<?php echo getPublicUrl($currentPath, $file['name']); ?>" title="<?php _e('fm_copy_url_btn'); ?>">
-					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+					<?php echo admin_icon('link', '', 16); ?>
 				</a>
 				<a href="#" class="rename-btn fm-icon-btn" data-name="<?php echo htmlspecialchars($file['name']); ?>" data-type="file" title="<?php _e('file_rename'); ?>">
-					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+					<?php echo admin_icon('writing', '', 14); ?>
 				</a>
 				<a href="?path=<?php echo urlencode($currentPath); ?>&delete=<?php echo urlencode($file['name']); ?>" class="delete-file-link fm-icon-btn" title="<?php _e('delete'); ?>">
-					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+					<?php echo admin_icon('trash', '', 14); ?>
 				</a>
 			</div>
 		</div>
@@ -803,23 +802,12 @@ $pageContent = ob_get_clean();
 
 ob_start();
 ?>
-<!-- Custom Modal -->
-<div id="custom-modal" class="modal-overlay">
-	<div class="modal-container">
-		<div class="modal-header danger">
-			<span class="modal-title"><?php _e('notification'); ?></span>
-			<span class="modal-close">&times;</span>
-		</div>
-		<div class="modal-message-content"><p id="modal-message"></p></div>
-		<div class="modal-footer"></div>
-	</div>
-</div>
 <div id="context-menu" class="context-menu">
 	<ul>
-		<li data-action="rename"><span class="action-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span> <?php _e('file_rename'); ?></li>
-		<li data-action="delete" class="ctx-delete"><span class="action-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></span> <?php _e('delete'); ?></li>
-		<li data-action="copy-url" class="file-only"><span class="action-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span> <?php _e('fm_copy_url'); ?></li>
-		<li data-action="view" class="file-only"><span class="action-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span> <?php _e('view'); ?></li>
+		<li data-action="rename"><span class="action-icon"><?php echo admin_icon('writing', '', 14); ?></span> <?php _e('file_rename'); ?></li>
+		<li data-action="delete" class="ctx-delete"><span class="action-icon"><?php echo admin_icon('trash', '', 14); ?></span> <?php _e('delete'); ?></li>
+		<li data-action="copy-url" class="file-only"><span class="action-icon"><?php echo admin_icon('copy', '', 14); ?></span> <?php _e('fm_copy_url'); ?></li>
+		<li data-action="view" class="file-only"><span class="action-icon"><?php echo admin_icon('eye', '', 14); ?></span> <?php _e('view'); ?></li>
 	</ul>
 </div>
 <!-- Rename Dialog -->

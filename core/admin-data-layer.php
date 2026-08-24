@@ -44,6 +44,26 @@ function sl_admin_ensure_dirs(): void
     }
 }
 
+/**
+ * Autosaved drafts live under data/drafts/, alongside trash and revisions —
+ * not admin/drafts/, since drafts are content, not admin-panel internals, and
+ * admin/ is a renameable folder (admin_dir) that data must not depend on.
+ * One-time migration: renames a pre-existing admin/drafts/ (old location,
+ * found via resolve_admin_dir() in case the admin folder was itself renamed)
+ * into place the first time this is called after upgrading.
+ */
+function sl_admin_drafts_dir(): string
+{
+    $dir = sl_data_dir() . '/drafts';
+    if (!is_dir($dir)) {
+        $legacy = CMS_ROOT . '/' . resolve_admin_dir() . '/drafts';
+        if (is_dir($legacy)) {
+            @rename($legacy, $dir);
+        }
+    }
+    return $dir;
+}
+
 // ─── Index field extraction ────────────────────────────────────────────────────
 
 /**
@@ -57,7 +77,7 @@ function sl_admin_index_fields(string $type): array
     // Fields present in every type's index
     $common = [
         'slug', 'custom_slug', 'title', 'date',
-        'category', 'tags', 'image',
+        'category', 'tags', 'image', 'image_alt', 'author_id',
         'show_in_menu', 'menu_order',
         'status', 'publish_at', 'show_date',
     ];
@@ -93,65 +113,6 @@ function sl_admin_extract_index_entry(string $type, array $item): array
     return $entry;
 }
 
-// ─── Unique file slug resolution ───────────────────────────────────────────────
-
-/**
- * Resolves a unique file slug for a new or renamed item.
- *
- * The desired slug is custom_slug ?: slug. If another file in the same type
- * already uses that slug (collision), appends -2, -3, etc. until unique.
- *
- * Optionally pass $currentFileSlug to exclude the item's own current file
- * from the collision check (used during edits where the slug does not change).
- *
- * @param  string      $type             Internal type name.
- * @param  array       $item             Item array (must have slug, custom_slug).
- * @param  string|null $currentFileSlug  Current _file value to exclude from check.
- * @return string                        Unique file slug (without .json extension).
- */
-function sl_admin_resolve_file_slug(
-    string  $type,
-    array   $item,
-    ?string $currentFileSlug = null
-): string {
-    $desired = sl_effective_slug($item);
-    if ($desired === '') {
-        // Fallback: generate from timestamp if both slug fields are empty
-        $desired = $type . '-' . time();
-    }
-
-    // Collect all file slugs already in use for this type
-    $existing = [];
-    foreach (sl_load_index($type) as $entry) {
-        $fs = sl_file_slug($entry);
-        if ($fs !== $currentFileSlug) {
-            $existing[] = $fs;
-        }
-    }
-
-    // Also check for physical files that might not be in the index yet
-    $dir = sl_data_dir() . '/' . sl_type_dir($type);
-    if (is_dir($dir)) {
-        foreach (glob($dir . '/*.json') as $file) {
-            $base = basename($file, '.json');
-            if ($base !== '_index' && $base !== $currentFileSlug) {
-                if (!in_array($base, $existing)) {
-                    $existing[] = $base;
-                }
-            }
-        }
-    }
-
-    // Find a unique slug
-    $fileSlug = $desired;
-    $n = 2;
-    while (in_array($fileSlug, $existing)) {
-        $fileSlug = $desired . '-' . $n++;
-    }
-
-    return $fileSlug;
-}
-
 // ─── Atomic JSON write helper ──────────────────────────────────────────────────
 
 /**
@@ -177,7 +138,112 @@ function _sl_write_json(string $path, array $data): bool
     return rename($tmp, $path);
 }
 
+// ─── Activity log ───────────────────────────────────────────────────────────────
+//
+// Records sensitive admin actions (logins, template editor saves, extension
+// installs, user management, restores) to private/activity-log.json. The
+// read-modify-write cycle is protected by flock() end to end — same pattern
+// as private/auth_rate.json in admin/auth.php — because two admins acting at
+// once would otherwise race between an unlocked read and a locked write.
+
+const SL_ACTIVITY_LOG_MAX_ENTRIES = 2000;
+
+function sl_admin_activity_log_path(): string
+{
+    return CMS_ROOT . '/private/activity-log.json';
+}
+
+/**
+ * Appends one entry to the activity log.
+ *
+ * $action is a stable machine key (e.g. 'login_success', 'user_deleted'),
+ * translated to a display label by the viewer — never a human-readable
+ * string, so it stays independent of the current UI language.
+ *
+ * @param  string $action   Machine key identifying the action.
+ * @param  string $details  Optional free-form context (e.g. affected username).
+ * @return bool             True on success.
+ */
+function sl_admin_log_activity(string $action, string $details = ''): bool
+{
+    $path = sl_admin_activity_log_path();
+
+    if (!file_exists($path)) {
+        @file_put_contents($path, '[]', LOCK_EX);
+    }
+
+    $fp = @fopen($path, 'c+');
+    if (!$fp) return false;
+
+    flock($fp, LOCK_EX);
+
+    $raw     = stream_get_contents($fp);
+    $entries = ($raw !== false && $raw !== '') ? json_decode($raw, true) : null;
+    if (!is_array($entries)) $entries = [];
+
+    $entries[] = [
+        'ts'       => time(),
+        'user_id'  => $_SESSION['admin_user_id']  ?? null,
+        'username' => $_SESSION['admin_username'] ?? '',
+        'action'   => $action,
+        'details'  => $details,
+        'ip'       => $_SERVER['REMOTE_ADDR'] ?? '',
+    ];
+
+    // Hard cap — keeps the file small without a separate purge step.
+    if (count($entries) > SL_ACTIVITY_LOG_MAX_ENTRIES) {
+        $entries = array_slice($entries, -SL_ACTIVITY_LOG_MAX_ENTRIES);
+    }
+
+    $json = json_encode($entries, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $ok   = false;
+    if ($json !== false) {
+        ftruncate($fp, 0);
+        rewind($fp);
+        $ok = fwrite($fp, $json) !== false;
+    }
+
+    flock($fp, LOCK_UN);
+    fclose($fp);
+
+    return $ok;
+}
+
+/**
+ * Loads all activity log entries, most recent last (same order they were written).
+ *
+ * @return array
+ */
+function sl_admin_load_activity_log(): array
+{
+    $path = sl_admin_activity_log_path();
+    if (!file_exists($path)) return [];
+    $raw     = file_get_contents($path);
+    $decoded = ($raw !== false && $raw !== '') ? json_decode($raw, true) : null;
+    return is_array($decoded) ? $decoded : [];
+}
+
 // ─── Individual item write / delete ───────────────────────────────────────────
+
+/**
+ * Picks a file slug guaranteed not to collide with an existing item file,
+ * appending -2, -3, ... as needed. Falls back to "<type>-<timestamp>" when
+ * $effectiveSlug is empty (e.g. a title-less item).
+ *
+ * @param  string $type            Internal type name.
+ * @param  string $effectiveSlug   Preferred slug (custom_slug ?: slug).
+ * @return string
+ */
+function sl_unique_file_slug(string $type, string $effectiveSlug): string
+{
+    $fileSlug = $effectiveSlug !== '' ? $effectiveSlug : ($type . '-' . time());
+    $base     = $fileSlug;
+    $n        = 2;
+    while (file_exists(sl_item_path($type, $fileSlug))) {
+        $fileSlug = $base . '-' . $n++;
+    }
+    return $fileSlug;
+}
 
 /**
  * Writes a full item array to its individual file.
@@ -197,6 +263,10 @@ function sl_admin_save_item(string $type, string $fileSlug, array $item): bool
     // _file is an index-only field — never persisted inside item files
     unset($item['_file']);
 
+    // Plugin filter: lets a plugin adjust an item's data on every save
+    // (create or edit) before it hits disk.
+    $item = pl_apply_filter('item_before_save', $item, $type, $fileSlug);
+
     $path = sl_item_path($type, $fileSlug);
     return _sl_write_json($path, $item);
 }
@@ -215,6 +285,422 @@ function sl_admin_delete_item(string $type, string $fileSlug): bool
     $path = sl_item_path($type, $fileSlug);
     if (!file_exists($path)) return true; // already gone
     return unlink($path);
+}
+
+// ─── Trash ──────────────────────────────────────────────────────────────────────
+//
+// Deletion from the admin UI moves an item's file into data/<type>s/.trash/
+// instead of unlinking it. A parallel _index.json under .trash/ tracks the
+// display fields plus a trashed_at timestamp, mirroring the live index so
+// the trash list never needs to read every trashed item file.
+
+function sl_admin_trash_dir(string $type): string
+{
+    return sl_data_dir() . '/' . sl_type_dir($type) . '/.trash';
+}
+
+function sl_admin_trash_item_path(string $type, string $fileSlug): string
+{
+    $fileSlug = basename($fileSlug);
+    return sl_admin_trash_dir($type) . '/' . $fileSlug . '.json';
+}
+
+function sl_admin_trash_index_path(string $type): string
+{
+    return sl_admin_trash_dir($type) . '/_index.json';
+}
+
+function sl_admin_load_trash_index(string $type): array
+{
+    $path = sl_admin_trash_index_path($type);
+    if (!file_exists($path)) return [];
+    $raw     = file_get_contents($path);
+    $decoded = ($raw !== false && $raw !== '') ? json_decode($raw, true) : null;
+    return is_array($decoded) ? $decoded : [];
+}
+
+function sl_admin_write_trash_index(string $type, array $index): bool
+{
+    $dir = sl_admin_trash_dir($type);
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+    return _sl_write_json(sl_admin_trash_index_path($type), $index);
+}
+
+/**
+ * Moves an item file to the trash and removes it from the live index.
+ * Returns false if the item does not exist or the move fails.
+ *
+ * @param  string $type      Internal type name.
+ * @param  string $fileSlug  The _file value identifying the item.
+ * @return bool
+ */
+function sl_admin_trash_item(string $type, string $fileSlug): bool
+{
+    if ($fileSlug === '') return false;
+
+    $item = sl_load_item($type, $fileSlug);
+    if ($item === null) return false;
+
+    $dir = sl_admin_trash_dir($type);
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+
+    // Guard against a name collision with an item already sitting in the
+    // trash (delete, recreate the same slug, delete again).
+    $trashFileSlug = $fileSlug;
+    $n = 2;
+    while (file_exists(sl_admin_trash_item_path($type, $trashFileSlug))) {
+        $trashFileSlug = $fileSlug . '-' . $n++;
+    }
+
+    if (!rename(sl_item_path($type, $fileSlug), sl_admin_trash_item_path($type, $trashFileSlug))) {
+        return false;
+    }
+
+    $entry               = sl_admin_extract_index_entry($type, $item);
+    $entry['_file']      = $trashFileSlug;
+    $entry['trashed_at'] = time();
+
+    $trashIndex   = sl_admin_load_trash_index($type);
+    $trashIndex[] = $entry;
+    sl_admin_write_trash_index($type, $trashIndex);
+
+    sl_admin_remove_from_index($type, $fileSlug);
+
+    return true;
+}
+
+/**
+ * Moves a trashed item back to the live directory and rebuilds its index
+ * entry. If the original slug is now taken, a numeric suffix is appended.
+ *
+ * @param  string $type      Internal type name.
+ * @param  string $fileSlug  The _file value identifying the trashed item.
+ * @return bool
+ */
+function sl_admin_restore_trashed_item(string $type, string $fileSlug): bool
+{
+    $trashIndex = sl_admin_load_trash_index($type);
+    $pos = null;
+    foreach ($trashIndex as $i => $entry) {
+        if (($entry['_file'] ?? '') === $fileSlug) { $pos = $i; break; }
+    }
+    if ($pos === null) return false;
+
+    $trashPath = sl_admin_trash_item_path($type, $fileSlug);
+    if (!file_exists($trashPath)) {
+        // Orphaned index entry — drop it, nothing to restore.
+        unset($trashIndex[$pos]);
+        sl_admin_write_trash_index($type, array_values($trashIndex));
+        return false;
+    }
+
+    $restoreSlug = $fileSlug;
+    $n = 2;
+    while (file_exists(sl_item_path($type, $restoreSlug))) {
+        $restoreSlug = $fileSlug . '-' . $n++;
+    }
+
+    if (!rename($trashPath, sl_item_path($type, $restoreSlug))) return false;
+
+    unset($trashIndex[$pos]);
+    sl_admin_write_trash_index($type, array_values($trashIndex));
+
+    $item = sl_load_item($type, $restoreSlug);
+    if ($item !== null) {
+        $indexEntry          = sl_admin_extract_index_entry($type, $item);
+        $indexEntry['_file'] = $restoreSlug;
+        sl_admin_update_index($type, $indexEntry);
+    }
+
+    return true;
+}
+
+/**
+ * Permanently deletes a single trashed item (file + trash index entry).
+ *
+ * @param  string $type      Internal type name.
+ * @param  string $fileSlug  The _file value identifying the trashed item.
+ * @return bool
+ */
+function sl_admin_purge_trashed_item(string $type, string $fileSlug): bool
+{
+    if ($fileSlug === '') return false;
+
+    $trashIndex = sl_admin_load_trash_index($type);
+    $new = array_values(array_filter(
+        $trashIndex,
+        fn($e) => ($e['_file'] ?? '') !== $fileSlug
+    ));
+
+    $path = sl_admin_trash_item_path($type, $fileSlug);
+    if (file_exists($path)) @unlink($path);
+    sl_admin_delete_all_revisions($type, $fileSlug);
+
+    if (count($new) !== count($trashIndex)) {
+        sl_admin_write_trash_index($type, $new);
+    }
+
+    return true;
+}
+
+/**
+ * Empties the trash for every content type. Returns the number of items
+ * permanently deleted.
+ *
+ * @return int
+ */
+function sl_admin_purge_all_trash(): int
+{
+    $purged = 0;
+    foreach (['article', 'page', 'project'] as $type) {
+        $trashIndex = sl_admin_load_trash_index($type);
+        foreach ($trashIndex as $entry) {
+            $path = sl_admin_trash_item_path($type, $entry['_file'] ?? '');
+            if ($path && file_exists($path)) @unlink($path);
+            sl_admin_delete_all_revisions($type, $entry['_file'] ?? '');
+            $purged++;
+        }
+        if (!empty($trashIndex)) {
+            sl_admin_write_trash_index($type, []);
+        }
+    }
+    return $purged;
+}
+
+/**
+ * Permanently deletes trashed items older than $maxAgeDays. Called lazily
+ * when the trash admin view loads — there is no cron in this codebase.
+ *
+ * @param  int $maxAgeDays  Retention period in days.
+ * @return int              Number of items purged.
+ */
+function sl_admin_purge_expired_trash(int $maxAgeDays = 30): int
+{
+    $purged = 0;
+    $cutoff = time() - ($maxAgeDays * 86400);
+
+    foreach (['article', 'page', 'project'] as $type) {
+        $trashIndex = sl_admin_load_trash_index($type);
+        $keep = [];
+        foreach ($trashIndex as $entry) {
+            if (($entry['trashed_at'] ?? 0) < $cutoff) {
+                $path = sl_admin_trash_item_path($type, $entry['_file'] ?? '');
+                if ($path && file_exists($path)) @unlink($path);
+                sl_admin_delete_all_revisions($type, $entry['_file'] ?? '');
+                $purged++;
+            } else {
+                $keep[] = $entry;
+            }
+        }
+        if (count($keep) !== count($trashIndex)) {
+            sl_admin_write_trash_index($type, $keep);
+        }
+    }
+
+    return $purged;
+}
+
+// ─── Revisions ──────────────────────────────────────────────────────────────────
+//
+// Every edit-save snapshots the item's pre-edit state into
+// data/<type>s/.revisions/<fileSlug>/ before the new content overwrites the
+// live file. Revisions are per-item (unlike trash, no cross-type listing is
+// needed to render a history list) so a directory glob is enough — no
+// separate index file.
+
+define('SL_ADMIN_MAX_REVISIONS', 10);
+
+function sl_admin_revisions_dir(string $type, string $fileSlug): string
+{
+    $fileSlug = basename($fileSlug);
+    return sl_data_dir() . '/' . sl_type_dir($type) . '/.revisions/' . $fileSlug;
+}
+
+function sl_admin_revision_path(string $type, string $fileSlug, int $timestamp): string
+{
+    return sl_admin_revisions_dir($type, $fileSlug) . '/' . $timestamp . '.json';
+}
+
+/**
+ * Lists revisions for an item, newest first.
+ *
+ * @param  string $type      Internal type name.
+ * @param  string $fileSlug  The _file value identifying the item.
+ * @return array             ['timestamp' => int, 'path' => string][]
+ */
+function sl_admin_list_revisions(string $type, string $fileSlug): array
+{
+    $dir = sl_admin_revisions_dir($type, $fileSlug);
+    if (!is_dir($dir)) return [];
+
+    $revisions = [];
+    foreach (glob($dir . '/*.json') as $file) {
+        $ts = (int)basename($file, '.json');
+        if ($ts <= 0) continue;
+        $revisions[] = ['timestamp' => $ts, 'path' => $file];
+    }
+    usort($revisions, fn($a, $b) => $b['timestamp'] <=> $a['timestamp']);
+    return $revisions;
+}
+
+/**
+ * Loads a single revision's full item data.
+ *
+ * @param  string $type      Internal type name.
+ * @param  string $fileSlug  The _file value identifying the item.
+ * @param  int    $timestamp Revision timestamp (its filename, without .json).
+ * @return array|null
+ */
+function sl_admin_load_revision(string $type, string $fileSlug, int $timestamp): ?array
+{
+    $path = sl_admin_revision_path($type, $fileSlug, $timestamp);
+    if (!file_exists($path)) return null;
+    $raw     = file_get_contents($path);
+    $decoded = ($raw !== false && $raw !== '') ? json_decode($raw, true) : null;
+    return is_array($decoded) ? $decoded : null;
+}
+
+/**
+ * Snapshots an item's current state before it gets overwritten. Called from
+ * the edit-save path (with the pre-edit item) and from revision restore
+ * (with the pre-restore item), so both directions stay recoverable. Prunes
+ * to the last SL_ADMIN_MAX_REVISIONS afterwards.
+ *
+ * @param  string $type      Internal type name.
+ * @param  string $fileSlug  The _file value identifying the item.
+ * @param  array  $item      Full item data to snapshot.
+ * @return bool
+ */
+function sl_admin_snapshot_revision(string $type, string $fileSlug, array $item): bool
+{
+    if ($fileSlug === '') return false;
+
+    $dir = sl_admin_revisions_dir($type, $fileSlug);
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+
+    // Filename is the timestamp — nudge forward on the rare same-second collision.
+    $timestamp = time();
+    $path = sl_admin_revision_path($type, $fileSlug, $timestamp);
+    while (file_exists($path)) {
+        $timestamp++;
+        $path = sl_admin_revision_path($type, $fileSlug, $timestamp);
+    }
+
+    if (!_sl_write_json($path, $item)) return false;
+
+    $revisions = sl_admin_list_revisions($type, $fileSlug);
+    if (count($revisions) > SL_ADMIN_MAX_REVISIONS) {
+        foreach (array_slice($revisions, SL_ADMIN_MAX_REVISIONS) as $old) {
+            @unlink($old['path']);
+        }
+    }
+
+    return true;
+}
+
+/**
+ * Replaces the live item with an old revision's content. Snapshots the
+ * pre-restore state first, so restoring is itself undoable, then rebuilds
+ * the index entry to match the restored fields.
+ *
+ * @param  string $type      Internal type name.
+ * @param  string $fileSlug  The _file value identifying the item.
+ * @param  int    $timestamp Revision timestamp to restore.
+ * @return bool
+ */
+function sl_admin_restore_revision(string $type, string $fileSlug, int $timestamp): bool
+{
+    $revision = sl_admin_load_revision($type, $fileSlug, $timestamp);
+    if ($revision === null) return false;
+
+    $current = sl_load_item($type, $fileSlug);
+    if ($current === null) return false;
+
+    sl_admin_snapshot_revision($type, $fileSlug, $current);
+
+    if (!sl_admin_save_item($type, $fileSlug, $revision)) return false;
+
+    $indexEntry          = sl_admin_extract_index_entry($type, $revision);
+    $indexEntry['_file'] = $fileSlug;
+    sl_admin_update_index($type, $indexEntry);
+
+    return true;
+}
+
+/**
+ * Moves an item's revision history to follow a new file slug. Called after
+ * an edit that changes the effective slug (and therefore the physical
+ * filename) — without this, history silently orphans under the old name.
+ *
+ * @param  string $type         Internal type name.
+ * @param  string $oldFileSlug  Previous _file value.
+ * @param  string $newFileSlug  New _file value.
+ */
+function sl_admin_migrate_revisions(string $type, string $oldFileSlug, string $newFileSlug): void
+{
+    if ($oldFileSlug === '' || $newFileSlug === '' || $oldFileSlug === $newFileSlug) return;
+
+    $oldDir = sl_admin_revisions_dir($type, $oldFileSlug);
+    if (!is_dir($oldDir)) return;
+
+    $newDir = sl_admin_revisions_dir($type, $newFileSlug);
+
+    if (!is_dir($newDir)) {
+        $parent = dirname($newDir);
+        if (!is_dir($parent)) mkdir($parent, 0755, true);
+        @rename($oldDir, $newDir);
+        return;
+    }
+
+    // Rare: the destination slug already has its own history (e.g. reused
+    // after a prior rename) — merge file by file, nudging on collision.
+    foreach (glob($oldDir . '/*.json') ?: [] as $file) {
+        $ts     = (int)basename($file, '.json');
+        $target = sl_admin_revision_path($type, $newFileSlug, $ts);
+        while (file_exists($target)) {
+            $ts++;
+            $target = sl_admin_revision_path($type, $newFileSlug, $ts);
+        }
+        @rename($file, $target);
+    }
+    @rmdir($oldDir);
+
+    $merged = sl_admin_list_revisions($type, $newFileSlug);
+    if (count($merged) > SL_ADMIN_MAX_REVISIONS) {
+        foreach (array_slice($merged, SL_ADMIN_MAX_REVISIONS) as $old) {
+            @unlink($old['path']);
+        }
+    }
+}
+
+/**
+ * Removes all revisions for an item. Called when the item itself is
+ * permanently purged from trash, so history does not outlive the content.
+ *
+ * @param  string $type      Internal type name.
+ * @param  string $fileSlug  The _file value identifying the item.
+ */
+function sl_admin_delete_all_revisions(string $type, string $fileSlug): void
+{
+    $dir = sl_admin_revisions_dir($type, $fileSlug);
+    if (!is_dir($dir)) return;
+    foreach (glob($dir . '/*.json') as $file) { @unlink($file); }
+    @rmdir($dir);
+}
+
+/**
+ * Deletes a single revision from an item's history.
+ *
+ * @param  string $type      Internal type name.
+ * @param  string $fileSlug  The _file value identifying the item.
+ * @param  int    $timestamp Revision timestamp to delete.
+ * @return bool
+ */
+function sl_admin_delete_revision(string $type, string $fileSlug, int $timestamp): bool
+{
+    $path = sl_admin_revision_path($type, $fileSlug, $timestamp);
+    if (!file_exists($path)) return false;
+    return @unlink($path);
 }
 
 // ─── Index write operations ────────────────────────────────────────────────────

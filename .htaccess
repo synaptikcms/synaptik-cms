@@ -11,8 +11,9 @@ RewriteRule ^theme-[^/]+/ index.php [QSA,L]
 RewriteRule ^get-files\.php$ file-manager.php?action=get_files [QSA,L]
 RewriteRule ^file-upload\.php$ file-manager.php [QSA,L]
 
-# llms.txt — LLM indexer summary (spec: https://llmstxt.org/)
-RewriteRule ^llms\.txt$ core/llms.php [QSA,L]
+# llms.txt / llms-full.txt — LLM indexer files (spec: https://llmstxt.org/)
+RewriteRule ^llms\.txt$ index.php?_llms=1 [QSA,L]
+RewriteRule ^llms-full\.txt$ index.php?_llms=full [QSA,L]
 
 # Legacy backward compat: contact-process.php and search.php moved to /core/
 RewriteRule ^contact-process\.php$ core/contact-process.php [QSA,L]
@@ -69,15 +70,31 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
 
     # Content Security Policy
-    # script-src  : theme JS + hCaptcha widget loader + optional CDNs (commented)
+    # script-src  : self + hCaptcha widget loader + optional CDNs (commented) —
+    #               'unsafe-inline' dropped — all front-end JS lives in external
+    #               files now; server-rendered data reaches it via
+    #               <script type="application/json"> islands (see front-boot.js).
+    #               One exception, allow-listed by hash instead of
+    #               'unsafe-inline': the pre-paint preference-boot snippet
+    #               (theme dark/light, sidebar-collapsed state) is inlined in
+    #               each theme's header.php rather than loaded from a separate
+    #               file, to avoid an extra render-blocking request — it MUST
+    #               run synchronously before first paint, so defer/async isn't
+    #               an option. Every occurrence across every theme is required
+    #               to be byte-identical (see the comment inside each one), so
+    #               this single hash covers all of them. Recompute and update
+    #               this value if that snippet's code is ever edited:
+    #               printf '<snippet>' | openssl dgst -sha256 -binary | base64
     # frame-src   : hCaptcha iframe only
-    # style-src   : theme CSS + inline styles + Google Fonts (if used)
+    # style-src   : theme CSS + inline styles + Google Fonts (if used) —
+    #               'unsafe-inline' kept — user-authored content (articles/pages)
+    #               can carry inline style="" attributes from the rich-text editor.
     # font-src    : Google Fonts glyphs (if used) — remove if not needed
     # img-src     : local images, base64 data URIs, blob (e.g. image previews)
     # connect-src : same-origin XHR/fetch + hCaptcha verification API
     Header always set Content-Security-Policy "\
 default-src 'self'; \
-script-src 'self' 'unsafe-inline' https://js.hcaptcha.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.googletagmanager.com; \
+script-src 'self' 'sha256-RqVnOS8pj4947anya5Z/mOyZKJ4qPrskDF5wu1ZDWgM=' https://js.hcaptcha.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.googletagmanager.com; \
 frame-src https://newassets.hcaptcha.com; \
 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.bunny.net https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; \
 font-src 'self' https://fonts.gstatic.com https://fonts.bunny.net https://cdn.jsdelivr.net; \

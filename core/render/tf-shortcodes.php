@@ -196,7 +196,11 @@ function render_content_html($html, $item = null)
         );
     }
 
-    return $html;
+    // Theme filter ('the_content') runs first — a theme's own functions.php
+    // customizing its own markup — then the plugin filter, for cross-cutting
+    // concerns like tracking or link rewriting that shouldn't live in a theme.
+    $html = apply_theme_filters('the_content', $html);
+    return pl_apply_filter('render_content_html', $html, $item);
 }
 
 // ── Excerpt & attribute helpers ───────────────────────────────────────────────
@@ -291,7 +295,7 @@ function render_recent_articles_shortcode(int $limit, string $tag = '', string $
         $html .= '<article class="article-card">';
         if (!empty($a['image'])) {
             $html .= '<div class="article-thumbnail"><a href="' . $url . '">'
-                   . '<img src="' . getBaseUrl() . htmlspecialchars($a['image']) . '" alt="' . htmlspecialchars($a['title']) . '" loading="lazy">'
+                   . '<img src="' . getBaseUrl() . htmlspecialchars($a['image']) . '" alt="' . htmlspecialchars(!empty($a['image_alt']) ? $a['image_alt'] : $a['title']) . '" loading="lazy"' . _image_dimensions_attr($a['image']) . '>'
                    . '</a></div>';
         }
         $html .= '<div class="article-details">';
@@ -344,7 +348,7 @@ function render_recent_projects_shortcode(int $limit): string
         $html .= '<article class="' . $cardClass . '">';
         if (!empty($p['image'])) {
             $html .= '<div class="project-thumbnail">'
-                   . '<img src="' . getBaseUrl() . htmlspecialchars($p['image']) . '" alt="' . htmlspecialchars($p['title']) . '" loading="lazy">'
+                   . '<img src="' . getBaseUrl() . htmlspecialchars($p['image']) . '" alt="' . htmlspecialchars(!empty($p['image_alt']) ? $p['image_alt'] : $p['title']) . '" loading="lazy"' . _image_dimensions_attr($p['image']) . '>'
                    . '</div>';
         }
         $html .= '<div class="project-overlay">';

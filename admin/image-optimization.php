@@ -3,6 +3,15 @@
  * Image optimization helpers for SynaptikCMS.
  */
 
+// Direct-access guard. Effective on nginx too, unlike .htaccess. Safe for
+// every caller: file-upload.php, batch-optimize.php and file-manager.php all
+// require includes/admin-functions.php (which defines INCLUDED) before
+// requiring this file.
+if (!defined('INCLUDED')) {
+	http_response_code(403);
+	exit;
+}
+
 function optimizeImage($sourceFile, $destinationFile, $maxWidth = 1920, $maxHeight = 1080, $quality = 85, $createThumbnail = false, $thumbnailPath = '', $thumbWidth = 300, $thumbHeight = 300, $deleteOriginal = false, $convertToWebP = false) {
 	if (!file_exists($sourceFile)) return false;
 
@@ -219,14 +228,4 @@ function ensureThumbnailsDir($path) {
 	}
 
 	return $thumbsPath;
-}
-
-function isWebPSupported() {
-	if (!extension_loaded('gd') || !function_exists('imagewebp')) return false;
-	$gdInfo = gd_info();
-	if (isset($gdInfo['GD Version'])) {
-		preg_match('/\d+\.\d+\.\d+/', $gdInfo['GD Version'], $matches);
-		if (isset($matches[0])) return version_compare($matches[0], '2.2.0', '>=');
-	}
-	return true;
 }

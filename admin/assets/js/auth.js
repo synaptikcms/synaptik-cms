@@ -1,0 +1,1 @@
+!function(){var t=document.body.getAttribute("data-locked-reload-ms");t&&setTimeout(function(){window.location.reload()},parseInt(t,10))}();

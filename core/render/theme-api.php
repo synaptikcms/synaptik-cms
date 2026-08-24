@@ -175,31 +175,3 @@ function is_current_page($type, $slug = '') {
     if (empty($slug)) return $current_type === $type;
     return $current_type === $type && $current_slug === $slug;
 }
-
-
-// ─── Pagination ───────────────────────────────────────────────────────────────
-
-/**
- * Generates HTML pagination links for a content list.
- *
- * @param int    $total_items    Total number of items
- * @param int    $items_per_page Items per page
- * @param int    $current_page   Current active page
- * @param string $type           Content type used for URL generation
- * @return string HTML pagination block, or empty string if only one page
- */
-function get_pagination($total_items, $items_per_page, $current_page, $type) {
-    $total_pages = ceil($total_items / $items_per_page);
-    if ($total_pages <= 1) return '';
-
-    $output = '<div class="pagination">';
-    for ($i = 1; $i <= $total_pages; $i++) {
-        if ($i == $current_page) {
-            $output .= '<span class="current-page">' . $i . '</span>';
-        } else {
-            $output .= '<a href="' . cleanUrl($type, '', $i) . '" class="page-link">' . $i . '</a>';
-        }
-    }
-    $output .= '</div>';
-    return $output;
-}

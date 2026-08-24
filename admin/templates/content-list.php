@@ -12,8 +12,18 @@ require_once 'includes/admin-functions.php';
 $_cl_all_items  = [];
 $_cl_categories = [];
 
+// Author name shown per item only on multi-user sites — on the common
+// single-admin site it would just be visual noise repeated on every row.
+$_cl_authors = [];
+foreach (admin_load_users() as $_cl_u) {
+	$_cl_authors[$_cl_u['id']] = $_cl_u['display_name'] ?: $_cl_u['username'];
+}
+$_cl_show_authors = count($_cl_authors) > 1;
+
 if (isset($data[$contentType]) && is_array($data[$contentType])) {
 	foreach ($data[$contentType] as $_cl_idx => $_cl_item) {
+		if (!admin_can_edit_item($_cl_item)) continue;
+
 		$_cl_effective_slug = !empty($_cl_item['custom_slug'])
 			? $_cl_item['custom_slug']
 			: ($_cl_item['slug'] ?? '');
@@ -43,6 +53,7 @@ if (isset($data[$contentType]) && is_array($data[$contentType])) {
 			'publish_at'    => $_cl_item['publish_at'] ?? '',
 			'slug'          => $_cl_effective_slug,
 			'custom_slug'   => $_cl_item['custom_slug'] ?? '',
+			'author_name'   => $_cl_show_authors ? ($_cl_authors[$_cl_item['author_id'] ?? ''] ?? '') : '',
 			'view_url'      => adminCleanUrl(
 				$contentType,
 				$_cl_item['slug']        ?? '',
@@ -57,6 +68,40 @@ if (isset($data[$contentType]) && is_array($data[$contentType])) {
 	}
 }
 sort($_cl_categories);
+
+// ── Pending autosave detection ──────────────────────────────────────────────
+// A never-published item materializes as a real content item (status=draft)
+// on its first autosave (see autosave.php) — it's just a normal row below,
+// nothing to synthesize here. data/drafts/*.json only ever holds a pending
+// snapshot layered on top of an already-published/scheduled item; flag that
+// item's real row with 'has_pending_autosave' instead of overwriting it,
+// since autosave deliberately never touches the live file for those.
+$_cl_pending_autosave_idx = []; // real idx => draft id, for items with a newer unsaved snapshot
+
+$_cl_draftsDir = sl_admin_drafts_dir();
+if (is_dir($_cl_draftsDir)) {
+	foreach (glob($_cl_draftsDir . '/*.json') ?: [] as $_cl_draftFile) {
+		$_cl_draftData = json_decode(file_get_contents($_cl_draftFile), true);
+		if (!is_array($_cl_draftData) || ($_cl_draftData['type'] ?? '') !== $contentType) continue;
+		if (!admin_can_edit_draft($_cl_draftData)) continue;
+		if (($_cl_draftData['index'] ?? -1) < 0) continue;
+
+		$_cl_pending_autosave_idx[$_cl_draftData['index']] = $_cl_draftData['id'];
+	}
+}
+
+// Backfill the "unsaved changes" flag now that the drafts scan above has
+// run — can't do this inline in the first loop since it needs to know
+// about every draft file first.
+foreach ($_cl_all_items as &$_cl_row) {
+	if (isset($_cl_pending_autosave_idx[$_cl_row['idx']])) {
+		$_cl_row['has_pending_autosave'] = true;
+		$_cl_row['autosave_url'] = 'index.php?action=drafts&draft_action=restore&id=' . urlencode($_cl_pending_autosave_idx[$_cl_row['idx']]) . '&csrf_token=' . urlencode($_SESSION['csrf_token'] ?? '');
+	} else {
+		$_cl_row['has_pending_autosave'] = false;
+	}
+}
+unset($_cl_row);
 
 // ── Initial payload cap ───────────────────────────────────────────────────────
 // Send only the first CL_INITIAL_LIMIT items inline.
@@ -83,7 +128,7 @@ $_cl_items        = $_cl_use_ajax
 <div class="content-list-header">
 	<div class="list-actions">
 		<a href="index.php?action=add&type=<?php echo urlencode($contentType); ?>" class="btn btn-primary btn-sm">
-			<span class=""><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg></span><?php printf(__t('add_new_type'), __t('type_' . $contentType)); ?>
+			<span class=""><?php echo admin_icon('circle-plus', '', 14); ?></span><?php printf(hsc(__t('add_new_type')), hsc(sl_type_label($contentType))); ?>
 		</a>
 		<button id="enable-batch" class="btn btn-outline btn-sm"><?php _e('batch_select'); ?></button>
 		<div class="batch-actions" id="batch-actions" style="display: none;">
@@ -95,8 +140,8 @@ $_cl_items        = $_cl_use_ajax
 	</div>
 	<div class="view-toggle">
 		<button id="view-toggle-btn" class="btn btn-outline btn-sm" title="<?php _e('switch_view'); ?>">
-			<span class="icon-list"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:4px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg><?php _e('view_card'); ?></span>
-			<span class="icon-card"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:4px"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><?php _e('view_list'); ?></span>
+			<span class="icon-list"><?php echo admin_icon('grid', 'style="vertical-align:-2px;margin-right:4px"', 13); ?><?php _e('view_card'); ?></span>
+			<span class="icon-card"><?php echo admin_icon('list', 'style="vertical-align:-2px;margin-right:4px"', 13); ?><?php _e('view_list'); ?></span>
 		</button>
 	</div>
 </div>
@@ -113,26 +158,32 @@ $_cl_json_categories = json_encode($_cl_categories, JSON_HEX_TAG | JSON_HEX_AMP 
 <script id="cl-data" type="application/json"
 	data-type="<?php echo hsc($contentType); ?>"
 	data-edit-base="index.php?action=edit&amp;type=<?php echo urlencode($contentType); ?>&amp;index="
-	data-type-label="<?php echo hsc(__t('type_' . $contentType)); ?>"
+	data-type-label="<?php echo hsc(sl_type_label($contentType)); ?>"
 	data-i18n-edit="<?php echo hsc(__t('edit')); ?>"
 	data-i18n-view="<?php echo hsc(__t('view')); ?>"
 	data-i18n-duplicate="<?php echo hsc(__t('duplicate', 'Duplicate')); ?>"
 	data-i18n-delete="<?php echo hsc(__t('delete')); ?>"
-	data-duplicate-base="index.php?action=duplicate&amp;type=<?php echo urlencode($contentType); ?>&amp;index="
+	data-duplicate-base="index.php?action=duplicate&amp;type=<?php echo urlencode($contentType); ?>&amp;csrf_token=<?php echo urlencode($_SESSION['csrf_token']); ?>&amp;index="
 	data-i18n-no-date="<?php echo hsc(__t('no_date')); ?>"
 	data-i18n-no-tags="<?php echo hsc(__t('no_tags')); ?>"
 	data-i18n-uncategorized="<?php echo hsc(__t('uncategorized')); ?>"
+	data-i18n-published="<?php echo hsc(__t('status_published')); ?>"
 	data-i18n-scheduled="<?php echo hsc(__t('scheduled')); ?>"
+	data-i18n-draft="<?php echo hsc(__t('status_draft')); ?>"
+	data-i18n-unpublished="<?php echo hsc(__t('status_unpublished')); ?>"
+	data-i18n-unsaved-changes="<?php echo hsc(__t('unsaved_changes')); ?>"
 	data-i18n-searching="<?php echo hsc(__t('searching', 'Searching…')); ?>"
 	data-total="<?php echo $_cl_total; ?>"
 	data-use-ajax="<?php echo $_cl_use_ajax ? '1' : '0'; ?>"
 	data-ajax-url="list-content.php"
+	data-show-authors="<?php echo $_cl_show_authors ? '1' : '0'; ?>"
+	data-i18n-author-col="<?php echo hsc(__t('author_col', 'Author')); ?>"
 ><?php echo $_cl_json_items; ?></script>
 
 <div class="content-filters">
 	<div class="search-filter">
 		<input type="text" id="content-search"
-			placeholder="<?php printf(__t('search_type'), __t('type_' . $contentType . 's')); ?>">
+			placeholder="<?php printf(hsc(__t('search_type')), hsc(sl_type_label($contentType, true))); ?>">
 		<button id="clear-search" class="clear-filter-list-btn">×</button>
 	</div>
 
@@ -146,6 +197,16 @@ $_cl_json_categories = json_encode($_cl_categories, JSON_HEX_TAG | JSON_HEX_AMP 
 		</select>
 	</div>
 	<?php endif; ?>
+
+	<div class="status-filter">
+		<select id="status-filter">
+			<option value=""><?php _e('all_statuses'); ?></option>
+			<option value="published"><?php _e('status_published'); ?></option>
+			<option value="scheduled"><?php _e('scheduled'); ?></option>
+			<option value="draft"><?php _e('status_draft'); ?></option>
+			<option value="unpublished"><?php _e('status_unpublished'); ?></option>
+		</select>
+	</div>
 
 	<div class="sort-filter">
 		<select id="sort-filter">
@@ -177,14 +238,19 @@ $_cl_json_categories = json_encode($_cl_categories, JSON_HEX_TAG | JSON_HEX_AMP 
 		<table>
 		<thead>
 			<tr>
-				<th class="batch-checkbox-cell" style="display: none;"><?php _e('select_chk'); ?></th>
+				<th class="batch-checkbox-cell" style="display: none;">
+					<input type="checkbox" id="batch-select-all" title="<?php echo hsc(__t('select_all_visible', 'Select all visible')); ?>">
+				</th>
 				<th class="sortable" data-sort="title"><?php _e('title'); ?> <span class="sort-icon">↕</span></th>
 				<th class="sortable" data-sort="date"><?php _e('date'); ?> <span class="sort-icon">↕</span></th>
+				<th class="status-col"><?php _e('status_col', 'Status'); ?></th>
 				<?php if ($contentType === 'article' || $contentType === 'project'): ?>
 				<th class="sortable" data-sort="category"><?php _e('category'); ?> <span class="sort-icon">↕</span></th>
 				<?php endif; ?>
-				<th><?php _e('tags'); ?></th>
-				<th><?php _e('actions'); ?></th>
+				<?php if ($_cl_show_authors): ?>
+				<th class="author-col"><?php _e('author_col', 'Author'); ?></th>
+				<?php endif; ?>
+				<th class="tags-col"><?php _e('tags'); ?></th>
 			</tr>
 		</thead>
 		<tbody id="cl-tbody"></tbody>
@@ -205,9 +271,9 @@ $_cl_json_categories = json_encode($_cl_categories, JSON_HEX_TAG | JSON_HEX_AMP 
 
 <div class="empty-content">
 	<div class="empty-icon"><?php echo strtoupper(substr($contentType, 0, 1)); ?></div>
-	<p><?php printf(__t('no_type_found'), __t('type_' . $contentType . 's')); ?></p>
+	<p><?php printf(hsc(__t('no_type_found')), hsc(sl_type_label($contentType, true))); ?></p>
 	<a href="index.php?action=add&type=<?php echo urlencode($contentType); ?>" class="btn btn-primary">
-		<?php printf(__t('create_first'), __t('type_' . $contentType)); ?>
+		<?php printf(hsc(__t('create_first')), hsc(sl_type_label($contentType))); ?>
 	</a>
 </div>
 
@@ -221,7 +287,7 @@ $_cl_json_categories = json_encode($_cl_categories, JSON_HEX_TAG | JSON_HEX_AMP 
 			<span class="modal-close">&times;</span>
 		</div>
 		<div class="modal-content">
-			<p id="modal-message"></p>
+			<div id="modal-message"></div>
 		</div>
 		<div class="modal-footer"></div>
 	</div>

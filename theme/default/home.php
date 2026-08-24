@@ -43,7 +43,7 @@ if (!empty($data['project']) && !empty($settings['show_projects_on_homepage'])) 
         <?php if (!empty($recentArticles)): ?>
         <div class="home-section">
             <div class="home-section-header">
-                <span class="home-section-label"><?php echo __t('articles'); ?></span>
+                <span class="home-section-label"><?php echo sl_type_label('article', true); ?></span>
                 <a href="<?php echo cleanUrl('article'); ?>" class="home-section-all"><?php echo __t('view_all') ?: 'view all'; ?> →</a>
             </div>
             <ol class="title-list" role="list">
@@ -56,7 +56,7 @@ if (!empty($data['project']) && !empty($settings['show_projects_on_homepage'])) 
         <?php if (!empty($recentProjects)): ?>
         <div class="home-section">
             <div class="home-section-header">
-                <span class="home-section-label"><?php echo __t('projects'); ?></span>
+                <span class="home-section-label"><?php echo sl_type_label('project', true); ?></span>
                 <a href="<?php echo cleanUrl('project'); ?>" class="home-section-all"><?php echo __t('view_all') ?: 'view all'; ?> →</a>
             </div>
             <ol class="title-list" role="list">

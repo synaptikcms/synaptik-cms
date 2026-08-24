@@ -1,4 +1,4 @@
-<FilesMatch "^(search|feed|contact-process|llms)\.php$">
+<FilesMatch "^(search|feed|contact-process|llms|llms-full)\.php$">
     <IfModule mod_authz_core.c>
         Require all granted
     </IfModule>
@@ -7,7 +7,7 @@
     </IfModule>
 </FilesMatch>
 
-<FilesMatch "^(?!(search|feed|contact-process|llms)\.php$).*\.php$">
+<FilesMatch "^(?!(search|feed|contact-process|llms|llms-full)\.php$).*\.php$">
     <IfModule mod_authz_core.c>
         Require all denied
     </IfModule>

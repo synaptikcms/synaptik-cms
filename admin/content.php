@@ -19,81 +19,63 @@ $index = isset($_GET['index']) ? (int)$_GET['index'] : null;
 // Load the database
 $data = loadData();
 
-// Handle batch deletion
+// Handle batch deletion — moves items to trash instead of deleting them
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['batch_action']) && $_POST['batch_action'] === 'delete') {
-	error_log('Batch deletion requested');
-	
 	$contentType = $_POST['content_type'] ?? '';
 	$selectedItemsJson = $_POST['selected_items'] ?? '[]';
-	
-	error_log('Content type: ' . $contentType);
-	error_log('Selected items JSON: ' . $selectedItemsJson);
-	
-	// Decode the JSON data
 	$selectedItems = json_decode($selectedItemsJson, true);
-	
+
 	if (json_last_error() !== JSON_ERROR_NONE) {
-		error_log('JSON decode error: ' . json_last_error_msg());
 		$_SESSION['error'] = __t('batch_delete_invalid_data');
 		header('Location: index.php');
 		exit;
 	}
-	
-	error_log('Decoded selected items: ' . print_r($selectedItems, true));
-	
-	if (!empty($contentType) && !empty($selectedItems)) {
-	// Load via wrapper — uses split-file architecture
-	$data = loadData();
-	
-	if (!isset($data[$contentType])) {
-		error_log('Content type not found in data: ' . $contentType);
-		$_SESSION['error'] = __t('content_type_not_found');
-		header('Location: index.php');
-		exit;
-	}
-	
-	// Sort indexes in descending order to avoid index shifting problems
-	rsort($selectedItems);
-	$deletedCount = 0;
-	
-	foreach ($selectedItems as $index) {
-		$index = (int)$index;
-		
-		// Check if index exists
-		if (isset($data[$contentType][$index])) {
-			// Remove the item
-			unset($data[$contentType][$index]);
-			$deletedCount++;
-			error_log("Deleted item at index $index");
-		} else {
-			error_log("Index $index not found in $contentType");
-		}
-	}
-	
-	// Re-index the array to maintain sequential keys
-	$data[$contentType] = array_values($data[$contentType]);
-	
-	// Save via wrapper — distributes to individual files
-	saveData($data);
-		
-		// Set success message
-		$_SESSION['message'] = sprintf(__t('batch_deleted_count'), $deletedCount, strtolower($contentType));
-		
-		error_log("Batch deletion complete: $deletedCount items deleted");
-		
-		// Redirect to content type list
-		header('Location: index.php?type=' . urlencode($contentType));
-		exit;
-	} else {
-		error_log('Invalid parameters for batch deletion');
+
+	if (empty($contentType) || empty($selectedItems)) {
 		$_SESSION['error'] = __t('batch_delete_invalid_params');
 		header('Location: index.php');
 		exit;
 	}
+
+	// Load via wrapper — uses split-file architecture
+	$data = loadData();
+
+	if (!isset($data[$contentType])) {
+		$_SESSION['error'] = __t('content_type_not_found');
+		header('Location: index.php');
+		exit;
+	}
+
+	$trashedCount = 0;
+
+	foreach ($selectedItems as $itemIndex) {
+		$itemIndex = (int)$itemIndex;
+		if (!isset($data[$contentType][$itemIndex])) continue;
+		if (!admin_can_edit_item($data[$contentType][$itemIndex])) continue;
+
+		$item          = $data[$contentType][$itemIndex];
+		$effectiveSlug = sl_effective_slug($item);
+		$found         = sl_find_in_index($contentType, $effectiveSlug);
+		$fileSlug      = $found ? sl_file_slug($found[0]) : $effectiveSlug;
+
+		if (sl_admin_trash_item($contentType, $fileSlug)) {
+			$trashedCount++;
+		}
+	}
+
+	$_SESSION['message'] = sprintf(__t('batch_moved_to_trash_count'), $trashedCount);
+
+	// Redirect to content type list
+	header('Location: index.php?type=' . urlencode($contentType));
+	exit;
 }
 
 // Handle form submissions
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($action === 'add' || $action === 'edit')) {
+		if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', $_POST['csrf_token'])) {
+			http_response_code(403);
+			exit(__t('access_denied', 'Access denied.'));
+		}
 		// Process regular content form
 		switch ($action) {
 			case 'add':
@@ -131,6 +113,10 @@ if ($action === 'get_content_items') {
 }
 
 // Handle duplicate action via GET
+if ($action === 'duplicate' && $contentType && isset($data[$contentType][$index]) && !admin_can_edit_item($data[$contentType][$index])) {
+	http_response_code(403);
+	exit(__t('access_denied', 'Access denied.'));
+}
 if ($action === 'duplicate' && $contentType && isset($data[$contentType][$index])) {
 	$original = $data[$contentType][$index];
 	$copy = $original;
@@ -159,24 +145,69 @@ if ($action === 'duplicate' && $contentType && isset($data[$contentType][$index]
 	exit;
 }
 
-// Handle delete action via GET
+// Handle delete action via GET — moves the item to trash instead of deleting it
+if ($action === 'delete' && $contentType && isset($data[$contentType][$index]) && !admin_can_edit_item($data[$contentType][$index])) {
+	http_response_code(403);
+	exit(__t('access_denied', 'Access denied.'));
+}
 if ($action === 'delete' && $contentType && isset($data[$contentType][$index])) {
-	unset($data[$contentType][$index]);
-	$data[$contentType] = array_values($data[$contentType]); // Re-index the array
-	saveData($data);
-	
+	$item          = $data[$contentType][$index];
+	$effectiveSlug = sl_effective_slug($item);
+	$found         = sl_find_in_index($contentType, $effectiveSlug);
+	$fileSlug      = $found ? sl_file_slug($found[0]) : $effectiveSlug;
+
+	sl_admin_trash_item($contentType, $fileSlug);
+
 	// Store the message in session to display after redirect
-	$_SESSION['message'] = __t('content_deleted');
-	
+	$_SESSION['message'] = __t('content_moved_to_trash');
+
 	// Redirect back to the content type list view
 	header('Location: index.php?type=' . urlencode($contentType));
 	exit;
 }
 
+// Handle unpublish action via GET — pulls a published/scheduled item back
+// off the site so it can be reworked. Status becomes 'unpublished', not
+// 'draft': the two are shown differently (a never-published item vs. one
+// that used to be live) even though both are hidden from the front end
+// and treated the same way by autosave/trash. A pure status change: no
+// content is touched, so no revision snapshot (nothing to diff against).
+if ($action === 'unpublish' && $contentType && isset($data[$contentType][$index]) && !admin_can_edit_item($data[$contentType][$index])) {
+	http_response_code(403);
+	exit(__t('access_denied', 'Access denied.'));
+}
+if ($action === 'unpublish' && $contentType && isset($data[$contentType][$index])) {
+	$item = $data[$contentType][$index];
+	if (($item['status'] ?? 'published') !== 'unpublished') {
+		$item['status']        = 'unpublished';
+		$item['publish_at']    = '';
+		$item['last_modified'] = date('Y-m-d H:i');
+
+		$effectiveSlug = sl_effective_slug($item);
+		$found         = sl_find_in_index($contentType, $effectiveSlug);
+		$fileSlug      = $found ? sl_file_slug($found[0]) : $effectiveSlug;
+
+		sl_admin_save_item($contentType, $fileSlug, $item);
+		$indexEntry          = sl_admin_extract_index_entry($contentType, $item);
+		$indexEntry['_file'] = $fileSlug;
+		sl_admin_update_index($contentType, $indexEntry);
+
+		$_SESSION['message'] = __t('content_unpublished');
+	}
+	header('Location: index.php?action=edit&type=' . urlencode($contentType) . '&index=' . $index);
+	exit;
+}
+
 // Prepare data for edit form
-$editItem = null;
-if ($action === 'edit' && $contentType && isset($data[$contentType][$index])) {
+$editItem  = null;
+$revisions = [];
+if ($action === 'edit' && $contentType && isset($data[$contentType][$index]) && admin_can_edit_item($data[$contentType][$index])) {
 	$editItem = $data[$contentType][$index];
+
+	$editEffectiveSlug = sl_effective_slug($editItem);
+	$editFound         = sl_find_in_index($contentType, $editEffectiveSlug);
+	$editFileSlug      = $editFound ? sl_file_slug($editFound[0]) : $editEffectiveSlug;
+	$revisions          = sl_admin_list_revisions($contentType, $editFileSlug);
 }
 
 
@@ -495,76 +526,246 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 	}
 }
 
-// Handle drafts actions
+// Handle drafts actions — data/drafts/*.json only ever holds a pending
+// autosave snapshot layered on top of an already-published/scheduled item
+// (see autosave.php). A never-published item now materializes as a real
+// content item on its first autosave, so there is no "restore into a blank
+// add form" case here anymore — restoring always means "load this pending
+// snapshot into that item's normal edit page".
 if ($action === 'drafts') {
-	$draftsDir = 'drafts';
+	$draftsDir = sl_admin_drafts_dir();
 	$draftSubAction = $_GET['draft_action'] ?? '';
-
-	if ($draftSubAction === 'delete' && isset($_GET['id'])) {
-		$draftFile = $draftsDir . '/' . basename($_GET['id']) . '.json';
-		if (file_exists($draftFile)) {
-			unlink($draftFile);
-			$_SESSION['message'] = __t('draft_deleted');
-		} else {
-			$_SESSION['error'] = __t('draft_not_found');
-		}
-		header('Location: index.php?action=drafts');
-		exit;
-	}
 
 	if ($draftSubAction === 'restore' && isset($_GET['id'])) {
 		$draftFile = $draftsDir . '/' . basename($_GET['id']) . '.json';
 		if (file_exists($draftFile)) {
 			$draftData = json_decode(file_get_contents($draftFile), true);
+			if ($draftData && !admin_can_edit_draft($draftData)) {
+				http_response_code(403);
+				exit(__t('access_denied', 'Access denied.'));
+			}
 			if ($draftData) {
 				$_SESSION['draft_data'] = $draftData;
-				if ($draftData['index'] >= 0) {
-					header('Location: index.php?action=edit&type=' . urlencode($draftData['type']) . '&index=' . $draftData['index'] . '&restore=1');
-				} else {
-					header('Location: index.php?action=add&type=' . urlencode($draftData['type']) . '&restore=1');
-				}
+				header('Location: index.php?action=edit&type=' . urlencode($draftData['type']) . '&index=' . $draftData['index'] . '&restore=1');
 				exit;
 			}
 		}
 		$_SESSION['error'] = __t('draft_restore_failed');
-		header('Location: index.php?action=drafts');
+		header('Location: index.php');
 		exit;
 	}
 
-	if ($draftSubAction === 'batch_delete' && isset($_POST['selected_drafts'])) {
-		$deletedCount = 0;
-		if (is_array($_POST['selected_drafts']) && !empty($_POST['selected_drafts'])) {
-			foreach ($_POST['selected_drafts'] as $draftId) {
-				$draftFile = $draftsDir . '/' . basename($draftId) . '.json';
-				if (file_exists($draftFile)) { unlink($draftFile); $deletedCount++; }
+	// Discard a pending snapshot without applying it — the published/scheduled
+	// item it was layered on top of is untouched either way, so this is a
+	// simple, permanent delete (no trash, nothing "content"-like is lost).
+	if ($draftSubAction === 'delete' && isset($_GET['id'])) {
+		$draftFile = $draftsDir . '/' . basename($_GET['id']) . '.json';
+		$draftData = file_exists($draftFile) ? json_decode(file_get_contents($draftFile), true) : null;
+		if ($draftData && !admin_can_edit_draft($draftData)) {
+			http_response_code(403);
+			exit(__t('access_denied', 'Access denied.'));
+		}
+		$_backTo = 'index.php';
+		if ($draftData) {
+			unlink($draftFile);
+			$_SESSION['message'] = __t('pending_discarded');
+			$_backTo = 'index.php?action=edit&type=' . urlencode($draftData['type']) . '&index=' . $draftData['index'];
+		} else {
+			$_SESSION['error'] = __t('draft_not_found');
+		}
+		header('Location: ' . $_backTo);
+		exit;
+	}
+
+	header('Location: index.php');
+	exit;
+}
+
+// Handle trash actions
+if ($action === 'trash') {
+	$trashSubAction = $_GET['trash_action'] ?? '';
+	$trashTypes = ['article', 'page', 'project'];
+
+	// Lazy sweep — no cron in this codebase, so expired items are purged
+	// whenever the trash view is opened.
+	sl_admin_purge_expired_trash(30);
+
+	// Trash entries carry the same index fields as live items (including
+	// author_id), so ownership can be checked the same way as content.php's
+	// other guards. Looks up by type+file since that's all GET/POST carry.
+	$_trash_find_entry = function (string $type, string $file) use ($trashTypes) {
+		if (!in_array($type, $trashTypes, true)) return null;
+		foreach (sl_admin_load_trash_index($type) as $entry) {
+			if (($entry['_file'] ?? '') === $file) return $entry;
+		}
+		return null;
+	};
+
+	if ($trashSubAction === 'restore' && isset($_GET['type'], $_GET['file']) && in_array($_GET['type'], $trashTypes, true)) {
+		$_trashEntry = $_trash_find_entry($_GET['type'], basename($_GET['file']));
+		if ($_trashEntry === null || !admin_can_edit_item($_trashEntry)) {
+			http_response_code(403);
+			exit(__t('access_denied', 'Access denied.'));
+		}
+		if (sl_admin_restore_trashed_item($_GET['type'], basename($_GET['file']))) {
+			$_SESSION['message'] = __t('content_restored');
+			sl_admin_log_activity('item_restored_from_trash', $_GET['type'] . ':' . basename($_GET['file']));
+		} else {
+			$_SESSION['error'] = __t('restore_failed');
+		}
+		header('Location: index.php?action=trash');
+		exit;
+	}
+
+	if ($trashSubAction === 'purge' && isset($_GET['type'], $_GET['file']) && in_array($_GET['type'], $trashTypes, true)) {
+		$_trashEntry = $_trash_find_entry($_GET['type'], basename($_GET['file']));
+		if ($_trashEntry === null || !admin_can_edit_item($_trashEntry)) {
+			http_response_code(403);
+			exit(__t('access_denied', 'Access denied.'));
+		}
+		sl_admin_purge_trashed_item($_GET['type'], basename($_GET['file']));
+		$_SESSION['message'] = __t('item_purged');
+		header('Location: index.php?action=trash');
+		exit;
+	}
+
+	if ($trashSubAction === 'batch_restore' && isset($_POST['selected_items'])) {
+		$selected = json_decode($_POST['selected_items'], true);
+		$restoredCount = 0;
+		if (is_array($selected)) {
+			foreach ($selected as $sel) {
+				$selType = $sel['type'] ?? '';
+				$selFile = $sel['file'] ?? '';
+				if ($selFile === '') continue;
+				$_trashEntry = $_trash_find_entry($selType, basename($selFile));
+				if ($_trashEntry === null || !admin_can_edit_item($_trashEntry)) continue;
+				if (sl_admin_restore_trashed_item($selType, basename($selFile))) {
+					$restoredCount++;
+				}
 			}
-			$_SESSION['message'] = sprintf(__t('drafts_deleted_count'), $deletedCount);
 		}
-		header('Location: index.php?action=drafts');
+		if ($restoredCount > 0) sl_admin_log_activity('item_restored_from_trash', $restoredCount . ' items (batch)');
+		$_SESSION['message'] = sprintf(__t('batch_restored_count'), $restoredCount);
+		header('Location: index.php?action=trash');
 		exit;
 	}
 
-	if ($draftSubAction === 'purge_all') {
-		$deletedCount = 0;
-		if (is_dir($draftsDir)) {
-			foreach (glob($draftsDir . '/*.json') as $file) {
-				if (unlink($file)) $deletedCount++;
+	if ($trashSubAction === 'batch_purge' && isset($_POST['selected_items'])) {
+		$selected = json_decode($_POST['selected_items'], true);
+		$purgedCount = 0;
+		if (is_array($selected)) {
+			foreach ($selected as $sel) {
+				$selType = $sel['type'] ?? '';
+				$selFile = $sel['file'] ?? '';
+				if ($selFile === '') continue;
+				$_trashEntry = $_trash_find_entry($selType, basename($selFile));
+				if ($_trashEntry === null || !admin_can_edit_item($_trashEntry)) continue;
+				sl_admin_purge_trashed_item($selType, basename($selFile));
+				$purgedCount++;
 			}
-			$_SESSION['message'] = sprintf(__t('drafts_deleted_count'), $deletedCount);
 		}
-		header('Location: index.php?action=drafts');
+		$_SESSION['message'] = sprintf(__t('batch_purged_count'), $purgedCount);
+		header('Location: index.php?action=trash');
 		exit;
 	}
 
-	// Build drafts list for the template
-	$drafts = [];
-	if (file_exists($draftsDir)) {
-		foreach (glob($draftsDir . '/*.json') as $file) {
-			$draftData = json_decode(file_get_contents($file), true);
-			if ($draftData) $drafts[] = $draftData;
+	if ($trashSubAction === 'purge_all') {
+		if (admin_can_manage_all_content()) {
+			$purgedCount = sl_admin_purge_all_trash();
+		} else {
+			// Author: only purge trashed items they own, not everyone's.
+			$purgedCount = 0;
+			foreach ($trashTypes as $trashType) {
+				foreach (sl_admin_load_trash_index($trashType) as $entry) {
+					if (!admin_can_edit_item($entry)) continue;
+					if (sl_admin_purge_trashed_item($trashType, $entry['_file'] ?? '')) $purgedCount++;
+				}
+			}
 		}
-		usort($drafts, fn($a, $b) => $b['timestamp'] - $a['timestamp']);
+		$_SESSION['message'] = sprintf(__t('batch_purged_count'), $purgedCount);
+		header('Location: index.php?action=trash');
+		exit;
 	}
+
+	// Build the trash list for the template — merge all types, newest first
+	$trashItems = [];
+	foreach ($trashTypes as $trashType) {
+		foreach (sl_admin_load_trash_index($trashType) as $entry) {
+			if (!admin_can_edit_item($entry)) continue;
+			$entry['type'] = $trashType;
+			$trashItems[]  = $entry;
+		}
+	}
+	usort($trashItems, fn($a, $b) => ($b['trashed_at'] ?? 0) <=> ($a['trashed_at'] ?? 0));
+}
+
+// Handle revision diff/restore/delete actions
+if (($action === 'revision_diff' || $action === 'revision_restore' || $action === 'delete_revision') && $contentType && isset($data[$contentType][$index]) && !admin_can_edit_item($data[$contentType][$index])) {
+	http_response_code(403);
+	exit(__t('access_denied', 'Access denied.'));
+}
+if (($action === 'revision_diff' || $action === 'revision_restore' || $action === 'delete_revision') && $contentType && isset($data[$contentType][$index])) {
+	$revTimestamp = isset($_GET['timestamp']) ? (int)$_GET['timestamp'] : 0;
+
+	$currentItem          = $data[$contentType][$index];
+	$revEffectiveSlug     = sl_effective_slug($currentItem);
+	$revFound             = sl_find_in_index($contentType, $revEffectiveSlug);
+	$revFileSlug          = $revFound ? sl_file_slug($revFound[0]) : $revEffectiveSlug;
+
+	if ($action === 'revision_restore') {
+		if ($revTimestamp > 0 && sl_admin_restore_revision($contentType, $revFileSlug, $revTimestamp)) {
+			$_SESSION['message'] = __t('revision_restored');
+			sl_admin_log_activity('revision_restored', $contentType . ':' . $revFileSlug);
+		} else {
+			$_SESSION['error'] = __t('revision_restore_failed');
+		}
+		header('Location: index.php?action=edit&type=' . urlencode($contentType) . '&index=' . $index);
+		exit;
+	}
+
+	if ($action === 'delete_revision') {
+		if ($revTimestamp > 0 && sl_admin_delete_revision($contentType, $revFileSlug, $revTimestamp)) {
+			$_SESSION['message'] = __t('revision_deleted');
+			sl_admin_log_activity('revision_deleted', $contentType . ':' . $revFileSlug);
+		} else {
+			$_SESSION['error'] = __t('revision_delete_failed');
+		}
+		header('Location: index.php?action=edit&type=' . urlencode($contentType) . '&index=' . $index);
+		exit;
+	}
+
+	// revision_diff — build the comparison for the template
+	$revisionItem = $revTimestamp > 0 ? sl_admin_load_revision($contentType, $revFileSlug, $revTimestamp) : null;
+	if ($revisionItem === null) {
+		$_SESSION['error'] = __t('revision_not_found');
+		header('Location: index.php?action=edit&type=' . urlencode($contentType) . '&index=' . $index);
+		exit;
+	}
+	$revisionTimestamp = $revTimestamp;
+}
+
+// Handle the pending-autosave diff view — shows what differs between the
+// live saved item and a not-yet-applied Case B snapshot (see autosave.php),
+// so clicking the "unsaved changes" badge explains itself instead of just
+// dumping the pending content into the editor with no context.
+if ($action === 'pending_diff' && $contentType && isset($data[$contentType][$index]) && !admin_can_edit_item($data[$contentType][$index])) {
+	http_response_code(403);
+	exit(__t('access_denied', 'Access denied.'));
+}
+if ($action === 'pending_diff' && $contentType && isset($data[$contentType][$index]) && isset($_GET['draft_id'])) {
+	$pendingDraftId   = basename($_GET['draft_id']);
+	$pendingDraftFile = sl_admin_drafts_dir() . '/' . $pendingDraftId . '.json';
+	$pendingDraftData = file_exists($pendingDraftFile) ? json_decode(file_get_contents($pendingDraftFile), true) : null;
+
+	if ($pendingDraftData === null || !admin_can_edit_draft($pendingDraftData) || (int)($pendingDraftData['index'] ?? -1) !== $index) {
+		$_SESSION['error'] = __t('draft_not_found');
+		header('Location: index.php?action=edit&type=' . urlencode($contentType) . '&index=' . $index);
+		exit;
+	}
+
+	$currentItem      = $data[$contentType][$index];
+	$pendingItem      = $pendingDraftData;
+	$pendingTimestamp = $pendingDraftData['timestamp'] ?? time();
 }
 
 // Display appropriate content template based on action
@@ -575,8 +776,14 @@ switch ($action) {
 	case 'edit':
 		include 'templates/content-edit.php';
 		break;
-	case 'drafts':
-		include 'templates/drafts.php';
+	case 'trash':
+		include 'templates/trash.php';
+		break;
+	case 'revision_diff':
+		include 'templates/revision-diff.php';
+		break;
+	case 'pending_diff':
+		include 'templates/pending-diff.php';
 		break;
 	case 'manage_categories':
 		include 'templates/categories-manage.php';
@@ -599,297 +806,69 @@ switch ($action) {
  */
 function handleContentAddition() {
 	global $data, $contentTypes;
-	
-	// Extract common form data
+
 	$formContentType = $_POST['type'] ?? '';
-	$title = $_POST['title'] ?? '';
-	
-	$contentFormat = in_array($_POST['content_format'] ?? 'html', ['html', 'markdown']) 
-		? $_POST['content_format'] : 'html';
-	$content = isset($_POST['content']) && !empty($_POST['content']) 
-		? ($contentFormat === 'markdown' ? $_POST['content'] : admin_purify_html($_POST['content'])) 
-		: '';
-	
-	// Format the HTML
-	// $content = format_html_indentation($content);
-	$slug = sanitizeSlug($title);
-	
-	// Use custom slug if provided
-	if (!empty($_POST['custom_slug'])) {
-		$customSlug = sanitizeSlug($_POST['custom_slug'], true);
-	} else {
-		$customSlug = '';
-	}
+	$title           = trim($_POST['title'] ?? '');
+	$content         = $_POST['content'] ?? '';
 
-	// Deduplicate slug against existing items of the same type.
-	// If the effective slug (custom_slug ?: slug) already exists, append -2, -3, etc.
-	// This prevents a same-title article from overwriting an existing file in the data layer.
-	if (in_array($formContentType, $contentTypes) && !empty($data[$formContentType])) {
-		$existingSlugs = array_map(function ($item) {
-			return !empty($item['custom_slug']) ? $item['custom_slug'] : ($item['slug'] ?? '');
-		}, $data[$formContentType]);
-
-		$effectiveSlug = !empty($customSlug) ? $customSlug : $slug;
-
-		if (in_array($effectiveSlug, $existingSlugs)) {
-			$base = $effectiveSlug;
-			$n    = 2;
-			while (in_array($base . '-' . $n, $existingSlugs)) {
-				$n++;
-			}
-			$uniqueSlug = $base . '-' . $n;
-
-			// Apply the unique suffix to whichever field drives the effective slug
-			if (!empty($customSlug)) {
-				$customSlug = $uniqueSlug;
-			} else {
-				$slug = $uniqueSlug;
-			}
-
-			// Notify the admin that the slug was automatically renamed
-			$_SESSION['notice'] = sprintf(
-				__t('slug_auto_renamed', 'A duplicate slug was detected. The URL slug has been automatically renamed to "%s".'),
-				$uniqueSlug
-			);
-		}
-	}
-
-	// Additional fields for projects
-	// Combine date and time fields into a single 'YYYY-MM-DD HH:MM' string
-	// Input comes from a datetime-local field (format: YYYY-MM-DDTHH:MM)
-	$_dt_raw = trim($_POST['publish_datetime'] ?? '');
-	if ($_dt_raw !== '') {
-		// datetime-local sends 'YYYY-MM-DDTHH:MM' — normalise to 'YYYY-MM-DD HH:MM'
-		$date = str_replace('T', ' ', $_dt_raw);
-	} else {
-		// Fallback: hidden fields from old form submissions or autosave
-		$dateRaw = $_POST['date'] ?? date('Y-m-d');
-		$timeRaw = trim($_POST['time'] ?? '');
-		$date = ($timeRaw !== '') ? $dateRaw . ' ' . $timeRaw : $dateRaw;
-	}
-	
-	// Handle tags — store slugs, upsert new tags into the tags store
-	$tags = [];
-	if (isset($_POST['tags']) && !empty($_POST['tags'])) {
-		foreach (explode(',', $_POST['tags']) as $tagInput) {
-			$displayName = trim($tagInput);
-			if ($displayName === '') continue;
-			$tagSlug = sanitizeSlug($displayName);
-			if ($tagSlug === '') continue;
-			$tags[] = $tagSlug;
-			if (!isset($data['tags'][$tagSlug])) {
-				$data['tags'][$tagSlug] = ['name' => $displayName];
-			}
-		}
-	}
-
-	// Handle category — store slug, upsert display name into categories store
-	$category = '';
-	if (isset($_POST['category']) && trim($_POST['category']) !== '') {
-		$displayCat = trim($_POST['category']);
-		$catSlug    = sanitizeSlug($displayCat);
-		if ($catSlug !== '') {
-			$category = $catSlug;
-			if (!isset($data['categories'][$catSlug])) {
-				$data['categories'][$catSlug] = ['name' => $displayCat];
-			}
-		}
-	}
-	
-	if (!empty($title) && !empty($content) && in_array($formContentType, $contentTypes)) {
-		$newItem = [
-			'title' => $title,
-				'slug' => $slug,
-				'custom_slug' => $customSlug,
-				'content' => $content,
-				// SEO fields: store raw — htmlspecialchars() is applied at output time only
-				'meta_title' => trim($_POST['meta_title'] ?? ''),
-				'meta_keywords' => trim($_POST['meta_keywords'] ?? ''),
-				'meta_description' => trim($_POST['meta_description'] ?? ''),
-				'canonical_url' => trim($_POST['canonical_url'] ?? ''),
-				'og_title' => trim($_POST['og_title'] ?? ''),
-				'og_description' => trim($_POST['og_description'] ?? ''),
-				'og_image' => trim($_POST['og_image'] ?? ''),
-				'schema_type' => trim($_POST['schema_type'] ?? ''),
-				'show_featured_image' => isset($_POST['show_featured_image']) ? true : false,
-				'show_date' => isset($_POST['show_date']) ? true : false,
-				'show_title' => isset($_POST['show_title']) ? true : false,
-				'show_related_items' => isset($_POST['show_related_items']) ? true : false,
-				'gallery_layout' => $_POST['gallery_layout'] ?? 'grid',
-				'category' => $category,
-				'tags' => $tags,
-				'show_tags_at_bottom' => isset($_POST['show_tags_at_bottom']) ? true : false,
-			];
-		
-		// Handle image upload logic
-		if (!empty($_POST['selected_image_path'])) {
-			// Selected image path handling
-			$selectedImagePath = $_POST['selected_image_path'];
-			// Make sure the path is properly formatted
-			if (strpos($selectedImagePath, 'files/') !== 0) {
-				$selectedImagePath = 'files/' . ltrim($selectedImagePath, '/');
-			}
-			$newItem['image'] = $selectedImagePath;
-		} elseif (isset($_FILES['image']) && $_FILES['image']['error'] === 0) {
-			// Handle file upload - implement handleImageUpload function
-			$uploadedImagePath = handleImageUpload($_FILES['image'], $formContentType);
-			if ($uploadedImagePath) {
-				$newItem['image'] = $uploadedImagePath;
-			}
-		}
-		
-		// Add content type specific fields
-		if ($formContentType === 'project') {
-			$newItem['date'] = $date;
-			$newItem['description'] = htmlspecialchars($_POST['description'] ?? '');
-			// $newItem['description'] = $_POST['description'] ?? '';
-		}
-		
-		// Add article/page-specific fields
-		if ($formContentType === 'article' || $formContentType === 'page') {
-			$newItem['date'] = $date;
-		}
-		// Save article summary (replaces auto-generated excerpt in cards)
-		if ($formContentType === 'article') {
-			$newItem['summary'] = trim($_POST['summary'] ?? '');
-		}
-		// Save page template (pages only)
-		if ($formContentType === 'page') {
-			$newItem['page_template'] = trim($_POST['page_template'] ?? '');
-		}
-		
-		// Show on homepage (articles and projects only)
-		if ($formContentType === 'article' || $formContentType === 'project') {
-			$newItem['show_on_homepage'] = isset($_POST['show_on_homepage']) ? true : false;
-		}
-		
-		// Show in menu (all content types)
-		$newItem['show_in_menu'] = isset($_POST['show_in_menu']) ? true : false;
-		$newItem['menu_order'] = isset($_POST['menu_order']) ? max(0, min(999, (int)$_POST['menu_order'])) : 0;
-
-		// Custom fields — sanitize and store as a flat key/value map
-		if (isset($_POST['custom_fields']) && is_array($_POST['custom_fields'])) {
-			$_cf_clean = [];
-			foreach ($_POST['custom_fields'] as $_cfk => $_cfv) {
-				$_cf_clean[sanitizeSlug($_cfk, true)] = is_array($_cfv) ? '' : trim((string)$_cfv);
-			}
-			$newItem['custom_fields'] = $_cf_clean;
-		}
-
-		// Related items — decode JSON from hidden input, sanitize each reference
-		$_ri_raw = (string)($_POST['related_items'] ?? '');
-		if ($_ri_raw !== '') {
-			$_ri_decoded = json_decode(stripslashes($_ri_raw), true);
-			if (is_array($_ri_decoded)) {
-				$_ri_clean = [];
-				foreach ($_ri_decoded as $_ri_ref) {
-					$_ri_type  = $_ri_ref['type']  ?? '';
-					$_ri_slug  = $_ri_ref['slug']  ?? '';
-					$_ri_title = mb_substr(strip_tags((string)($_ri_ref['title'] ?? '')), 0, 300);
-					if (in_array($_ri_type, ['article', 'page', 'project'], true) && $_ri_slug !== '') {
-						$_ri_clean[] = ['type' => $_ri_type, 'slug' => sanitizeSlug($_ri_slug), 'title' => $_ri_title];
-					}
-				}
-				if (!empty($_ri_clean)) {
-					$newItem['related_items'] = $_ri_clean;
-				}
-			}
-		}
-
-		// Content format: html (WYSIWYG) or markdown
-		$newItem['content_format'] = in_array($_POST['content_format'] ?? 'html', ['html', 'markdown'])
-			? $_POST['content_format'] : 'html';
-
-		// Scheduling: normalize datetime-local format (browser sends "Y-m-dTH:i", store as "Y-m-d H:i")
-		$publishAt = trim(str_replace('T', ' ', $_POST['publish_at'] ?? ''));
-		if ($publishAt !== '' && ($publishTs = strtotime($publishAt)) !== false && $publishTs > time()) {
-			$newItem['status']     = 'scheduled';
-			$newItem['publish_at'] = $publishAt;
-		} else {
-			$newItem['status']     = 'published';
-			$newItem['publish_at'] = $publishAt;
-		}
-		
-		// Handle gallery images
-		if (isset($_POST['gallery']) && is_array($_POST['gallery'])) {
-			$galleryItems = [];
-			foreach ($_POST['gallery'] as $galleryItem) {
-				// Validate and sanitize gallery item
-				if (!empty($galleryItem['src'])) {
-					$galleryItems[] = [
-						'src' => htmlspecialchars($galleryItem['src']),
-						'caption' => !empty($galleryItem['caption']) ? $galleryItem['caption'] : ''
-					];
-				}
-			}
-			
-			// Only add gallery if there are valid items
-			if (!empty($galleryItems)) {
-				$newItem['gallery'] = $galleryItems;
-			}
-		}
-		
-
-		// Handle named inline galleries
-		if (isset($_POST['galleries']) && is_array($_POST['galleries'])) {
-			$galleries = [];
-			foreach ($_POST['galleries'] as $gIdx => $galleryData) {
-				$images = [];
-				if (!empty($galleryData['images']) && is_array($galleryData['images'])) {
-					foreach ($galleryData['images'] as $img) {
-						if (!empty($img['src'])) {
-							$images[] = [
-								'src'      => htmlspecialchars($img['src']),
-								'caption'  => $img['caption'] ?? '',
-								'alt_text' => $img['alt_text'] ?? '',
-							];
-						}
-					}
-				}
-				$galleries[] = [
-					'label'  => $galleryData['label'] ?? ('Galerie ' . $gIdx),
-					'layout' => in_array($galleryData['layout'] ?? 'grid', ['grid', 'masonry', 'justified', 'carousel'])
-								? $galleryData['layout'] : 'grid',
-					'images' => $images,
-				];
-			}
-			if (!empty($galleries)) {
-				$newItem['galleries'] = $galleries;
-			}
-		}
-
-		$data[$formContentType][] = $newItem;
-		saveData($data);
-		
-		// Delete ALL drafts related to this item (by type and title)
-		$draftsDir = 'drafts';
-		if (is_dir($draftsDir)) {
-			$files = glob($draftsDir . '/*.json');
-			foreach ($files as $file) {
-				$draftData = json_decode(file_get_contents($file), true);
-				if ($draftData && 
-					$draftData['type'] === $formContentType && 
-					strtolower(trim($draftData['title'])) === strtolower(trim($title)) &&
-					(!isset($draftData['index']) || $draftData['index'] === -1)) {
-					unlink($file);
-				}
-			}
-		}
-		
-		// Find the index of the newly added item
-		$newIndex = count($data[$formContentType]) - 1;
-		
-		$_SESSION['message'] = __t('content_added');
-		// Redirect to edit page for the new content
-		header('Location: index.php?action=edit&type=' . $formContentType . '&index=' . $newIndex . '&message=show');
-		exit;
-	} else {
+	if (empty($title) || empty($content) || !in_array($formContentType, $contentTypes, true)) {
 		// Error handling - don't redirect, keep data for resubmission
 		$_SESSION['error'] = __t('fill_required_fields');
-		
-		// Store the submitted form data to repopulate the form
 		$_SESSION['form_data'] = $_POST;
+		return;
 	}
+
+	$built = admin_build_content_item_from_post(
+		$formContentType,
+		$_POST,
+		null,
+		$data[$formContentType] ?? [],
+		$_FILES
+	);
+
+	$newItem = $built['item'];
+
+	if ($built['slug_renamed_to'] !== null) {
+		// Notify the admin that the slug was automatically renamed
+		$_SESSION['notice'] = sprintf(
+			__t('slug_auto_renamed', 'A duplicate slug was detected. The URL slug has been automatically renamed to "%s".'),
+			$built['slug_renamed_to']
+		);
+	}
+	foreach ($built['new_tags'] as $tagSlug => $displayName) {
+		if (!isset($data['tags'][$tagSlug])) $data['tags'][$tagSlug] = ['name' => $displayName];
+	}
+	if ($built['new_category'] !== null) {
+		foreach ($built['new_category'] as $catSlug => $displayName) {
+			if (!isset($data['categories'][$catSlug])) $data['categories'][$catSlug] = ['name' => $displayName];
+		}
+	}
+
+	// Status is chosen explicitly via the sidebar dropdown. "Scheduled" still needs
+	// a valid future publish_at to stick — otherwise it falls back to published,
+	// same safety net the old auto-detection relied on.
+	$status = $_POST['status'] ?? 'published';
+	if (!in_array($status, ['published', 'scheduled', 'draft', 'unpublished'], true)) $status = 'published';
+
+	$publishAt = trim(str_replace('T', ' ', $_POST['publish_at'] ?? ''));
+	if ($status === 'scheduled' && ($publishTs = strtotime($publishAt)) !== false && $publishTs > time()) {
+		$newItem['publish_at'] = $publishAt;
+	} else {
+		if ($status === 'scheduled') $status = 'published';
+		$newItem['publish_at'] = '';
+	}
+	$newItem['status'] = $status;
+
+	$data[$formContentType][] = $newItem;
+	saveData($data);
+
+	// Find the index of the newly added item
+	$newIndex = count($data[$formContentType]) - 1;
+
+	$_SESSION['message'] = __t('content_added');
+	// Redirect to edit page for the new content
+	header('Location: index.php?action=edit&type=' . $formContentType . '&index=' . $newIndex . '&message=show');
+	exit;
 }
 
 /**
@@ -897,293 +876,102 @@ function handleContentAddition() {
  */
 function handleContentEdit() {
 	global $data, $index, $contentType;
-	
-	error_log("handleContentEdit - Type: $contentType, Index: $index");
-	
-	// Extract common form data
-	$title = $_POST['title'] ?? '';
-	
-	$submittedFormat = in_array($_POST['content_format'] ?? 'html', ['html', 'markdown']) 
-		? $_POST['content_format'] : 'html';
-	$content = isset($_POST['content']) 
-		? ($submittedFormat === 'markdown' ? $_POST['content'] : admin_purify_html($_POST['content'])) 
-		: '';
-	
-	if (!empty($title) && !empty($content) && isset($data[$contentType][$index])) {
-		// Generate slug from title
-		$slug = sanitizeSlug($title);
-		
-		// Use custom slug if provided
-		if (!empty($_POST['custom_slug'])) {
-			$customSlug = sanitizeSlug($_POST['custom_slug'], true);
-		} else {
-			$customSlug = '';
-		}
-		
-		// Handle tags — store slugs, upsert new tags into the tags store
-		$tags = [];
-		if (isset($_POST['tags']) && !empty($_POST['tags'])) {
-			foreach (explode(',', $_POST['tags']) as $tagInput) {
-				$displayName = trim($tagInput);
-				if ($displayName === '') continue;
-				$tagSlug = sanitizeSlug($displayName);
-				if ($tagSlug === '') continue;
-				$tags[] = $tagSlug;
-				if (!isset($data['tags'][$tagSlug])) {
-					$data['tags'][$tagSlug] = ['name' => $displayName];
-				}
-			}
-		}
 
-		// Handle category — store slug, upsert display name into categories store
-		$category = '';
-		if (isset($_POST['category']) && trim($_POST['category']) !== '') {
-			$displayCat = trim($_POST['category']);
-			$catSlug    = sanitizeSlug($displayCat);
-			if ($catSlug !== '') {
-				$category = $catSlug;
-				if (!isset($data['categories'][$catSlug])) {
-					$data['categories'][$catSlug] = ['name' => $displayCat];
-				}
-			}
-		}
-		
-		$updatedItem = [
-			'title' => $title,
-			'slug' => $slug,
-			'custom_slug' => $customSlug,
-			'content' => $content,
-			// SEO fields: store raw — htmlspecialchars() is applied at output time only
-			'meta_title' => trim($_POST['meta_title'] ?? ''),
-			'meta_description' => trim($_POST['meta_description'] ?? ''),
-			'meta_keywords' => trim($_POST['meta_keywords'] ?? ''),
-			'canonical_url' => trim($_POST['canonical_url'] ?? ''),
-			'schema_type' => trim($_POST['schema_type'] ?? ''),
-			'og_title' => trim($_POST['og_title'] ?? ''),
-			'og_description' => trim($_POST['og_description'] ?? ''),
-			'og_image' => trim($_POST['og_image'] ?? ''),
-			'show_featured_image' => isset($_POST['show_featured_image']) ? true : false,
-			'show_date' => isset($_POST['show_date']) ? true : false,
-			'show_title' => isset($_POST['show_title']) ? true : false,
-			'show_related_items' => isset($_POST['show_related_items']) ? true : false,
-		'gallery_layout' => $_POST['gallery_layout'] ?? 'grid',
-			'category' => $category,
-			'tags' => $tags,
-			'show_tags_at_bottom' => isset($_POST['show_tags_at_bottom']) ? true : false,
-		];
-		
-		// Handle image upload/selection
-		// Check if featured image should be removed
-		if (isset($_POST['remove_featured_image']) && $_POST['remove_featured_image'] == '1') {
-			// Explicitly don't add the image field to remove it
-			// Do nothing here - image won't be in $updatedItem
-		} elseif (!empty($_POST['selected_image_path'])) {
-			// User selected an existing image from the file manager
-			$selectedImagePath = $_POST['selected_image_path'];
-			// Make sure the path is properly formatted
-			if (strpos($selectedImagePath, 'files/') !== 0) {
-				$selectedImagePath = 'files/' . ltrim($selectedImagePath, '/');
-			}
-			$updatedItem['image'] = $selectedImagePath;
-		} elseif (isset($_FILES['image']) && $_FILES['image']['error'] === 0) {
-			// Handle new image upload
-			$uploadedImagePath = handleImageUpload($_FILES['image'], $contentType);
-			if ($uploadedImagePath) {
-				$updatedItem['image'] = $uploadedImagePath;
-			}
-		} else {
-			// Keep existing image if no new one uploaded and not removed
-			if (isset($data[$contentType][$index]['image'])) {
-				$updatedItem['image'] = $data[$contentType][$index]['image'];
-			}
-		}
-		
-		// Update content type specific fields
-		// Combine date and time fields into a single 'YYYY-MM-DD HH:MM' string
-		// Input comes from a datetime-local field (format: YYYY-MM-DDTHH:MM)
-		$_dt_raw_edit = trim($_POST['publish_datetime'] ?? '');
-		if ($_dt_raw_edit !== '') {
-			$_editDate = str_replace('T', ' ', $_dt_raw_edit);
-		} else {
-			// Fallback: hidden fields from old form submissions or autosave
-			$_editDateRaw = $_POST['date'] ?? date('Y-m-d');
-			$_editTimeRaw = trim($_POST['time'] ?? '');
-			$_editDate    = ($_editTimeRaw !== '') ? $_editDateRaw . ' ' . $_editTimeRaw : $_editDateRaw;
-		}
-		if ($contentType === 'project') {
-			$updatedItem['date'] = $_editDate;
-			$updatedItem['description'] = htmlspecialchars($_POST['description'] ?? '');
-		}
-		
-		if ($contentType === 'article' || $contentType === 'page') {
-			$updatedItem['date'] = $_editDate;
-		}
-		// Save article summary (replaces auto-generated excerpt in cards)
-		if ($contentType === 'article') {
-			$updatedItem['summary'] = trim($_POST['summary'] ?? '');
-		}
-		// Save page template (pages only)
-		if ($contentType === 'page') {
-			$updatedItem['page_template'] = trim($_POST['page_template'] ?? '');
-		}
-		
-		// Show on homepage (articles and projects only)
-		if ($contentType === 'article' || $contentType === 'project') {
-			$updatedItem['show_on_homepage'] = isset($_POST['show_on_homepage']) ? true : false;
-		}
-		
-		// Show in menu (all content types)
-		$updatedItem['show_in_menu'] = isset($_POST['show_in_menu']) ? true : false;
-		$updatedItem['menu_order'] = isset($_POST['menu_order']) ? max(0, min(999, (int)$_POST['menu_order'])) : 0;
-
-		// Custom fields — sanitize and store as a flat key/value map
-		if (isset($_POST['custom_fields']) && is_array($_POST['custom_fields'])) {
-			$_cf_clean = [];
-			foreach ($_POST['custom_fields'] as $_cfk => $_cfv) {
-				$_cf_clean[sanitizeSlug($_cfk, true)] = is_array($_cfv) ? '' : trim((string)$_cfv);
-			}
-			$updatedItem['custom_fields'] = $_cf_clean;
-		} else {
-			// Preserve existing custom fields if the form sent none (e.g. no CF defined for this type)
-			if (!empty($data[$contentType][$index]['custom_fields'])) {
-				$updatedItem['custom_fields'] = $data[$contentType][$index]['custom_fields'];
-			}
-		}
-
-		// Related items — always overwrite from POST (empty array = all links cleared by user)
-		$_ri_raw_edit = (string)($_POST['related_items'] ?? '');
-		if ($_ri_raw_edit !== '') {
-			$_ri_decoded_edit = json_decode(stripslashes($_ri_raw_edit), true);
-			if (is_array($_ri_decoded_edit)) {
-				$_ri_clean_edit = [];
-				foreach ($_ri_decoded_edit as $_ri_ref) {
-					$_ri_type  = $_ri_ref['type']  ?? '';
-					$_ri_slug  = $_ri_ref['slug']  ?? '';
-					$_ri_title = mb_substr(strip_tags((string)($_ri_ref['title'] ?? '')), 0, 300);
-					if (in_array($_ri_type, ['article', 'page', 'project'], true) && $_ri_slug !== '') {
-						$_ri_clean_edit[] = ['type' => $_ri_type, 'slug' => sanitizeSlug($_ri_slug), 'title' => $_ri_title];
-					}
-				}
-				$updatedItem['related_items'] = $_ri_clean_edit;
-			}
-		} elseif (!empty($data[$contentType][$index]['related_items'])) {
-			// Preserve existing if hidden field was somehow absent (edge case)
-			$updatedItem['related_items'] = $data[$contentType][$index]['related_items'];
-		}
-
-		// Content format: preserve the existing value; only update if the form explicitly sends a valid value
-		$submittedFormat = $_POST['content_format'] ?? '';
-		if (in_array($submittedFormat, ['html', 'markdown'])) {
-			$updatedItem['content_format'] = $submittedFormat;
-		} else {
-			$updatedItem['content_format'] = $data[$contentType][$index]['content_format'] ?? 'html';
-		}
-
-		// Scheduling: re-evaluate status based on submitted publish_at.
-		// Stays 'scheduled' as long as publish_at is still in the future; otherwise 'published'.
-		$publishAt = trim(str_replace('T', ' ', $_POST['publish_at'] ?? ''));
-		$publishTs = ($publishAt !== '') ? strtotime($publishAt) : false;
-		if ($publishTs !== false && $publishTs > time()) {
-			$updatedItem['status']     = 'scheduled';
-			$updatedItem['publish_at'] = $publishAt;
-		} else {
-			$updatedItem['status']     = 'published';
-			$updatedItem['publish_at'] = $publishAt;
-		}
-
-		// Handle gallery images
-		if (isset($_POST['gallery']) && is_array($_POST['gallery'])) {
-			$galleryItems = [];
-			foreach ($_POST['gallery'] as $galleryItem) {
-				// Validate and sanitize gallery item
-				if (!empty($galleryItem['src'])) {
-					$galleryItems[] = [
-						'src' => htmlspecialchars($galleryItem['src']),
-						'caption' => !empty($galleryItem['caption']) ? $galleryItem['caption'] : '',
-						'alt_text' => !empty($galleryItem['alt_text']) ? $galleryItem['alt_text'] : ''
-					];
-				}
-			}
-			
-			// Only add gallery if there are valid items
-			if (!empty($galleryItems)) {
-				$updatedItem['gallery'] = $galleryItems;
-			}
-		}
-		
-		$updatedItem['last_modified'] = date('Y-m-d H:i');
-		
-		// Capture old slug/category BEFORE overwrite, for menu sync
-		$oldMenuSlug = !empty($data[$contentType][$index]['custom_slug'])
-			? $data[$contentType][$index]['custom_slug']
-			: ($data[$contentType][$index]['slug'] ?? '');
-		$oldMenuCategory = $data[$contentType][$index]['category'] ?? '';
-		
-
-		// Handle named inline galleries
-		if (isset($_POST['galleries']) && is_array($_POST['galleries'])) {
-			$galleries = [];
-			foreach ($_POST['galleries'] as $gIdx => $galleryData) {
-				$images = [];
-				if (!empty($galleryData['images']) && is_array($galleryData['images'])) {
-					foreach ($galleryData['images'] as $img) {
-						if (!empty($img['src'])) {
-							$images[] = [
-								'src'      => htmlspecialchars($img['src']),
-								'caption'  => $img['caption'] ?? '',
-								'alt_text' => $img['alt_text'] ?? '',
-							];
-						}
-					}
-				}
-				$galleries[] = [
-					'label'  => $galleryData['label'] ?? ('Galerie ' . $gIdx),
-					'layout' => in_array($galleryData['layout'] ?? 'grid', ['grid', 'masonry', 'justified', 'carousel'])
-								? $galleryData['layout'] : 'grid',
-					'images' => $images,
-				];
-			}
-			if (!empty($galleries)) {
-				$updatedItem['galleries'] = $galleries;
-			}
-		}
-
-		$data[$contentType][$index] = $updatedItem;
-		saveData($data);
-		
-		// Sync menu URLs if slug or category changed
-		$newMenuSlug = !empty($customSlug) ? $customSlug : $slug;
-		if ($oldMenuSlug !== $newMenuSlug || $oldMenuCategory !== $category) {
-			syncMenuUrls($contentType, $oldMenuSlug, $newMenuSlug, $category);
-		}
-		
-		// Delete ALL drafts related to this item (by type and index OR title)
-		$draftsDir = 'drafts';
-		if (is_dir($draftsDir)) {
-			$files = glob($draftsDir . '/*.json');
-			foreach ($files as $file) {
-				$draftData = json_decode(file_get_contents($file), true);
-				if ($draftData && $draftData['type'] === $contentType) {
-					// Match by index (exact match for existing items)
-					$matchesByIndex = isset($draftData['index']) && $draftData['index'] == $index;
-					
-					// Match by title (for drafts that might have different versions)
-					$matchesByTitle = strtolower(trim($draftData['title'])) === strtolower(trim($title));
-					
-					if ($matchesByIndex || $matchesByTitle) {
-						unlink($file);
-					}
-				}
-			}
-		}
-		
-		$_SESSION['message'] = __t('content_updated');
-		// Add a redirect with message parameter
-		header('Location: index.php?action=edit&type=' . $contentType . '&index=' . $index . '&message=show');
-		exit;
-	} else {
-		$_SESSION['error'] = __t('fill_required_fields');
+	if (isset($data[$contentType][$index]) && !admin_can_edit_item($data[$contentType][$index])) {
+		http_response_code(403);
+		exit(__t('access_denied', 'Access denied.'));
 	}
+
+	$title   = trim($_POST['title'] ?? '');
+	$content = $_POST['content'] ?? '';
+
+	if (!isset($data[$contentType][$index]) || empty($title) || empty($content)) {
+		$_SESSION['error'] = __t('fill_required_fields');
+		return;
+	}
+
+	$existingItem = $data[$contentType][$index];
+
+	$built = admin_build_content_item_from_post($contentType, $_POST, $existingItem, [], $_FILES);
+
+	$updatedItem = $built['item'];
+
+	foreach ($built['new_tags'] as $tagSlug => $displayName) {
+		if (!isset($data['tags'][$tagSlug])) $data['tags'][$tagSlug] = ['name' => $displayName];
+	}
+	if ($built['new_category'] !== null) {
+		foreach ($built['new_category'] as $catSlug => $displayName) {
+			if (!isset($data['categories'][$catSlug])) $data['categories'][$catSlug] = ['name' => $displayName];
+		}
+	}
+
+	// Status is chosen explicitly via the sidebar dropdown. "Scheduled" still needs
+	// a valid future publish_at to stick — otherwise it falls back to published,
+	// same safety net the old auto-detection relied on.
+	$status = $_POST['status'] ?? 'published';
+	if (!in_array($status, ['published', 'scheduled', 'draft', 'unpublished'], true)) $status = 'published';
+
+	$publishAt = trim(str_replace('T', ' ', $_POST['publish_at'] ?? ''));
+	$publishTs = ($publishAt !== '') ? strtotime($publishAt) : false;
+	if ($status === 'scheduled' && $publishTs !== false && $publishTs > time()) {
+		$updatedItem['publish_at'] = $publishAt;
+	} else {
+		if ($status === 'scheduled') $status = 'published';
+		$updatedItem['publish_at'] = '';
+	}
+	$updatedItem['status'] = $status;
+
+	// Capture old slug/category BEFORE overwrite, for menu sync
+	$oldMenuSlug = !empty($existingItem['custom_slug'])
+		? $existingItem['custom_slug']
+		: ($existingItem['slug'] ?? '');
+	$oldMenuCategory = $existingItem['category'] ?? '';
+
+	// Snapshot the pre-edit state before it gets overwritten
+	$oldEffectiveSlug = sl_effective_slug($existingItem);
+	$oldFound         = sl_find_in_index($contentType, $oldEffectiveSlug);
+	$oldFileSlug      = $oldFound ? sl_file_slug($oldFound[0]) : $oldEffectiveSlug;
+	sl_admin_snapshot_revision($contentType, $oldFileSlug, $existingItem);
+
+	$data[$contentType][$index] = $updatedItem;
+	saveData($data);
+
+	// A slug change renames the underlying file — move revision history
+	// along with it, or it silently orphans under the old filename.
+	$newMenuSlug = sl_effective_slug($updatedItem);
+	$newFound    = sl_find_in_index($contentType, $newMenuSlug);
+	$newFileSlug = $newFound ? sl_file_slug($newFound[0]) : $newMenuSlug;
+	if ($newFileSlug !== $oldFileSlug) {
+		sl_admin_migrate_revisions($contentType, $oldFileSlug, $newFileSlug);
+	}
+
+	// Sync menu URLs if slug or category changed
+	if ($oldMenuSlug !== $newMenuSlug || $oldMenuCategory !== $updatedItem['category']) {
+		syncMenuUrls($contentType, $oldMenuSlug, $newMenuSlug, $updatedItem['category']);
+	}
+
+	// Delete ALL drafts related to this item (by type and index OR title) — these
+	// are Case B pending-autosave snapshots (see autosave.php); an explicit save
+	// supersedes them.
+	$draftsDir = sl_admin_drafts_dir();
+	if (is_dir($draftsDir)) {
+		$files = glob($draftsDir . '/*.json');
+		foreach ($files as $file) {
+			$draftData = json_decode(file_get_contents($file), true);
+			if ($draftData && $draftData['type'] === $contentType) {
+				$matchesByIndex = isset($draftData['index']) && $draftData['index'] == $index;
+				$matchesByTitle = strtolower(trim($draftData['title'])) === strtolower(trim($updatedItem['title']));
+				if ($matchesByIndex || $matchesByTitle) {
+					unlink($file);
+				}
+			}
+		}
+	}
+
+	$_SESSION['message'] = __t('content_updated');
+	// Add a redirect with message parameter
+	header('Location: index.php?action=edit&type=' . $contentType . '&index=' . $index . '&message=show');
+	exit;
 }
 
 /**
@@ -1267,20 +1055,5 @@ function handleImageUpload($file, $contentType) {
 	return false;
 }
 
-/**
- * Sanitize a filename to make it safe for storage
- */
-function sanitizeFileName($filename) {
-	// Remove any non-alphanumeric characters except dots, hyphens, and underscores
-	$filename = preg_replace("/[^a-zA-Z0-9._-]/", "", $filename);
-	
-	// Limit filename length
-	$filename = substr($filename, 0, 255);
-	
-	// Ensure filename is not empty
-	if (empty($filename)) {
-		$filename = 'unnamed_file_' . time();
-	}
-	
-	return $filename;
-}
+// sanitizeFileName() lives in includes/admin-functions.php, loaded by
+// admin/index.php before this file is included.

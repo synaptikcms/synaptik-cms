@@ -6,6 +6,10 @@ if (!admin_is_logged_in()) {
 	header('Location: auth.php');
 	exit;
 }
+if (!admin_can_manage_all_content()) {
+	http_response_code(403);
+	exit('Access denied.');
+}
 
 $data        = admin_load_data();
 $appSettings = admin_load_config();
@@ -98,7 +102,7 @@ $filtered = array_filter($allItems, function($item) use ($filter) {
 });
 
 // Sidebar
-$draftsDir  = 'drafts';
+$draftsDir  = sl_admin_drafts_dir();
 $draftCount = 0;
 if (file_exists($draftsDir)) {
 	$draftCount = count(glob($draftsDir . '/*.json'));
@@ -142,8 +146,8 @@ ob_start();
 					<p><?php _e('seo_no_items_filter'); ?></p>
 				</div>
 			<?php else: ?>
-			<div class="site-settings-section" style="padding: 0; overflow: visible;">
-				<table class="seo-table">
+				<div class="table-wrap">
+					<table class="seo-table">
 					<thead>
 						<tr>
 							<th style="width: 20%"><?php _e('title'); ?> / <?php _e('type'); ?></th>
@@ -161,7 +165,7 @@ ob_start();
 								<div style="font-weight: 600; font-size: 1.1em; margin-bottom: 4px;">
 								<?php echo hsc($item['title']); ?>
 								</div>
-								<span class="type-badge type-<?php echo hsc($item['type']); ?>"><?php echo __t('type_' . $item['type']) ?></span>
+								<span class="type-badge type-<?php echo hsc($item['type']); ?>"><?php echo hsc(sl_type_label($item['type'])); ?></span>
 								<div class="slug-cell" style="margin-top: 5px;">/<?php echo hsc($item['slug']); ?></div>
 							</td>
 
@@ -202,74 +206,17 @@ ob_start();
 							</td>
 							<!-- Lien édition -->
 							<td style="text-align: center; vertical-align: middle;">
-								<a href="<?php echo $item['edit_url']; ?>" class="edit-link">✏️ <?php _e('edit'); ?></a>
+								<a href="<?php echo $item['edit_url']; ?>" class="table-btn edit-btn small"><?php echo admin_icon('writing', '', 13); ?><?php _e('edit'); ?></a>
 							</td>
 						</tr>
 					<?php endforeach; ?>
 					</tbody>
 				</table>
-			</div>
+				</div>
 			<?php endif; ?>
 <?php
 $pageContent = ob_get_clean();
 
-$extraFooterScripts = <<<'JSINLINE'
-<script>
-(function() {
-	'use strict';
-
-	var saveTimers = new WeakMap();
-
-	function updateCounter(field) {
-		var max     = parseInt(field.dataset.max, 10);
-		var len     = field.value.length;
-		var counter = field.parentNode.querySelector('.char-counter');
-		if (!counter) return;
-		counter.textContent = len + '/' + max;
-		counter.className   = 'char-counter';
-		if (len > max * 0.9) counter.classList.add('warn');
-		if (len >= max)      counter.classList.add('over');
-		if (len === 0) { field.classList.add('empty'); } else { field.classList.remove('empty'); }
-	}
-
-	function showSaveIndicator(field, ok) {
-		var ind = field.parentNode.querySelector('.save-indicator');
-		if (!ind) return;
-		ind.textContent  = ok ? '\u2713 ' + window.t('saved', 'Saved') : '\u2717 ' + window.t('save_error', 'Error');
-		ind.className    = 'save-indicator visible' + (ok ? '' : ' error');
-		clearTimeout(ind._hideTimer);
-		ind._hideTimer = setTimeout(function() { ind.classList.remove('visible'); }, 2000);
-	}
-
-	function saveField(field) {
-		var row   = field.closest('tr');
-		var type  = row.dataset.type;
-		var index = row.dataset.index;
-		var fname = field.dataset.field;
-		var val   = field.value;
-		field.classList.add('saving');
-		var body = new URLSearchParams({ ajax_seo_save: '1', csrf_token: window.CMS_CSRF_TOKEN || '', type: type, index: index, field: fname, value: val });
-		fetch('seo-overview.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() })
-			.then(function(r) { return r.json(); })
-			.then(function(data) { field.classList.remove('saving'); showSaveIndicator(field, data.ok); })
-			.catch(function() { field.classList.remove('saving'); showSaveIndicator(field, false); });
-	}
-
-	document.querySelectorAll('.seo-field').forEach(function(field) {
-		updateCounter(field);
-		field.addEventListener('input', function() {
-			updateCounter(field);
-			clearTimeout(saveTimers.get(field));
-			saveTimers.set(field, setTimeout(function() { saveField(field); }, 800));
-		});
-		field.addEventListener('blur', function() {
-			clearTimeout(saveTimers.get(field));
-			saveField(field);
-		});
-	});
-
-})();
-</script>
-JSINLINE;
+$extraFooterScripts = '<script src="assets/js/seo-overview.js?v=' . @filemtime(__DIR__ . '/assets/js/seo-overview.js') . '"></script>';
 
 require_once 'includes/layout.php';

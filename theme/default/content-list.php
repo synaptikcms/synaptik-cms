@@ -43,7 +43,7 @@ switch ($list_type) {
     <?php if (!empty($articles)): ?>
         <?php if ($list_type === 'category' || $list_type === 'tag'): ?>
         <div class="title-category-group">
-            <p class="title-group-label"><?php echo __t('articles') ?: 'Articles'; ?></p>
+            <p class="title-group-label"><?php echo sl_type_label('article', true); ?></p>
         <?php endif; ?>
         <ol class="title-list" role="list">
             <?php foreach ($articles as $article): ?>
@@ -57,7 +57,7 @@ switch ($list_type) {
     <?php if (!empty($projects)): ?>
         <?php if ($list_type === 'category' || $list_type === 'tag'): ?>
         <div class="title-category-group">
-            <p class="title-group-label"><?php echo __t('projects') ?: 'Projects'; ?></p>
+            <p class="title-group-label"><?php echo sl_type_label('project', true); ?></p>
         <?php endif; ?>
         <ol class="title-list" role="list">
             <?php foreach ($projects as $project): ?>

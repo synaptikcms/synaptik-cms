@@ -30,6 +30,12 @@ if (!admin_is_logged_in()) {
 	echo json_encode(['ok' => false, 'error' => 'not_authenticated']);
 	exit;
 }
+if (!admin_is_admin()) {
+	http_response_code(403);
+	header('Content-Type: application/json');
+	echo json_encode(['ok' => false, 'error' => 'not_authorized']);
+	exit;
+}
 
 header('Content-Type: application/json');
 

@@ -19,21 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Include image optimization functions
 require_once('image-optimization.php');
 
-// Sanitize filename function
-function sanitizeFileName($filename) {
-	// Remove any non-alphanumeric characters except dots, hyphens, and underscores
-	$filename = preg_replace("/[^a-zA-Z0-9._-]/", "", $filename);
-	
-	// Limit filename length
-	$filename = substr($filename, 0, 255);
-	
-	// Ensure filename is not empty
-	if (empty($filename)) {
-		$filename = 'unnamed_file_' . time();
-	}
-	
-	return $filename;
-}
+// sanitizeFileName() lives in includes/admin-functions.php (required above).
 
 // Expanded list of allowed file types
 $allowedTypes = [
@@ -252,25 +238,17 @@ if (isset($_FILES['upload']) && $_FILES['upload']['error'] === 0) {
 	$baseDir = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');
 	$fileUrl = $baseUrl . $baseDir . '/files/editor/' . basename($resultFile);
 	
-	// Format the response based on request type
-	if (isset($_GET['CKEditorFuncNum'])) {
-		// CKEditor 4 callback method
-		$funcNum = $_GET['CKEditorFuncNum'];
-		echo "<script>window.parent.CKEDITOR.tools.callFunction($funcNum, '$fileUrl', '');</script>";
-	} else {
-		// JSON response method
-		header('Content-Type: application/json');
-		echo json_encode([
-			'uploaded' => 1,
-			'fileName' => basename($resultFile),
-			'url' => $fileUrl,
-			'optimized' => $shouldOptimize ? 1 : 0,
-			'convertedToWebP' => $doWebPConversion ? 1 : 0,
-			'thumbnail' => $shouldOptimize && $createThumbnail ? 1 : 0,
-			'thumbnailUrl' => $shouldOptimize && $createThumbnail ? 
-				$baseUrl . $baseDir . '/files/editor/thumbs/thumb_' . basename($resultFile) : ''
-		]);
-	}
+	header('Content-Type: application/json');
+	echo json_encode([
+		'uploaded' => 1,
+		'fileName' => basename($resultFile),
+		'url' => $fileUrl,
+		'optimized' => $shouldOptimize ? 1 : 0,
+		'convertedToWebP' => $doWebPConversion ? 1 : 0,
+		'thumbnail' => $shouldOptimize && $createThumbnail ? 1 : 0,
+		'thumbnailUrl' => $shouldOptimize && $createThumbnail ?
+			$baseUrl . $baseDir . '/files/editor/thumbs/thumb_' . basename($resultFile) : ''
+	]);
 	exit;
 } 
 else {

@@ -2,18 +2,23 @@
 /**
  * extension-upload.php — admin/extension-upload.php
  *
- * Unified ZIP import endpoint for both themes and plugins.
- * Accepts a POST field `_type` = 'theme' | 'plugin' to determine the pipeline.
+ * Unified ZIP import endpoint for themes, plugins and locale packs.
+ * Accepts a POST field `_type` = 'theme' | 'plugin' | 'locale' to determine
+ * the pipeline.
  *
- * Security pipeline (identical for both types):
- *   method check → auth → CSRF → file present → PHP upload errors
- *   → .zip extension → 20 MB size cap → ZipArchive available
- *   → path-traversal scan → extension whitelist → manifest present & valid
- *   → required files present → extract to tmp → copy to destination
+ * Security pipeline (shared by all three): method check → auth → CSRF →
+ * file present → PHP upload errors → .zip extension → size cap →
+ * ZipArchive available → path-traversal/extension scan
+ * (zip_validate_entries(), see includes/zip-validation.php).
  *
- * Both themes and plugins may contain PHP files.
- * .htaccess is allowed for plugins only (they protect their data/ and private/ folders).
- * Themes additionally validate header.php / footer.php / home.php / css/style.css.
+ * Themes and plugins then continue: manifest present & valid → required
+ * files present → extract to tmp → copy to destination. Both may contain
+ * PHP files; .htaccess is allowed for plugins only (they protect their
+ * data/ and private/ folders) — themes must never ship one.
+ *
+ * Locale packs are a much narrower, JSON-only pipeline handled in their own
+ * self-contained branch below (no manifest, no PHP, two fixed destinations:
+ * lang/admin/ and lang/front/) — see the "Locale import" section.
  */
 
 require_once __DIR__ . '/includes/session-config.php';
@@ -25,11 +30,13 @@ require_once __DIR__ . '/includes/zip-validation.php';
 require_once dirname(__DIR__) . '/core/plugin-api.php';
 
 // ── Resolve type early so redirects are correct ───────────────────────────────
-$type = ($_POST['_type'] ?? '') === 'theme' ? 'theme' : 'plugin';
+$type = in_array($_POST['_type'] ?? '', ['theme', 'locale'], true) ? $_POST['_type'] : 'plugin';
 
-$redirect = $type === 'theme'
-    ? 'index.php?action=manage_themes'
-    : 'index.php?action=plugins';
+$redirect = match ($type) {
+    'theme'  => 'index.php?action=manage_themes',
+    'locale' => 'index.php?action=translations',
+    default  => 'index.php?action=plugins',
+};
 
 // ── Method check ──────────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -39,6 +46,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 // ── Auth ──────────────────────────────────────────────────────────────────────
 if (!admin_is_logged_in()) {
     header('Location: auth.php'); exit;
+}
+if (!admin_is_admin()) {
+    http_response_code(403);
+    exit('Access denied.');
 }
 
 // ── CSRF ──────────────────────────────────────────────────────────────────────
@@ -58,20 +69,189 @@ if (in_array($postRedirect, $allowedRedirects, true)) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+function ext_upload_icon(string $type): string
+{
+    return match ($type) {
+        'theme'  => '📦',
+        'locale' => '🌐',
+        default  => '🧩',
+    };
+}
+
 function ext_upload_error(string $msg): never
 {
     global $redirect, $type;
-    $icon = $type === 'theme' ? '📦' : '🧩';
-    $_SESSION['error'] = $icon . ' ' . $msg;
+    $_SESSION['error'] = ext_upload_icon($type) . ' ' . $msg;
     header('Location: ' . $redirect); exit;
 }
 
 function ext_upload_success(string $msg): never
 {
     global $redirect, $type;
-    $icon = $type === 'theme' ? '📦' : '🧩';
-    $_SESSION['message'] = $icon . ' ' . $msg;
+    $_SESSION['message'] = ext_upload_icon($type) . ' ' . $msg;
     header('Location: ' . $redirect); exit;
+}
+
+// ── Locale import — its own narrow pipeline, exits before the theme/plugin
+// ── config section below (manifest lookup, extract-to-tmp/copy, etc. do
+// ── not apply here at all — see the header comment).
+if ($type === 'locale') {
+    $label = trim((string)($_POST['locale_label'] ?? ''));
+    if ($label === '' || mb_strlen($label) > 50) {
+        ext_upload_error(__t('translations_label_required', 'The display name is required.'));
+    }
+
+    if (empty($_FILES['locale_zip'])) {
+        ext_upload_error(__t('theme_upload_no_data', 'No file data received (check upload_max_filesize in php.ini).'));
+    }
+    $upload = $_FILES['locale_zip'];
+    if ($upload['error'] === UPLOAD_ERR_NO_FILE) {
+        ext_upload_error(__t('theme_upload_no_file', 'No file selected.'));
+    }
+    if ($upload['error'] !== UPLOAD_ERR_OK) {
+        $codes = [
+            UPLOAD_ERR_INI_SIZE   => __t('theme_upload_err_ini_size'),
+            UPLOAD_ERR_FORM_SIZE  => __t('theme_upload_err_form_size'),
+            UPLOAD_ERR_PARTIAL    => __t('theme_upload_err_partial'),
+            UPLOAD_ERR_NO_TMP_DIR => __t('theme_upload_err_no_tmp'),
+            UPLOAD_ERR_CANT_WRITE => __t('theme_upload_err_cant_write'),
+            UPLOAD_ERR_EXTENSION  => __t('theme_upload_err_extension'),
+        ];
+        ext_upload_error($codes[$upload['error']] ?? sprintf(__t('theme_upload_err_unknown', 'Upload error code: %s.'), $upload['error']));
+    }
+    if (strtolower(pathinfo($upload['name'], PATHINFO_EXTENSION)) !== 'zip') {
+        ext_upload_error(sprintf(__t('theme_upload_not_zip', 'The file "%s" is not a .zip.'), htmlspecialchars($upload['name'])));
+    }
+    // Locale packs are two small JSON files — 5 MB is already generous headroom.
+    if ($upload['size'] > 5 * 1024 * 1024) {
+        ext_upload_error(sprintf(__t('theme_upload_too_large', 'File too large: %s MB (max 20 MB).'), round($upload['size'] / 1048576, 1)));
+    }
+    if (!class_exists('ZipArchive')) {
+        ext_upload_error(__t('theme_upload_no_ziparchive', 'PHP ZipArchive extension is not available on this server.'));
+    }
+
+    $zip = new ZipArchive();
+    $zipOpenResult = $zip->open($upload['tmp_name']);
+    if ($zipOpenResult !== true) {
+        ext_upload_error(sprintf(__t('theme_upload_zip_open_failed', 'Could not open ZIP (error code: %s).'), $zipOpenResult));
+    }
+
+    // Path-traversal / dangerous-extension scan — same shared helper as
+    // themes/plugins. Only .json allowed, .htaccess never (pure data, no
+    // reason for it to ever appear in a locale pack).
+    $valResult = zip_validate_entries($zip, ['json'], []);
+    if (!$valResult['ok']) {
+        $zip->close();
+        ext_upload_error($valResult['error']);
+    }
+
+    // Structure: exactly two files, admin/{code}.json and front/{code}.json,
+    // same code in both, nothing else (no subfolders, no stray files).
+    $entries = [];
+    for ($i = 0; $i < $zip->numFiles; $i++) {
+        $name = $zip->getNameIndex($i);
+        if (substr($name, -1) === '/') continue;
+        if (strpos($name, '__MACOSX/') === 0 || basename($name) === '.DS_Store') continue;
+        $entries[] = $name;
+    }
+
+    $found = [];
+    if (count($entries) === 2) {
+        foreach ($entries as $entry) {
+            $parts = explode('/', $entry);
+            if (count($parts) !== 2) { $found = []; break; }
+            [$dir, $file] = $parts;
+            if (!in_array($dir, ['admin', 'front'], true)) { $found = []; break; }
+            if (!preg_match('/^([a-z]{2}(?:_[A-Z]{2})?)\.json$/', $file, $m)) { $found = []; break; }
+            $found[$dir] = $m[1];
+        }
+    }
+    if (count($found) !== 2 || $found['admin'] !== $found['front']) {
+        $zip->close();
+        ext_upload_error(__t('translations_import_bad_structure', 'The ZIP must contain exactly two files: admin/{code}.json and front/{code}.json, using the same locale code.'));
+    }
+
+    $locale = $found['admin'];
+    if ($locale === 'en') {
+        $zip->close();
+        ext_upload_error(__t('translations_cannot_overwrite_reference', 'Cannot overwrite the built-in English reference.'));
+    }
+
+    $langDir = ['admin' => dirname(__DIR__) . '/lang/admin/', 'front' => dirname(__DIR__) . '/lang/front/'];
+
+    if (file_exists($langDir['admin'] . $locale . '.json') || file_exists($langDir['front'] . $locale . '.json')) {
+        $zip->close();
+        ext_upload_error(sprintf(__t('translations_import_locale_exists', 'Locale "%s" already exists. Delete it first if you want to re-import.'), htmlspecialchars($locale)));
+    }
+
+    // Validate + prepare both scopes before writing anything — a half
+    // -imported locale (admin written, front rejected) would be worse than
+    // no import at all.
+    $toWrite = [];
+    $stats   = [];
+    foreach (['admin', 'front'] as $scope) {
+        $raw     = $zip->getFromName($scope . '/' . $locale . '.json');
+        $decoded = $raw !== false ? json_decode($raw, true) : null;
+        if (!is_array($decoded)) {
+            $zip->close();
+            ext_upload_error(sprintf(__t('translations_import_invalid_json', '"%s/%s.json" is not valid JSON.'), $scope, $locale));
+        }
+
+        $reference = json_decode(file_get_contents($langDir[$scope] . 'en.json'), true);
+        if (!is_array($reference)) {
+            $zip->close();
+            ext_upload_error(__t('translations_reference_missing', 'Reference translation file is missing — cannot validate the import.'));
+        }
+        unset($reference['_meta']);
+
+        // Same whitelist policy as the manual translation editor's save
+        // op: only keys that exist in en.json are kept, everything else is
+        // silently dropped (not fatal — lets an import from a slightly
+        // different CMS version through without failing outright).
+        $clean   = [];
+        $applied = 0;
+        foreach ($decoded as $key => $value) {
+            if ($key === '_meta') continue; // server sets its own _meta below
+            if (!array_key_exists($key, $reference) || !is_string($value) || strlen($value) > 20000) continue;
+            $clean[$key] = $value;
+            $applied++;
+        }
+        $clean['_meta'] = [
+            'language' => $label,
+            'locale'   => $locale,
+            'author'   => admin_get_display_name(),
+            'version'  => '1.0',
+        ];
+
+        $toWrite[$scope] = $clean;
+        $stats[$scope]   = $applied;
+    }
+    $zip->close();
+
+    // Atomic write (tmp + rename), same pattern as translations-api.php's
+    // trl_write_locale() — plus purge the compiled lang cache for each scope.
+    foreach ($toWrite as $scope => $data) {
+        $path = $langDir[$scope] . $locale . '.json';
+        $tmp  = $path . '.tmp.' . getmypid();
+        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($json === false || file_put_contents($tmp, $json, LOCK_EX) === false || !rename($tmp, $path)) {
+            @unlink($tmp);
+            ext_upload_error(sprintf(__t('translations_import_write_failed', 'Could not write %s/%s.json.'), $scope, $locale));
+        }
+        $cacheFile = dirname(__DIR__) . '/cache/lang/' . $scope . '/' . $locale . '.php';
+        if (is_file($cacheFile)) {
+            @unlink($cacheFile);
+            if (function_exists('opcache_invalidate')) opcache_invalidate($cacheFile, true);
+        }
+    }
+
+    ext_upload_success(sprintf(
+        __t('translations_import_success', 'Locale "%s" (%s) imported — %d admin strings, %d front strings.'),
+        htmlspecialchars($label),
+        htmlspecialchars($locale),
+        $stats['admin'],
+        $stats['front']
+    ));
 }
 
 // ── Config per type ───────────────────────────────────────────────────────────
@@ -292,12 +472,14 @@ _ext_rmdir_r(rtrim($tmpDir, '/\\'));
 
 // ── 15. Success ───────────────────────────────────────────────────────────────
 if ($isTheme) {
+    sl_admin_log_activity('theme_install', $meta['name'] ?? $dirName);
     ext_upload_success(sprintf(
         __t('theme_upload_success', 'Theme "%s" installed successfully in /theme/%s/.'),
         htmlspecialchars($meta['name'] ?? $dirName),
         htmlspecialchars($dirName)
     ));
 } else {
+    sl_admin_log_activity('extension_install', $meta['name'] ?? $dirName);
     ext_upload_success(sprintf(
         __t('extensions_upload_success', 'Plugin "%s" installed successfully. Activate it below to enable it.'),
         htmlspecialchars($meta['name'] ?? $dirName)

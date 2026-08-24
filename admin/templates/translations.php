@@ -44,6 +44,29 @@ if (is_dir($_scopeDir)) {
 	<p class="help-text" style="margin-top:-10px;margin-bottom:20px;"><?php _e('translations_intro'); ?></p>
 </div>
 
+<!-- ══════════════════ Import a locale (ZIP) ══════════════════ -->
+<div class="site-settings-section" style="margin-bottom: 30px;">
+	<h3><?php echo admin_icon('package'); ?> <?php _e('translations_import_title'); ?></h3>
+	<div class="form-group">
+		<p class="help-text"><?php _e('translations_import_help'); ?></p>
+		<?php if (!class_exists('ZipArchive')): ?>
+			<p style="color:var(--danger-text);"><?php _e('theme_ziparchive_missing'); ?></p>
+		<?php else: ?>
+			<form method="POST" action="extension-upload.php" enctype="multipart/form-data" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+				<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token'] ?? ''); ?>">
+				<input type="hidden" name="_type" value="locale">
+				<div class="form-group" style="margin-bottom:0;">
+					<label for="locale_label"><?php _e('translations_new_label'); ?></label>
+					<input type="text" id="locale_label" name="locale_label" class="form-control"
+						placeholder="<?php echo hsc(__t('translations_new_label_ph')); ?>" maxlength="50" required style="min-width:220px;">
+				</div>
+				<input type="file" name="locale_zip" accept=".zip" required style="flex:1; max-width:400px;">
+				<button type="submit" class="btn btn-outline"><?php echo admin_icon('upload'); ?> <?php _e('translations_import_btn'); ?></button>
+			</form>
+		<?php endif; ?>
+	</div>
+</div>
+
 <!-- ══════════════════ Scope + locale selectors ══════════════════ -->
 <div class="site-settings-section">
 	<div class="trl-toolbar">
@@ -284,281 +307,22 @@ body.sidebar-collapsed .trl-savebar,
 }
 </style>
 
-<script>
-/* eslint-disable */
-/**
- * Translation Editor — client-side controller.
- * Loads strings from translations-api.php, tracks dirty state, and
- * persists edits via the save/create endpoints.
- */
-(function () {
-	'use strict';
-
-	var i18n = {
-		noChanges:       <?php echo json_encode(__t('translations_no_changes')); ?>,
-		dirtyMsg:        <?php echo json_encode(__t('translations_unsaved_changes')); ?>,
-		confirmDiscard:  <?php echo json_encode(__t('translations_confirm_discard')); ?>,
-		confirmLeave:    <?php echo json_encode(__t('translations_confirm_leave')); ?>,
-		placeholderWarn: <?php echo json_encode(__t('translations_placeholder_warning')); ?>,
-		invalidCode:     <?php echo json_encode(__t('translations_invalid_code')); ?>,
-		labelRequired:   <?php echo json_encode(__t('translations_label_required')); ?>,
-		empty:           <?php echo json_encode(__t('translations_empty')); ?>,
-		networkError:    <?php echo json_encode(__t('translations_network_error')); ?>,
-		saveSuccess:     <?php echo json_encode(__t('translations_save_success')); ?>,
-		createSuccess:   <?php echo json_encode(__t('translations_create_success')); ?>,
-		alreadyExists:   <?php echo json_encode(__t('translations_already_exists')); ?>,
-	};
-
-	var CSRF = <?php echo json_encode($_SESSION['csrf_token'] ?? ''); ?>;
-
-	var state = {
-		scope:     <?php echo json_encode($scope); ?>,
-		locale:    <?php echo json_encode($locale); ?>,
-		reference: {},
-		current:   {},
-		dirty:     {},
-	};
-
-	var $tbody     = document.getElementById('trl-tbody');
-	var $filter    = document.getElementById('trl-filter');
-	var $scope     = document.getElementById('trl-scope');
-	var $locale    = document.getElementById('trl-locale');
-	var $saveBtn   = document.getElementById('trl-save-btn');
-	var $discBtn   = document.getElementById('trl-discard-btn');
-	var $saveMsg   = document.getElementById('trl-savebar-msg');
-	var $statTotal = document.getElementById('trl-stat-total');
-	var $statMiss  = document.getElementById('trl-stat-missing');
-	var $statDirty = document.getElementById('trl-stat-dirty');
-	var $statDirtyWrap = document.getElementById('trl-stat-dirty-wrap');
-
-	$scope.addEventListener('change',  function () { _reload({ scope: this.value, locale: state.locale }); });
-	$locale.addEventListener('change', function () { _reload({ scope: state.scope, locale: this.value }); });
-
-	function _reload(params) {
-		if (Object.keys(state.dirty).length && !confirm(i18n.confirmLeave)) {
-			$scope.value  = state.scope;
-			$locale.value = state.locale;
-			return;
-		}
-		var qs = new URLSearchParams({ action: 'translations', scope: params.scope, locale: params.locale });
-		window.location.search = '?' + qs.toString();
-	}
-
-	$filter.addEventListener('input', function () {
-		var q = this.value.trim().toLowerCase();
-		$tbody.querySelectorAll('tr[data-key]').forEach(function (tr) {
-			var key = tr.dataset.key.toLowerCase();
-			var ref = (tr.dataset.ref || '').toLowerCase();
-			tr.classList.toggle('trl-row-hidden', q !== '' && key.indexOf(q) === -1 && ref.indexOf(q) === -1);
-		});
-	});
-
-	function renderTable() {
-		var keys = Object.keys(state.reference).filter(function (k) { return k !== '_meta'; });
-		keys.sort();
-
-		if (keys.length === 0) {
-			$tbody.innerHTML = '<tr class="trl-row-empty"><td colspan="3" class="trl-empty-state">' + _esc(i18n.empty) + '</td></tr>';
-			$statTotal.textContent = '0'; $statMiss.textContent = '0';
-			return;
-		}
-
-		var html = '';
-		var missing = 0;
-		keys.forEach(function (key) {
-			var ref = state.reference[key] || '';
-			var val = state.current[key] !== undefined ? state.current[key] : '';
-			var isMissing = (val === '' && ref !== '');
-			if (isMissing) missing++;
-			html += '<tr data-key="' + _esc(key) + '" data-ref="' + _esc(ref) + '"' +
-				(isMissing ? ' class="trl-row--missing"' : '') + '>' +
-				'<td><code class="trl-key">' + _esc(key) + '</code></td>' +
-				'<td><div class="trl-ref">' + _esc(ref) + '</div></td>' +
-				'<td>' + _inputFor(key, val, ref) + '</td>' +
-				'</tr>';
-		});
-		$tbody.innerHTML = html;
-		$statTotal.textContent = String(keys.length);
-		$statMiss.textContent  = String(missing);
-		_bindInputs();
-	}
-
-	function _inputFor(key, val, ref) {
-		var multi = (val.indexOf('\n') !== -1) || (ref.indexOf('\n') !== -1);
-		if (multi) {
-			var rows = Math.min(6, Math.max(2, val.split('\n').length + 1));
-			return '<textarea rows="' + rows + '" class="trl-input" data-key="' + _esc(key) + '">' + _esc(val) + '</textarea>';
-		}
-		return '<input type="text" class="trl-input" data-key="' + _esc(key) + '" value="' + _esc(val) + '">';
-	}
-
-	function _bindInputs() {
-		$tbody.querySelectorAll('.trl-input').forEach(function (el) {
-			el.addEventListener('input', _onEdit);
-		});
-	}
-
-	function _onEdit(e) {
-		var key  = e.target.dataset.key;
-		var val  = e.target.value;
-		var orig = state.current[key] !== undefined ? state.current[key] : '';
-		var tr   = e.target.closest('tr');
-
-		if (val === orig) { delete state.dirty[key]; tr.classList.remove('trl-row--dirty'); }
-		else              { state.dirty[key] = val;  tr.classList.add('trl-row--dirty'); }
-
-		// Placeholder mismatch (%s, %d)
-		var ref       = state.reference[key] || '';
-		var refTokens = (ref.match(/%[sd]/g) || []).sort().join('');
-		var valTokens = (val.match(/%[sd]/g) || []).sort().join('');
-		var warn      = tr.querySelector('.trl-placeholder-warn');
-		if (refTokens !== valTokens && val !== '') {
-			tr.classList.add('trl-row--placeholder-warn');
-			if (!warn) {
-				warn = document.createElement('span');
-				warn.className = 'trl-placeholder-warn';
-				warn.textContent = i18n.placeholderWarn.replace('{tokens}', refTokens || '—');
-				e.target.parentNode.appendChild(warn);
-			}
-		} else {
-			tr.classList.remove('trl-row--placeholder-warn');
-			if (warn) warn.remove();
-		}
-
-		if (val === '' && ref !== '') tr.classList.add('trl-row--missing');
-		else                          tr.classList.remove('trl-row--missing');
-
-		_refreshDirtyUI();
-	}
-
-	function _refreshDirtyUI() {
-		var n = Object.keys(state.dirty).length;
-		$saveBtn.disabled = n === 0;
-		$discBtn.disabled = n === 0;
-		$statDirtyWrap.hidden = n === 0;
-		$statDirty.textContent = String(n);
-		$saveMsg.textContent = n === 0 ? i18n.noChanges : i18n.dirtyMsg.replace('{n}', n);
-	}
-
-	$saveBtn.addEventListener('click', function () {
-		if (Object.keys(state.dirty).length === 0) return;
-		$saveBtn.disabled = true;
-		$discBtn.disabled = true;
-		$saveMsg.textContent = '…';
-
-		fetch('translations-api.php?op=save&scope=' + encodeURIComponent(state.scope), {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				csrf_token: CSRF,
-				scope:  state.scope,
-				locale: state.locale,
-				strings: state.dirty,
-			}),
-		})
-		.then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); })
-		.then(function (resp) {
-			if (!resp.body.ok) {
-				alert((resp.body.error || 'error') + ' (HTTP ' + resp.status + ')');
-				_refreshDirtyUI();
-				return;
-			}
-			// Merge saved values into state.current, clear dirty
-			Object.keys(state.dirty).forEach(function (k) { state.current[k] = state.dirty[k]; });
-			state.dirty = {};
-			// Strip dirty class on rows, keep missing class accurate
-			$tbody.querySelectorAll('tr.trl-row--dirty').forEach(function (tr) { tr.classList.remove('trl-row--dirty'); });
-			_refreshDirtyUI();
-			$saveMsg.textContent = i18n.saveSuccess.replace('{n}', String(resp.body.applied || 0));
-		})
-		.catch(function () {
-			alert(i18n.networkError);
-			_refreshDirtyUI();
-		});
-	});
-
-	$discBtn.addEventListener('click', function () {
-		if (!confirm(i18n.confirmDiscard)) return;
-		state.dirty = {};
-		renderTable();
-		_refreshDirtyUI();
-	});
-
-	window.addEventListener('beforeunload', function (e) {
-		if (Object.keys(state.dirty).length === 0) return;
-		e.preventDefault();
-		e.returnValue = '';
-	});
-
-	// ── "New locale" modal ──────────────────────────────────────
-	var $modal = document.getElementById('trl-newlocale-modal');
-	document.getElementById('trl-new-locale-btn').addEventListener('click',   function () { $modal.hidden = false; });
-	document.getElementById('trl-newlocale-cancel').addEventListener('click', function () { $modal.hidden = true; });
-	document.getElementById('trl-newlocale-cancel-2').addEventListener('click', function () { $modal.hidden = true; });
-	document.getElementById('trl-newlocale-create').addEventListener('click', function () {
-		var code  = document.getElementById('trl-new-code').value.trim();
-		var label = document.getElementById('trl-new-label').value.trim();
-		var both  = document.getElementById('trl-new-both-scopes').checked;
-		if (!/^[a-z]{2}(_[A-Z]{2})?$/.test(code)) { alert(i18n.invalidCode); return; }
-		if (!label)                                { alert(i18n.labelRequired); return; }
-
-		var $btn = this;
-		$btn.disabled = true;
-
-		fetch('translations-api.php?op=create&scope=' + encodeURIComponent(state.scope), {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				csrf_token:  CSRF,
-				locale:      code,
-				label:       label,
-				both_scopes: both,
-			}),
-		})
-		.then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); })
-		.then(function (resp) {
-			$btn.disabled = false;
-			if (!resp.body.ok) {
-				if (resp.body.error === 'already_exists') { alert(i18n.alreadyExists.replace('{locale}', code)); }
-				else { alert((resp.body.error || 'error') + ' (HTTP ' + resp.status + ')'); }
-				return;
-			}
-			$modal.hidden = true;
-			alert(i18n.createSuccess.replace('{locale}', code));
-			// Reload the page on the newly created locale
-			var qs = new URLSearchParams({ action: 'translations', scope: state.scope, locale: code });
-			window.location.search = '?' + qs.toString();
-		})
-		.catch(function () {
-			$btn.disabled = false;
-			alert(i18n.networkError);
-		});
-	});
-
-	// ── Initial load from backend ───────────────────────────────
-	function loadFromBackend() {
-		var qs = new URLSearchParams({ op: 'load', scope: state.scope, locale: state.locale });
-		fetch('translations-api.php?' + qs.toString(), { credentials: 'same-origin' })
-			.then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); })
-			.then(function (resp) {
-				if (!resp.body.ok) {
-					$tbody.innerHTML = '<tr><td colspan="3" class="trl-empty-state">' +
-						_esc(resp.body.error || 'error') + '</td></tr>';
-					return;
-				}
-				state.reference = resp.body.reference || {};
-				state.current   = resp.body.current   || {};
-				renderTable();
-				_refreshDirtyUI();
-			})
-			.catch(function () {
-				$tbody.innerHTML = '<tr><td colspan="3" class="trl-empty-state">' + _esc(i18n.networkError) + '</td></tr>';
-			});
-	}
-	loadFromBackend();
-
-	function _esc(s) {
-		return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-	}
-})();
-</script>
+<script type="application/json" id="translations-data"><?php echo json_encode([
+	'i18n' => [
+		'noChanges'       => __t('translations_no_changes'),
+		'dirtyMsg'        => __t('translations_unsaved_changes'),
+		'confirmDiscard'  => __t('translations_confirm_discard'),
+		'confirmLeave'    => __t('translations_confirm_leave'),
+		'placeholderWarn' => __t('translations_placeholder_warning'),
+		'invalidCode'     => __t('translations_invalid_code'),
+		'labelRequired'   => __t('translations_label_required'),
+		'empty'           => __t('translations_empty'),
+		'networkError'    => __t('translations_network_error'),
+		'saveSuccess'     => __t('translations_save_success'),
+		'createSuccess'   => __t('translations_create_success'),
+		'alreadyExists'   => __t('translations_already_exists'),
+	],
+	'scope'  => $scope,
+	'locale' => $locale,
+], JSON_HEX_TAG); ?></script>
+<script src="assets/js/translations.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/translations.js'); ?>"></script>

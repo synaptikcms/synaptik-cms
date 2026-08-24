@@ -4,6 +4,14 @@
  * Plugin hook points a plugin can use:
  *   - 'admin_menu'                (pl_do_hook, no args) — register admin
  *                                   sidebar entries via pl_register_admin_menu()
+ *   - 'admin_dashboard'           (pl_do_hook, no args) — fired from
+ *                                   admin/dashboard.php at the point a widget
+ *                                   should appear. Unlike 'admin_menu' there is
+ *                                   no registration/collection step: a callback
+ *                                   just echoes its own self-contained markup
+ *                                   (including a wrapping .dashboard-panel div
+ *                                   and any <link rel="stylesheet"> it needs —
+ *                                   dashboard.php has no extra_head slot).
  *   - 'plugin_activate_{slug}'    (pl_do_hook) — fired once on activation
  *   - 'plugin_deactivate_{slug}'  (pl_do_hook) — fired once on deactivation
  *   - 'early_request'             (pl_do_hook, no args) — fired from index.php
@@ -469,20 +477,42 @@ function pl_on_admin_menu(callable $callback): void
 }
 
 /**
+ * Registers a callback for the 'admin_dashboard' hook. Thin wrapper around
+ * pl_add_hook(), mirroring pl_on_admin_menu(). Unlike the admin_menu hook,
+ * there is no collection step — the callback echoes its own widget markup
+ * directly when 'admin_dashboard' fires.
+ */
+function pl_on_admin_dashboard(callable $callback): void
+{
+    pl_add_hook('admin_dashboard', $callback);
+}
+
+/**
  * Returns all admin menu entries registered so far. Fires 'admin_menu'
  * first so active plugins have a chance to register before the list is read.
  * Also ensures active plugins are loaded first — admin-only requests (e.g.
  * admin/plugins.php) don't go through functions.php's pl_load_active_plugins()
  * call, so a plugin's admin_menu registration would otherwise never run.
+ *
+ * The hook fires at most once per request (memoized) — pl_do_hook() has no
+ * idempotency guard of its own, so a second call site (e.g. a page building
+ * a slug -> URL map alongside the sidebar's own call) would otherwise
+ * re-append every plugin's item and duplicate it in the returned list.
  */
 function pl_get_admin_menu_items(): array
 {
     static $loaded = false;
+    static $fired  = false;
+
     if (!$loaded) {
         pl_load_active_plugins();
         $loaded = true;
     }
 
-    pl_do_hook('admin_menu');
+    if (!$fired) {
+        pl_do_hook('admin_menu');
+        $fired = true;
+    }
+
     return $GLOBALS['_pl_admin_menu_items'];
 }

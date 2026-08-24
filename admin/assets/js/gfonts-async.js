@@ -1,0 +1,1 @@
+!function(){var e=document.getElementById("gfonts-link");e&&(e.sheet?e.media="all":e.addEventListener("load",function(){this.media="all"}))}();
