@@ -50,7 +50,7 @@ Whether you run portfolio sites, documentation sites, business sites, personal b
 
 No Composer. No npm. No database setup.
 
-1. Download the [latest release ZIP](https://synaptikcms.com/files/releases/synaptikcms-latest.zip)
+1. Download the [latest release ZIP](https://synaptikcms.com/download.php?f=synaptik-cms)
 2. Extract and upload the files to your server
 3. Visit `yourdomain.com/install.php` (or `yourdomain.com/subfolder/install.php`) and create your account.
 
