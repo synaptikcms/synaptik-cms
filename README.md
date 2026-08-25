@@ -56,7 +56,7 @@ No Composer. No npm. No database setup.
 
 **That's it.** You're running.
 
-> ⚠️ Always run `install.php` before using the CMS. See the [installation guide](https://docs.synaptikcms.com/getting-started/#toc-installation) for details.
+> ⚠️ Always run `install.php` before using the CMS. See the [installation guide]([https://docs.synaptikcms.com/getting-started/](https://docs.synaptikcms.com/getting-started/#toc-installing-your-site)) for details.
 
 **Note:** The default install package ships only with the default theme. Free, clean, responsive themes are available on the [official themes page](https://synaptikcms.com/themes/), and official plugins on the [plugins page](https://synaptikcms.com/plugins/).
 
