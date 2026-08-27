@@ -64,13 +64,13 @@ No Composer. No npm. No database setup.
 
 ## Highlights
 
-**Content** — 3 content types (Articles, Pages, Projects) · WYSIWYG & Markdown editors · Drafts with autosave · Scheduled publication · Revisions history · Hierarchical categories & tags · Custom fields · Image galleries (grid/masonry/justified/carousel) · Shortcodes (`[toc]`, `[gallery]`, `[callout]`, `[contact_form]`, ...)
+**Content** — 3 content types (Articles, Pages, Projects, can all be renamed) · WYSIWYG & Markdown editors · Drafts with autosave · Scheduled publication · Revisions history · Hierarchical categories · Tags · Custom fields · Image galleries (grid/masonry/justified/carousel) · Shortcodes (`[toc]`, `[gallery]`, `[callout]`, `[contact_form]`, ...)
 
 **Admin panel** — Drag-and-drop media manager with auto-compression · Batch image optimizer · Menu builder · Live template editor with auto-backup · SEO overview · Sitemap generator · One-click ZIP backup/restore · One-click updates for core, themes and plugins
 
-**Developer** — Hook/filter theme API, partials for article & project cards · Self-contained plugin system, zero core edits required · Meta tags, Open Graph, LLMS.txt, JSON-LD, RSS out of the box · Per-request cache, split-file item pages
+**Developer** — Hook/filter theme API, partials for article & project cards · Child themes · Self-contained plugin system, zero core edits required · Meta tags, Open Graph, LLMS.txt, JSON-LD, RSS out of the box · Per-request cache, split-file item pages
 
-→ Full feature reference and screenshots at [docs.synaptikcms.com](https://docs.synaptikcms.com/)
+→ Full feature reference and screenshots at [https://docs.synaptikcms.com/](https://docs.synaptikcms.com/)
 
 ---
 
@@ -81,13 +81,13 @@ No Composer. No npm. No database setup.
 - `ZipArchive` recommended for theme/plugin uploads and automatic updates
 - Write access on `/`, `/data/`, `/files/`, `/bckps/`, `/admin/`, `/theme/`, `/plugins/`
 
-Full requirements, the Nginx sample config, and the filesystem permissions checklist: see the https://docs.synaptikcms.com/getting-started/#toc-installation.
+Full requirements, the Nginx sample config, and the filesystem permissions checklist: see the [Installation Guide](https://docs.synaptikcms.com/getting-started/#toc-installation).
 
 ---
 
 ## Theming
 
-Themes live in `/theme/{theme-name}/`. Create your child theme in `/theme/child_theme/{theme-name}/`.
+Themes live in `/theme/{theme-name}/`. Customize yours with child theme in `/theme/child_theme/{theme-name}/`.
 
 A minimal theme requires:
 
@@ -101,13 +101,14 @@ theme/
     └── home.php
 ```
 
-The Theme API exposes hooks (`add_action`), filters (`add_filter`), and helpers (`render_site_logo`, `render_header_scripts`, `render_navigation`, etc.). Ships with a default theme, `Mono` — more themes at https://synaptikcms.com/themes/. Full [theming guide](https://docs.synaptikcms.com/theming/theming-guide/).
+The Theme API exposes hooks (`add_action`), filters (`add_filter`), and helpers (`render_site_logo`, `render_header_scripts`, `render_navigation`, etc.). Ships with a default theme, `Mono` and a minimal reference theme, `Starter` as a base to develop your own.
+More themes at https://synaptikcms.com/themes/. Full [theming guides](https://synaptikcms.com/docs/category/theming/).
 
 ---
 
 ## Plugins
 
-Plugins live in `/plugins/{plugin-name}/`, self-contained with their own routing, data storage and admin screens — no core file edits required. Install by uploading a `.zip` from **Admin → Tools → Extensions**, activate and deactivate with one click. Official plugins at [synaptikcms.com/plugins](https://synaptikcms.com/plugins/). Full [plugin developer documentation](https://docs.synaptikcms.com/tools/plugin-system/).
+Plugins live in `/plugins/{plugin-name}/`, self-contained with their own routing, data storage and admin screens — no core file edits required. Install by uploading a `.zip` from **Admin → Tools → Extensions**, activate and deactivate with one click. Official plugins at [synaptikcms.com/plugins](https://synaptikcms.com/plugins/). Full [Plugin developer documentation](https://docs.synaptikcms.com/category/plugins/).
 
 ---
 
