@@ -87,7 +87,9 @@ Full requirements, the Nginx sample config, and the filesystem permissions check
 
 ## Theming
 
-Themes live in `/theme/{theme-name}/`. A minimal theme requires:
+Themes live in `/theme/{theme-name}/`. Create your child theme in `/theme/child_theme/{theme-name}/`.
+
+A minimal theme requires:
 
 ```
 theme/
