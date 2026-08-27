@@ -1,9 +1,4 @@
 <?php
-/**
- * llms-full.txt — full site content dump for LLM indexers.
- * Spec: https://llmstxt.org/
- * Accessible at /llms-full.txt via .htaccess rewrite.
- */
 
 require_once __DIR__ . '/functions.php';
 

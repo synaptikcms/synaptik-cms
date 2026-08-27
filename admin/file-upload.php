@@ -16,12 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	}
 }
 
-// Include image optimization functions
 require_once('image-optimization.php');
-
-// sanitizeFileName() lives in includes/admin-functions.php (required above).
-
-// Expanded list of allowed file types
 $allowedTypes = [
 	// Images
 	'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'bmp', 'tiff', 'tif',

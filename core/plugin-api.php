@@ -1,43 +1,4 @@
 <?php
-/**
- * Plugin API — SynaptikCMS
- * Plugin hook points a plugin can use:
- *   - 'admin_menu'                (pl_do_hook, no args) — register admin
- *                                   sidebar entries via pl_register_admin_menu()
- *   - 'admin_dashboard'           (pl_do_hook, no args) — fired from
- *                                   admin/dashboard.php at the point a widget
- *                                   should appear. Unlike 'admin_menu' there is
- *                                   no registration/collection step: a callback
- *                                   just echoes its own self-contained markup
- *                                   (including a wrapping .dashboard-panel div
- *                                   and any <link rel="stylesheet"> it needs —
- *                                   dashboard.php has no extra_head slot).
- *   - 'plugin_activate_{slug}'    (pl_do_hook) — fired once on activation
- *   - 'plugin_deactivate_{slug}'  (pl_do_hook) — fired once on deactivation
- *   - 'early_request'             (pl_do_hook, no args) — fired from index.php
- *                                   immediately after functions.php loads,
- *                                   before the data layer, routing, or any
- *                                   output. For a plugin that needs to
- *                                   intercept/block the entire request
- *                                   before the site does any work (e.g. a
- *                                   maintenance-mode page).
- *   - 'after_routing'             (pl_do_hook, bool $isGenuine404) — fired
- *                                   from index.php right after
- *                                   parseRequestUri() resolves the route,
- *                                   before any HTTP header or HTML output.
- *                                   For a plugin that needs to know whether
- *                                   the current request is a genuine 404
- *                                   before deciding to redirect or otherwise
- *                                   intervene (e.g. custom redirects).
- *
- * Front-end plugin hooks that fire *during* template rendering
- * (before_content, footer_scripts, etc.) still go through theme-api.php's
- * add_theme_action() as before — that system is unaffected by this file
- * and remains the right tool for anything rendered as part of a front-end
- * page. 'early_request' and 'after_routing' above cover the two points
- * upstream of rendering that add_theme_action() has no access to.
- */
-
 if (defined('PLUGIN_API_LOADED')) return;
 define('PLUGIN_API_LOADED', true);
 
@@ -49,23 +10,14 @@ if (!is_dir(PL_ROOT)) {
     @mkdir(PL_ROOT, 0755, true);
 }
 
-// ─── Minimal hook system (admin-context only — see file docblock) ─────────────
-
 $GLOBALS['_pl_hooks']   = [];
 $GLOBALS['_pl_filters'] = [];
 
-/**
- * Register an action callback on a hook.
- * Lower priority runs first. Default 10 matches add_theme_action().
- */
 function pl_add_hook(string $hook, callable $callback, int $priority = 10): void
 {
     $GLOBALS['_pl_hooks'][$hook][$priority][] = $callback;
 }
 
-/**
- * Fire all callbacks registered on a hook, in priority order.
- */
 function pl_do_hook(string $hook, mixed $arg = null): void
 {
     if (empty($GLOBALS['_pl_hooks'][$hook])) return;
@@ -78,21 +30,11 @@ function pl_do_hook(string $hook, mixed $arg = null): void
     }
 }
 
-/**
- * Register a filter callback. The callback receives $value (and optional
- * extra args) and MUST return the (optionally modified) value.
- * Lower priority runs first. Default 10 matches add_theme_filter().
- */
 function pl_add_filter(string $hook, callable $callback, int $priority = 10): void
 {
     $GLOBALS['_pl_filters'][$hook][$priority][] = $callback;
 }
 
-/**
- * Pass $value through all filter callbacks registered on $hook and return
- * the final value. Extra $args are forwarded to each callback after $value.
- * Returns $value unchanged if no filters are registered.
- */
 function pl_apply_filter(string $hook, mixed $value, mixed ...$args): mixed
 {
     if (empty($GLOBALS['_pl_filters'][$hook])) return $value;
@@ -106,12 +48,6 @@ function pl_apply_filter(string $hook, mixed $value, mixed ...$args): mixed
     return $value;
 }
 
-// ─── Registry ───────────────────────────────────────────────────────────────
-/**
- * Loads the plugin activation registry: { "slug": { "active": bool } }.
- * Missing file → empty registry (no plugins active by default; a plugin
- * must be explicitly activated from Admin → Extensions).
- */
 function pl_load_registry(): array
 {
     if (!file_exists(PL_REGISTRY_PATH)) {
@@ -132,10 +68,6 @@ function pl_save_registry(array $registry): bool
     return rename($tmp, PL_REGISTRY_PATH);
 }
 
-/**
- * Scans /plugins/ for valid plugins: any top-level folder containing a
- * plugin.json with "synaptik_plugin": true. Returns manifests keyed by slug.
- */
 function pl_discover_plugins(): array
 {
     $found = [];
@@ -161,10 +93,6 @@ function pl_discover_plugins(): array
     return $found;
 }
 
-/**
- * Returns all discovered plugins merged with their current activation
- * state, for display on the Admin → Extensions page.
- */
 function pl_list_plugins(): array
 {
     $plugins  = pl_discover_plugins();
@@ -184,12 +112,6 @@ function pl_is_active(string $slug): bool
     return !empty($registry[$slug]['active']);
 }
 
-/**
- * Activates a plugin: marks it active in the registry and fires
- * 'plugin_activate_{slug}' so the plugin can run first-run setup (e.g.
- * creating its data directory) immediately, without waiting for its next
- * natural page load.
- */
 function pl_activate(string $slug): bool
 {
     $plugins = pl_discover_plugins();
@@ -205,19 +127,10 @@ function pl_activate(string $slug): bool
     return true;
 }
 
-/**
- * Deactivates a plugin: marks it inactive. Does not delete its data —
- * deactivation is reversible. A plugin wanting to clean up on deactivation
- * can hook 'plugin_deactivate_{slug}'.
- */
 function pl_deactivate(string $slug): bool
 {
     $registry = pl_load_registry();
     if (!isset($registry[$slug])) return true;
-
-    // The plugin must be loaded for its deactivation callback (if any) to
-    // exist — activation state alone doesn't guarantee this admin request
-    // already loaded the plugin's entry file.
     $discovered = pl_discover_plugins();
     if (isset($discovered[$slug])) {
         pl_load_plugin($slug, $discovered[$slug]);
@@ -228,12 +141,6 @@ function pl_deactivate(string $slug): bool
     return pl_save_registry($registry);
 }
 
-/**
- * Recursively deletes a directory and all its contents. Used only by
- * pl_delete_plugin() below — kept local to this file rather than added as
- * a general-purpose core helper, since it is only ever called on a path
- * already validated to be a plugin folder under PL_ROOT.
- */
 function _pl_rrmdir(string $dir): bool
 {
     if (!is_dir($dir)) return false;
@@ -254,17 +161,6 @@ function _pl_rrmdir(string $dir): bool
     return @rmdir($dir);
 }
 
-/**
- * Permanently deletes a plugin's folder from /plugins/. Refuses to delete
- * an active plugin — the caller must deactivate it first, so any
- * 'plugin_deactivate_{slug}' cleanup hook has already run and the plugin
- * isn't removed out from under a request that's still using it.
- *
- * Also removes the plugin's entry from the activation registry, if present.
- *
- * @return bool True on success. False if the plugin is active, not found,
- *              or the folder could not be fully removed.
- */
 function pl_delete_plugin(string $slug): bool
 {
     if (pl_is_active($slug)) return false;
@@ -273,9 +169,7 @@ function pl_delete_plugin(string $slug): bool
     if (!isset($discovered[$slug])) return false;
 
     $folder = $discovered[$slug]['_folder'] ?? $slug;
-    // Defense in depth: folder name must be a plain path segment, never
-    // escaping PL_ROOT via '..' or an absolute path — even though
-    // pl_discover_plugins() only ever returns real subdirectory names.
+
     if ($folder === '' || $folder === '.' || $folder === '..' || strpos($folder, '/') !== false) {
         return false;
     }
@@ -300,10 +194,6 @@ function pl_delete_plugin(string $slug): bool
 
 // ─── Loading ──────────────────────────────────────────────────────────────────
 
-/**
- * Includes a single plugin's entry file, guarding against a missing or
- * misconfigured manifest.
- */
 function pl_load_plugin(string $slug, array $manifest): void
 {
     $entry = $manifest['entry'] ?? null;
@@ -315,11 +205,6 @@ function pl_load_plugin(string $slug, array $manifest): void
     }
 }
 
-/**
- * Loads every plugin marked active in the registry. Called once per request
- * from functions.php (front-end) and from admin/plugins.php (admin-only
- * context, so the plugin's admin_menu hook registration runs there too).
- */
 function pl_load_active_plugins(): void
 {
     $registry = pl_load_registry();
@@ -334,28 +219,13 @@ function pl_load_active_plugins(): void
     }
 }
 
-// ─── Plugin options API ──────────────────────────────────────────────────────────
-
-/**
- * In-request cache for plugin options, keyed by slug.
- * Avoids re-reading the options file on every pl_get_option() call
- * within the same request.
- */
 $GLOBALS['_pl_options_cache'] = [];
 
-/**
- * Return the path to a plugin's options file.
- * Each plugin keeps its own options file inside its own data/ folder,
- * so options survive plugin updates and are removed with the plugin folder.
- */
 function _pl_options_path(string $slug): string
 {
     return PL_ROOT . '/' . $slug . '/data/options.json';
 }
 
-/**
- * Load (and cache) a plugin's options array.
- */
 function _pl_load_options(string $slug): array
 {
     if (isset($GLOBALS['_pl_options_cache'][$slug])) {
@@ -371,16 +241,12 @@ function _pl_load_options(string $slug): array
     return $data;
 }
 
-/**
- * Persist a plugin's options array to disk (atomic write).
- */
 function _pl_save_options(string $slug, array $data): bool
 {
     $path = _pl_options_path($slug);
     $dir  = dirname($path);
     if (!is_dir($dir)) {
         @mkdir($dir, 0755, true);
-        // .htaccess protection (mirrors plugin data/ convention)
         $ht = dirname($dir) . '/data/.htaccess';
         if (!file_exists($ht)) {
             @file_put_contents($ht,
@@ -398,28 +264,12 @@ function _pl_save_options(string $slug, array $data): bool
     return $ok;
 }
 
-/**
- * Get a plugin option value.
- *
- * @param string $slug    Plugin slug
- * @param string $key     Option key
- * @param mixed  $default Returned when the key is absent or the file missing
- * @return mixed
- */
 function pl_get_option(string $slug, string $key, mixed $default = null): mixed
 {
     $data = _pl_load_options($slug);
     return array_key_exists($key, $data) ? $data[$key] : $default;
 }
 
-/**
- * Set a plugin option value and persist to disk.
- *
- * @param string $slug  Plugin slug
- * @param string $key   Option key
- * @param mixed  $value Value to store (must be JSON-serializable)
- * @return bool True on success
- */
 function pl_set_option(string $slug, string $key, mixed $value): bool
 {
     $data        = _pl_load_options($slug);
@@ -427,13 +277,6 @@ function pl_set_option(string $slug, string $key, mixed $value): bool
     return _pl_save_options($slug, $data);
 }
 
-/**
- * Delete a single plugin option key and persist to disk.
- *
- * @param string $slug Plugin slug
- * @param string $key  Option key to remove
- * @return bool True on success (also true if the key didn't exist)
- */
 function pl_delete_option(string $slug, string $key): bool
 {
     $data = _pl_load_options($slug);
@@ -446,15 +289,6 @@ function pl_delete_option(string $slug, string $key): bool
 
 $GLOBALS['_pl_admin_menu_items'] = [];
 
-/**
- * Registers an admin sidebar entry for a plugin. Call this during the
- * 'admin_menu' hook, fired once from admin/includes/sidebar.php.
- *
- * @param string $slug  Plugin slug (used for the active-state CSS class)
- * @param string $label Menu label (already translated by the caller)
- * @param string $url   Absolute or relative URL for the link
- * @param string $icon  Inline SVG path data (Lucide-style, stroke currentColor)
- */
 function pl_register_admin_menu(string $slug, string $label, string $url, string $icon = ''): void
 {
     $GLOBALS['_pl_admin_menu_items'][] = [
@@ -465,40 +299,16 @@ function pl_register_admin_menu(string $slug, string $label, string $url, string
     ];
 }
 
-/**
- * Registers a callback for the 'admin_menu' hook. Thin wrapper around
- * pl_add_hook() so plugin code doesn't need to know about the underlying
- * hook name — mirrors the add_theme_action() naming plugins already use
- * for front-end hooks, for consistency.
- */
 function pl_on_admin_menu(callable $callback): void
 {
     pl_add_hook('admin_menu', $callback);
 }
 
-/**
- * Registers a callback for the 'admin_dashboard' hook. Thin wrapper around
- * pl_add_hook(), mirroring pl_on_admin_menu(). Unlike the admin_menu hook,
- * there is no collection step — the callback echoes its own widget markup
- * directly when 'admin_dashboard' fires.
- */
 function pl_on_admin_dashboard(callable $callback): void
 {
     pl_add_hook('admin_dashboard', $callback);
 }
 
-/**
- * Returns all admin menu entries registered so far. Fires 'admin_menu'
- * first so active plugins have a chance to register before the list is read.
- * Also ensures active plugins are loaded first — admin-only requests (e.g.
- * admin/plugins.php) don't go through functions.php's pl_load_active_plugins()
- * call, so a plugin's admin_menu registration would otherwise never run.
- *
- * The hook fires at most once per request (memoized) — pl_do_hook() has no
- * idempotency guard of its own, so a second call site (e.g. a page building
- * a slug -> URL map alongside the sidebar's own call) would otherwise
- * re-append every plugin's item and duplicate it in the returned list.
- */
 function pl_get_admin_menu_items(): array
 {
     static $loaded = false;

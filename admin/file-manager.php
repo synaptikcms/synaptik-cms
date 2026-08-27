@@ -491,10 +491,6 @@ function getFileIcon($fileType) {
 	return '📄';
 }
 
-/**
- * Verify that a resolved path stays inside the upload base directory.
- * Returns the real path on success, null on failure.
- */
 function fm_assert_within_base(string $path, string $base): ?string
 {
 	$realBase = realpath($base);
@@ -505,9 +501,6 @@ function fm_assert_within_base(string $path, string $base): ?string
 	return $realPath;
 }
 
-/**
- * Handle file and folder rename operations.
- */
 function handleRename() {
 	global $baseUploadPath, $currentPath, $allowedTypes;
 	$itemType     = $_POST['item_type']     ?? '';
@@ -516,7 +509,6 @@ function handleRename() {
 	if (empty($itemType) || empty($originalName) || $newName === '') {
 		return ['success' => false, 'message' => __t('fm_rename_missing_data')];
 	}
-	// For files, re-validate the new extension against the upload whitelist
 	if ($itemType === 'file') {
 		$ext = strtolower(pathinfo($newName, PATHINFO_EXTENSION));
 		if (!in_array($ext, $allowedTypes, true)) {
@@ -526,12 +518,10 @@ function handleRename() {
 	$dir              = rtrim($baseUploadPath . $currentPath, '/');
 	$originalItemPath = $dir . '/' . basename($originalName);
 	$newItemPath      = $dir . '/' . $newName;
-	// Source must exist and be inside the upload base
 	if (!file_exists($originalItemPath)
 		|| fm_assert_within_base($originalItemPath, $baseUploadPath) === null) {
 		return ['success' => false, 'message' => sprintf(__t('fm_item_not_found'), $originalName)];
 	}
-	// Destination must also stay inside the upload base (pre-check via dirname)
 	$newDirReal  = realpath($dir);
 	$baseReal    = realpath($baseUploadPath);
 	if ($newDirReal === false || $baseReal === false
@@ -545,9 +535,6 @@ function handleRename() {
 	return ['success' => $success, 'message' => $success ? __t('fm_rename_success') : __t('fm_rename_failed')];
 }
 
-/**
- * Handle file and folder move operations.
- */
 function handleMove() {
 	global $baseUploadPath, $currentPath;
 	$items        = json_decode($_POST['items']         ?? '[]', true);
@@ -568,7 +555,6 @@ function handleMove() {
 	if (!file_exists($targetFolderPath) || !is_dir($targetFolderPath)) {
 		return ['success' => false, 'message' => __t('fm_move_target_not_found')];
 	}
-	// Ensure the resolved target stays inside the upload base
 	if (fm_assert_within_base($targetFolderPath, $baseUploadPath) === null) {
 		return ['success' => false, 'message' => __t('fm_invalid_request')];
 	}
@@ -607,7 +593,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 	}
 }
 
-// ── Layout ────────────────────────────────────────────────────────────────────
 $pageTitle = __t('file_manager');
 
 $extraHead = '<link rel="stylesheet" href="assets/css/admin-filemanager.css?v=' . @filemtime(__DIR__ . '/assets/css/admin-filemanager.css') . '">'

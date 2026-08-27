@@ -56,24 +56,14 @@ if ($existingItem !== null && !admin_can_edit_item($existingItem)) {
 
 $currentStatus = $existingItem['status'] ?? null;
 
-// 'draft' (never published) and 'unpublished' (was live, pulled back) are
-// both safe for autosave to write directly — nothing public is at stake
-// either way. 'published' and 'scheduled' are not.
 if ($existingItem !== null && !in_array($currentStatus, ['draft', 'unpublished'], true)) {
-	// ─── Case B: the item is already published or scheduled ──────────────────
-	// Never silently overwrite live/queued content — autosave here writes a
-	// separate pending snapshot instead, surfaced in the content list as
-	// "unsaved changes" until the admin explicitly resumes (loads it into
-	// the editor) or it's superseded by a real Update/Publish.
+
 	$draftsDir = sl_admin_drafts_dir();
 	if (!is_dir($draftsDir) && !mkdir($draftsDir, 0755, true)) {
 		echo json_encode(['error' => 'Failed to create drafts directory']);
 		exit;
 	}
 
-	// The hidden draft_id field is empty until the first snapshot for this
-	// editing session — after that it's carried forward so every subsequent
-	// autosave updates the same file instead of creating a new one each time.
 	$draftId = !empty($_POST['draft_id']) ? $_POST['draft_id'] : uniqid('draft_');
 
 	$normalizedImagePath = trim($_POST['selected_image_path'] ?? '');
@@ -81,10 +71,6 @@ if ($existingItem !== null && !in_array($currentStatus, ['draft', 'unpublished']
 		$normalizedImagePath = 'files/' . ltrim($normalizedImagePath, '/');
 	}
 
-	// Same purification the real save path applies (admin_build_content_item_from_post())
-	// — this snapshot is rendered back into the editor/diff view on resume, and
-	// previewed like real content in the meantime, so it can't skip sanitization
-	// just because it's "only" a pending snapshot.
 	$pendingContentFormat = in_array($_POST['content_format'] ?? '', ['html', 'markdown'], true)
 		? $_POST['content_format']
 		: ($existingItem['content_format'] ?? 'html');
@@ -92,14 +78,6 @@ if ($existingItem !== null && !in_array($currentStatus, ['draft', 'unpublished']
 		? admin_purify_markdown($_POST['content'] ?? '')
 		: admin_purify_html($_POST['content'] ?? '');
 
-	// Nothing to snapshot if this tick matches the published item exactly —
-	// same fields the pending-diff view itself compares (title, category,
-	// summary, content), so "no differences shown there" and "no snapshot
-	// written here" always agree. Covers both a genuinely no-op autosave tick
-	// and a change that was made, autosaved, then undone back to the
-	// published version — in the second case any earlier snapshot under this
-	// draft_id is removed too, so the "unsaved changes" badge clears instead
-	// of pointing at a now-identical draft.
 	$pendingIsUnchanged =
 		(string)($existingItem['title']    ?? '') === (string)($_POST['title']    ?? '') &&
 		(string)($existingItem['category'] ?? '') === (string)($_POST['category'] ?? '') &&
@@ -109,7 +87,18 @@ if ($existingItem !== null && !in_array($currentStatus, ['draft', 'unpublished']
 	if ($pendingIsUnchanged) {
 		$staleFile = $draftsDir . '/' . $draftId . '.json';
 		if (is_file($staleFile)) @unlink($staleFile);
-		echo json_encode(['success' => true, 'draft_id' => $draftId, 'timestamp' => time(), 'unchanged' => true]);
+		echo json_encode([
+			'success'     => true,
+			'draft_id'    => $draftId,
+			'timestamp'   => time(),
+			'unchanged'   => true,
+			// This item is already published — the real file isn't touched by
+			// the pending-draft flow above, so this is the current live URL,
+			// not a preview of the unsaved edit. Same caveat as the
+			// "materialized"/existing-item branches below: the button always
+			// opens what's actually on disk right now.
+			'preview_url' => admin_content_url($contentType, $existingItem['slug'] ?? '', $existingItem['custom_slug'] ?? '', $existingItem['category'] ?? ''),
+		]);
 		exit;
 	}
 
@@ -147,9 +136,7 @@ if ($existingItem !== null && !in_array($currentStatus, ['draft', 'unpublished']
 		'og_title'       => $_POST['og_title'] ?? '',
 		'og_description' => $_POST['og_description'] ?? '',
 		'og_image'       => $_POST['og_image'] ?? '',
-		// Empty string, not absent — the "date" field is a hidden input that
-		// starts blank until a publish date is explicitly set; '??' wouldn't
-		// catch that, only a real empty check does.
+
 		'date'           => !empty($_POST['date']) ? $_POST['date'] : date('Y-m-d H:i'),
 		'custom_fields'  => isset($_POST['custom_fields']) && is_array($_POST['custom_fields'])
 			? $_POST['custom_fields']
@@ -164,27 +151,20 @@ if ($existingItem !== null && !in_array($currentStatus, ['draft', 'unpublished']
 	}
 
 	if (file_put_contents($filename, $jsonData)) {
-		echo json_encode(['success' => true, 'draft_id' => $draftId, 'timestamp' => time()]);
+		echo json_encode([
+			'success'     => true,
+			'draft_id'    => $draftId,
+			'timestamp'   => time(),
+			// Same caveat as the "unchanged" branch above: this is the current
+			// live URL on disk, not a preview of the pending draft content.
+			'preview_url' => admin_content_url($contentType, $existingItem['slug'] ?? '', $existingItem['custom_slug'] ?? '', $existingItem['category'] ?? ''),
+		]);
 	} else {
 		echo json_encode(['error' => 'Failed to save draft file']);
 	}
 	exit;
 }
 
-// ─── Case A: materializing a new item, or updating an existing draft/unpublished item ──
-// Nothing public is at stake either way, so autosave writes straight to the
-// real item — with a revision snapshot first, same as an explicit save.
-// Never auto-publishes and never changes draft <-> unpublished: status is
-// preserved as-is (or set to 'draft' when there's nothing to preserve, i.e.
-// materializing a brand new item), regardless of any publish_at the form
-// may carry. Going live is only ever the result of an explicit
-// Update/Publish click (see content.php); explicit Unpublish is the only
-// way back from 'published'/'scheduled' to 'unpublished' (also content.php).
-//
-// Unlike the explicit Add/Edit forms, title and content aren't both required
-// here — the editor's own autosave gate already only calls this endpoint
-// once there's a real title or real content (see editor-common.js). Reject
-// only the true edge case of neither being present at all.
 if (trim($_POST['title'] ?? '') === '' && trim($_POST['content'] ?? '') === '') {
 	echo json_encode(['error' => 'Content too short']);
 	exit;
@@ -220,10 +200,7 @@ if ($built['new_category'] !== null) {
 }
 
 if ($existingItem !== null) {
-	// Updating an existing draft-status item in place. Only snapshot a
-	// revision when something the revision-diff view would actually show
-	// has changed — otherwise consecutive autosaves on an untouched draft
-	// pile up empty "no changes" revisions.
+
 	$contentChanged = (string)($existingItem['title']    ?? '') !== (string)($item['title']    ?? '')
 		|| (string)($existingItem['summary']  ?? '') !== (string)($item['summary']  ?? '')
 		|| (string)($existingItem['category'] ?? '') !== (string)($item['category'] ?? '')
@@ -238,13 +215,14 @@ if ($existingItem !== null) {
 	$indexEntry['_file'] = $fileSlug;
 	sl_admin_update_index($contentType, $indexEntry);
 
-	echo json_encode(['success' => true, 'timestamp' => time()]);
+	echo json_encode([
+		'success'     => true,
+		'timestamp'   => time(),
+		'preview_url' => admin_content_url($contentType, $item['slug'] ?? '', $item['custom_slug'] ?? '', $item['category'] ?? ''),
+	]);
 	exit;
 }
 
-// Never-published item — materializing it for the first time. A title-less
-// autosave (real content, no title typed yet) needs a placeholder — both for
-// display and because an empty title produces an empty slug.
 if (empty($item['title'])) {
 	$item['title'] = __t('untitled_draft', 'Untitled draft');
 	$item['slug']  = sanitizeSlug($item['title']);
@@ -258,8 +236,6 @@ $indexEntry          = sl_admin_extract_index_entry($contentType, $item);
 $indexEntry['_file'] = $newFileSlug;
 sl_admin_update_index($contentType, $indexEntry);
 
-// The front end needs the new item's array position to switch itself from
-// the "add" form to the "edit" URL — find it in the index we just wrote to.
 $newIndexEntries = sl_load_index($contentType);
 $newPosition     = null;
 foreach ($newIndexEntries as $pos => $entry) {
@@ -271,5 +247,6 @@ echo json_encode([
 	'materialized'=> true,
 	'type'        => $contentType,
 	'index'       => $newPosition,
+	'preview_url' => admin_content_url($contentType, $item['slug'] ?? '', $item['custom_slug'] ?? '', $item['category'] ?? ''),
 	'timestamp'   => time(),
 ]);

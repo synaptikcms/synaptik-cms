@@ -1,20 +1,9 @@
 <?php
-// Set appropriate headers for JSON response
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
-
-// Load CMS functions (url_slug, cleanUrl, getCategoryPath, getBaseUrl, sanitizeSlug,
-// sl_build_data_array). functions.php already requires data-layer.php internally —
-// no separate include needed here.
 require_once __DIR__ . '/functions.php';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/**
- * Sanitize a string to valid UTF-8.
- * Strips invalid byte sequences (e.g. Windows-1252 curly quotes copy-pasted
- * into the editor) that cause json_encode() to silently return false.
- */
 function sanitize_utf8(string $str): string
 {
 	// iconv with //IGNORE drops bytes that are invalid in UTF-8
@@ -22,10 +11,6 @@ function sanitize_utf8(string $str): string
 	return ($clean === false) ? '' : $clean;
 }
 
-/**
- * Build a plain-text excerpt centred on $query inside $plainText.
- * Uses mb_ functions so multibyte chars (é, ▼, 📌 …) are never split.
- */
 function build_excerpt(string $plainText, string $query, int $ctx = 50, int $maxLen = 200): string
 {
 	$lowerText  = mb_strtolower($plainText, 'UTF-8');
@@ -46,20 +31,11 @@ function build_excerpt(string $plainText, string $query, int $ctx = 50, int $max
 	return $excerpt;
 }
 
-/**
- * Lightweight strip of the editor's custom block wrappers before strip_tags().
- * This avoids strip_tags() outputting inline style strings like
- * "--c-color:#60a5fa;--c-bg:#60a5fa1A" as visible text.
- */
 function strip_editor_noise(string $html): string
 {
-	// Remove wrapped shortcodes: [foo ...]content[/foo]
 	$html = preg_replace('/\[[^\]]+\].*?\[\/[^\]]+\]/s', '', $html);
-	// Remove self-closing shortcodes: [foo ...] or [/foo]
 	$html = preg_replace('/\[[^\]]*\]/', '', $html);
-	// Remove style attributes entirely (they produce CSS noise in plain text)
 	$html = preg_replace('/\s+style="[^"]*"/i', '', $html);
-	// Remove data-* attributes (won't appear in text anyway, just tidier)
 	$html = preg_replace('/\s+data-[a-z\-]+="[^"]*"/i', '', $html);
 	return $html;
 }
@@ -77,18 +53,11 @@ if ($query === '') {
 	exit;
 }
 
-// Minimum query length guard (avoid matching every word with single letters)
 if (mb_strlen($query, 'UTF-8') < 2) {
 	echo json_encode(['results' => []], JSON_UNESCAPED_UNICODE);
 	exit;
 }
 
-// ─── Rate limiting (per-IP, file-based, flock across full read-modify-write) ──
-// Max 30 search requests per minute per IP.
-// One JSON file shared across all IPs; expired entries pruned on every write
-// to prevent unbounded growth. flock() wraps the full cycle so concurrent
-// requests cannot lose increments (fixes the race that existed in the first
-// implementation where the read was unlocked).
 $_srRateFile = __DIR__ . '/../private/search_rate.json';
 $_srIpKey    = hash('sha256', $_SERVER['REMOTE_ADDR'] ?? '');
 $_srNow      = time();
@@ -109,7 +78,6 @@ if ($_srFh !== false) {
 	$_srEntry['count']++;
 	$_srData[$_srIpKey] = $_srEntry;
 
-	// Prune stale entries to keep the file from growing without bound
 	foreach ($_srData as $_srPruneKey => $_srPruneEntry) {
 		if (($_srNow - ($_srPruneEntry['window_start'] ?? 0)) >= $_srWindow * 2) {
 			unset($_srData[$_srPruneKey]);
@@ -134,21 +102,14 @@ if ($_srLimited) {
 }
 unset($_srLimited);
 
-// ─── Load data — only the types actually requested ───────────────────────────
-// Build the type list first so sl_build_data_array() reads only necessary files.
-
 $contentTypes = [];
 if ($searchArticles) $contentTypes[] = 'article';
 if ($searchPages)    $contentTypes[] = 'page';
 if ($searchProjects) $contentTypes[] = 'project';
 if (empty($contentTypes)) $contentTypes = ['article', 'page', 'project'];
 
-// Full items are needed only when content-body search is enabled.
 $data = sl_build_data_array($contentTypes, $searchInContent);
-
-// Expose globally so cleanUrl() / getCategoryPath() can resolve category paths.
 $GLOBALS['data'] = $data;
-
 $results = [];
 
 foreach ($contentTypes as $contentType) {

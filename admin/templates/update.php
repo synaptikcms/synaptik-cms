@@ -12,10 +12,6 @@ $_upd_info = admin_check_for_update();
 $_skipPrefixes = ['__MACOSX/', 'data/', 'files/', 'bckps/', 'cache/', 'private/', 'admin/cache/', 'theme/default/'];
 $_skipFiles    = ['.DS_Store', 'config.json', 'install.lock', 'install.php'];
 
-// Sweep orphaned tmp-update-* directories left behind by a previous update
-// that was interrupted (PHP timeout, fatal error, connection loss) before
-// reaching its own cleanup step. Runs on every page load, not just on apply,
-// so orphans never accumulate even if the admin never retries the update.
 if (!function_exists('_upd_sweep_orphans')) {
 	function _upd_sweep_orphans(string $bckpsDir): void
 	{
@@ -29,10 +25,6 @@ if (!function_exists('_upd_sweep_orphans')) {
 _upd_sweep_orphans($root . '/bckps');
 
 if (!function_exists('_upd_detect_prefix')) {
-	/**
-	 * Detects a common root prefix in a ZIP archive (e.g. "SynaptikCMS-release/").
-	 * Returns "" if files are at root level.
-	 */
 	function _upd_detect_prefix(ZipArchive $zip): string
 	{
 		if ($zip->numFiles === 0) return '';
@@ -48,10 +40,6 @@ if (!function_exists('_upd_detect_prefix')) {
 }
 
 if (!function_exists('_upd_should_skip')) {
-	/**
-	 * Returns true if the ZIP entry should be skipped (user data, runtime dirs).
-	 * Uses the original ZIP path names (always 'admin/...'), not the remapped ones.
-	 */
 	function _upd_should_skip(string $entryName, array $skipPrefixes, array $skipFiles): bool
 	{
 		foreach ($skipPrefixes as $prefix) {
@@ -137,12 +125,6 @@ if (isset($_POST['apply_update'])) {
 	}
 	$zip->close();
 
-	// ── Safety backup ──────────────────────────────────────────────────────────
-	// Two separate archives: _backup_build_zip() covers data/files/config —
-	// exactly what an update does NOT touch — so on its own it cannot roll
-	// back a failed update. _backup_build_core_zip() covers core/, the admin
-	// folder and index.php — the paths the update actually overwrites —
-	// making a manual rollback possible if the update fails partway.
 	$safetyZip = $bckpsDir . '/pre-update-backup-' . date('Y-m-d-His') . '.zip';
 	if (!_backup_build_zip($root, $safetyZip)) {
 		@unlink($releaseZip);
@@ -169,10 +151,6 @@ if (isset($_POST['apply_update'])) {
 		exit;
 	}
 
-	// Guarantees $tmpDir is removed even if this request never reaches the
-	// normal cleanup call below (PHP timeout, fatal error, memory exhaustion).
-	// This is what previously left tmp-update-* directories orphaned in bckps/
-	// on shared hosting when a large release ZIP took too long to copy.
 	register_shutdown_function(function () use ($tmpDir) {
 		if (is_dir($tmpDir)) {
 			_backup_clear_dir($tmpDir, false);
@@ -195,10 +173,6 @@ if (isset($_POST['apply_update'])) {
 	$zip->close();
 	@unlink($releaseZip);
 
-	// ── Copy to production ─────────────────────────────────────────────────────
-	// The release ZIP always contains an 'admin/' directory. If the user renamed
-	// their admin folder at install time, we detect the real name from __DIR__
-	// and remap every 'admin/...' path to the actual folder name before copying.
 	$_adminFolderName = basename(dirname(__DIR__)); // e.g. 'adminy'
 
 	$ok          = true;
@@ -251,8 +225,6 @@ if (isset($_POST['apply_update'])) {
 		$_SESSION['message'] = __t('update_success');
 		header('Location: index.php');
 	} else {
-		// Show which files failed instead of a bare "partially failed" —
-		// an admin cannot tell if the site is usable without this list.
 		$_shown = array_slice($failedFiles, 0, 10);
 		$_list  = implode(', ', $_shown);
 		if (count($failedFiles) > count($_shown)) {

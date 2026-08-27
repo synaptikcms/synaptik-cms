@@ -1,10 +1,4 @@
 <?php
-/**
- * reset-password.php — SynaptikCMS admin password reset form
- *
- * Validates the one-time token from the URL, then lets the admin set a new
- * password. On success, consumes the token (unlinks it) and redirects to login.
- */
 require_once __DIR__ . '/includes/session-config.php';
 session_start();
 require_once __DIR__ . '/includes/admin-functions.php';
@@ -20,9 +14,6 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// ── Token validation helpers ──────────────────────────────────────────────────
-// Tokens live as an array (one entry per user with an outstanding reset) —
-// find the still-valid entry matching $rawToken and return its user_id.
 function _reset_token_find_user_id(string $rawToken, string $tokenFile): ?string
 {
     if ($rawToken === '' || !file_exists($tokenFile)) return null;
@@ -43,8 +34,6 @@ function _reset_token_find_user_id(string $rawToken, string $tokenFile): ?string
     return null;
 }
 
-// Removes only the one entry matching $rawToken — every other user's
-// still-outstanding token is left untouched.
 function _reset_token_consume(string $rawToken, string $tokenFile): void
 {
     if (!file_exists($tokenFile)) return;
@@ -68,7 +57,6 @@ function _reset_token_consume(string $rawToken, string $tokenFile): void
     fclose($_lockFp);
 }
 
-// ── State ─────────────────────────────────────────────────────────────────────
 $rawToken       = trim($_GET['reset_token'] ?? '');
 $resetUserId    = _reset_token_find_user_id($rawToken, $tokenFile);
 $tokenValid     = $resetUserId !== null;
@@ -149,8 +137,6 @@ $jsStrings = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo hsc(__t('reset_new_pwd_heading', 'Set New Password')); ?> — SynaptikCMS</title>
     <?php
-    // Build an absolute URL to the admin CSS so this page works correctly
-    // whether it is included from index.php (/?reset_token=) or accessed directly.
     $_scheme      = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $_adminCssUrl = $_scheme . '://' . $_SERVER['HTTP_HOST']
                   . str_replace(rtrim($_SERVER['DOCUMENT_ROOT'], '/'), '', rtrim(__DIR__, '/'));

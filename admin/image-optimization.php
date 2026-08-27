@@ -1,12 +1,4 @@
 <?php
-/**
- * Image optimization helpers for SynaptikCMS.
- */
-
-// Direct-access guard. Effective on nginx too, unlike .htaccess. Safe for
-// every caller: file-upload.php, batch-optimize.php and file-manager.php all
-// require includes/admin-functions.php (which defines INCLUDED) before
-// requiring this file.
 if (!defined('INCLUDED')) {
 	http_response_code(403);
 	exit;

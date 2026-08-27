@@ -1,13 +1,4 @@
 <?php
-/**
- * Page Renderers — SynaptikCMS
- * SEO, header scripts, search UI, content metadata, footer,
- * theme utilities, site logo/favicon, and social icons.
- */
-
-/**
- * Returns an <img> tag for the site logo, or empty string when none is configured.
- */
 function render_site_logo(array $settings, string $class = '', string $alt = ''): string
 {
     $path = trim($settings['site_logo'] ?? '');
@@ -18,9 +9,6 @@ function render_site_logo(array $settings, string $class = '', string $alt = '')
     return '<img src="' . htmlspecialchars($url) . '" alt="' . $a . '"' . $cls . '>';
 }
 
-/**
- * Returns the <link rel="icon"> tag for the site favicon, or empty string when none is configured.
- */
 function render_site_favicon(array $settings): string
 {
     $path = trim($settings['site_favicon'] ?? '');
@@ -36,9 +24,6 @@ function render_site_favicon(array $settings): string
     return '<link rel="icon" type="' . $mime . '" href="' . htmlspecialchars($url) . '">' . "\n";
 }
 
-/**
- * Returns the site title string for use in the header.
- */
 function render_site_title($settings, $pageTitle)
 {
     if ($settings['show_site_title_in_header']) {
@@ -47,9 +32,6 @@ function render_site_title($settings, $pageTitle)
     return $pageTitle === 'Welcome to SynaptikCMS' ? $pageTitle : $settings['site_title'];
 }
 
-/**
- * Returns the <h1> title for a content item, or empty string if disabled.
- */
 function render_content_title($item)
 {
     if (!isset($item['show_title']) || $item['show_title']) {
@@ -58,9 +40,6 @@ function render_content_title($item)
     return '';
 }
 
-/**
- * Generates all SEO meta tags: description, OG, canonical.
- */
 function render_meta_tags($settings, $metaTitle, $metaDescription, $pageData = null)
 {
     global $metaKeywords, $ogImage, $ogTitle, $ogDescription;
@@ -76,8 +55,7 @@ function render_meta_tags($settings, $metaTitle, $metaDescription, $pageData = n
     <meta property="og:description" content="<?php echo htmlspecialchars($ogDescription ? $ogDescription : $metaDescription, $f, $c); ?>">
     <meta property="og:type" content="website">
     <meta property="og:url" content="<?php echo htmlspecialchars(getBaseUrl() . ltrim($_SERVER['REQUEST_URI'], '/'), $f, $c); ?>">
-    <?php if (!empty($ogImage)): ?><meta property="og:image" content="<?php echo htmlspecialchars($ogImage, $f, $c); ?>">
-<?php endif; ?>
+    <?php if (!empty($ogImage)): ?><meta property="og:image" content="<?php echo htmlspecialchars($ogImage, $f, $c); ?>"><?php endif; ?>
 <?php if ($settings['enable_seo']): ?>
     <?php
         global $type, $slug, $category, $tag;
@@ -86,15 +64,6 @@ function render_meta_tags($settings, $metaTitle, $metaDescription, $pageData = n
         $_category = $category ?? '';
         $_tag      = $tag      ?? '';
 
-        // Archive pages (tag pages and content-type list pages like /articles/,
-        // /projects/, /pages/) are noindexed to keep Google focused on real
-        // content. They are thin listings that duplicate their child items,
-        // so indexing them dilutes the search index. "follow" lets Google
-        // still crawl the links to reach the real articles/pages/projects.
-        // Category pages are intentionally left indexed — they often carry
-        // unique intro text and group related content in a way that has SEO
-        // value. Must be paired with NOT blocking these pages in robots.txt,
-        // or Google can never crawl to see this tag and drop them from index.
         $_isArchive = false;
         if ($_type === 'tag' && !empty($_tag)) {
             $_isArchive = true;
@@ -106,13 +75,6 @@ function render_meta_tags($settings, $metaTitle, $metaDescription, $pageData = n
             echo '<meta name="robots" content="noindex, follow">';
         }
 
-        // Canonical URL — built from the same routing logic used for internal
-        // links (cleanUrl), instead of $_SERVER['REQUEST_URI']. REQUEST_URI
-        // varies with/without trailing slash and query strings, which causes
-        // each variant to self-canonicalize — a duplicate content signal that
-        // confuses Google ("chose different canonical than user"). cleanUrl()
-        // always returns a single normalized form (trailing slash, no query
-        // string) matching the URLs used in nav.
         if ($pageData && !empty($pageData['canonical_url'])) {
             echo '<link rel="canonical" href="' . htmlspecialchars($pageData['canonical_url'], $f, $c) . '">';
         } else {
@@ -129,26 +91,14 @@ function render_meta_tags($settings, $metaTitle, $metaDescription, $pageData = n
                 $_canonical = cleanUrl('home');
             }
 
-            echo '<link rel="canonical" href="' . htmlspecialchars($_canonical, $f, $c) . '">';
+            echo '<link rel="canonical" href="' . htmlspecialchars($_canonical, $f, $c) . '">
+';
         } ?>
 <?php endif; ?>
 <?php
-    // Plugin filter: lets a plugin add or adjust <head> meta output (e.g.
-    // an analytics <meta> tag, an extra OG property) without patching core.
     return pl_apply_filter('head_meta_tags', ob_get_clean(), $pageData);
 }
 
-/**
- * Generates a Schema.org JSON-LD <script> block for a single content item.
- * Returns an empty string when schema_type is not set, SEO is disabled, or
- * the page is not a single-item view (list pages, homepage, category/tag pages).
- *
- * @param  array  $settings  Site config (from loadConfig()).
- * @param  string $type      Routing type (article, page, project).
- * @param  string $slug      Item slug (empty for non-single-item pages).
- * @param  array  $data      Full data array.
- * @return string            <script type="application/ld+json">…</script> or ''.
- */
 function render_schema_jsonld(array $settings, string $type, string $slug, array $data): string
 {
     if (empty($settings['enable_seo']) || empty($type) || empty($slug)) return '';
@@ -175,7 +125,6 @@ function render_schema_jsonld(array $settings, string $type, string $slug, array
     $pubType     = in_array($settings['schema_publisher_type'] ?? '', ['Person', 'Organization'], true)
                      ? $settings['schema_publisher_type'] : 'Person';
 
-    // Item-level author name (display name stored at save time) overrides the global default
     if (!empty($item['author_name'])) {
         $authorName = $item['author_name'];
     } elseif ($authorName === '') {
@@ -231,11 +180,6 @@ function render_schema_jsonld(array $settings, string $type, string $slug, array
     return '    <script type="application/ld+json">' . $json . '</script>';
 }
 
-/**
- * Emits the admin top bar HTML if an admin session is active.
- * Call once as the first child of <body> in theme header.php files.
- * No-op when no admin is logged in.
- */
 function render_adminbar(): void
 {
     if (!empty($GLOBALS['_adminBarHtml'])) {
@@ -244,26 +188,11 @@ function render_adminbar(): void
     }
 }
 
-/**
- * Returns a cache-busting query string for a file based on its mtime.
- * Produces ?v=<mtime> so the URL changes whenever the file is modified,
- * invalidating the browser cache automatically without manual versioning.
- *
- * @param  string $absPath  Absolute server path to the file.
- * @return string           Query string, e.g. '?v=1715000000', or '' if file missing.
- */
 function _asset_version(string $absPath): string
 {
     return file_exists($absPath) ? '?v=' . filemtime($absPath) : '';
 }
 
-/**
- * Injects all system and theme assets into the <head>.
- * Includes synaptikCSS.php, theme style.css, main.js, theme script.js, and the i18n bridge.
- * Every local asset URL carries a ?v=<mtime> cache-busting parameter so that
- * the 1-year browser cache is invalidated automatically when the file changes.
- * Call exactly once in header.php.
- */
 function render_header_scripts($headerScripts)
 {
     if (!is_array($headerScripts)) {
@@ -274,14 +203,6 @@ function render_header_scripts($headerScripts)
     $theme    = $settings['active_theme'] ?? 'default';
     $root     = CMS_ROOT;
 
-    // synaptikCSS.php is served `immutable` for a year, so without a version in
-    // the URL an edit to any bundled stylesheet never reaches a returning
-    // visitor — `immutable` tells the browser not to revalidate, which also
-    // makes the bundle's own ETag unreachable. _asset_version() can't be used
-    // here: the bundle's content comes from the files it concatenates, and
-    // editing one of those leaves synaptikCSS.php's own mtime untouched. Take
-    // the newest of the bundled sources instead — the same value the bundle
-    // derives its ETag from, so URL and payload can never disagree.
     $sysCssV = 0;
     foreach (['search.css', 'shortcodes.css', 'gallery-layout.css'] as $_f) {
         $_p = $root . '/assets/css/' . $_f;
@@ -292,30 +213,15 @@ function render_header_scripts($headerScripts)
     $system = [
         '<base href="' . htmlspecialchars($base) . '">',
         '    <meta name="generator" content="SynaptikCMS — https://synaptikcms.com">',
-        // window.CMS_BASE_URL / window.CMS_LANG are read by main.js and theme
-        // script.js. Emitted as inert JSON islands (not an executable inline
-        // <script>) + front-boot.js, which assigns them — keeps script-src free
-        // of 'unsafe-inline'. front-boot.js is loaded WITHOUT `defer` so it runs
-        // before main.js / theme script.js, which are both deferred.
-        '    <script type="application/json" id="cms-base-json">' . json_encode($base) . '</script>',
         '    <script type="application/json" id="cms-lang-json">' . lang_js_bridge() . '</script>',
+        '    <script type="application/json" data-window-var="CMS_TYPE_LABELS">' . sl_type_labels_json() . '</script>',
         '    <script src="' . $base . 'assets/js/front-boot.js'
             . _asset_version($root . '/assets/js/front-boot.js') . '"></script>',
-        // synaptikCSS.php bundles search/shortcodes/gallery CSS — none of these
-        // are critical above-the-fold on most pages, so load it non-blocking.
-        // The `media="print"` trick lets the browser fetch it without blocking
-        // render; css-async.js swaps the media back to `all` once downloaded.
-        // The <noscript> fallback keeps the styles available for no-JS visitors.
-        '    <link rel="stylesheet" class="cms-async-css" href="' . $base . 'assets/css/synaptikCSS.php' . $sysCssV . '" media="print">',
-        '    <script src="' . $base . 'assets/js/css-async.js'
-            . _asset_version($root . '/assets/js/css-async.js') . '"></script>',
-        '    <noscript><link rel="stylesheet" href="' . $base . 'assets/css/synaptikCSS.php' . $sysCssV . '"></noscript>',
+        '    <link rel="stylesheet" href="' . $base . 'assets/css/synaptikCSS.php' . $sysCssV . '">',
         '    <link rel="stylesheet" href="' . $base . 'theme/' . $theme . '/css/style.css'
             . _asset_version($root . '/theme/' . $theme . '/css/style.css') . '">',
-        // main.js is deferred so it never blocks HTML parsing — it runs after
-        // the DOM is parsed but before DOMContentLoaded, preserving execution order.
-        '    <script defer src="' . $base . 'assets/js/main.js'
-            . _asset_version($root . '/assets/js/main.js') . '"></script>',
+        '    <script defer src="' . $base . 'assets/js/features/search.js'
+            . _asset_version($root . '/assets/js/features/search.js') . '"></script>',
         '    <link rel="alternate" type="application/rss+xml" title="'
             . htmlspecialchars($settings['site_title'] ?? 'RSS Feed')
             . '" href="' . $base . 'core/feed.php">',
@@ -328,21 +234,34 @@ function render_header_scripts($headerScripts)
             . _asset_version($themeScriptPath) . '"></script>';
     }
 
-    $hljs = render_hljs_scripts($base, $root, $theme);
+    $customCssPath = $root . '/theme/child_theme/' . $theme . '/css/style.css';
+    if (file_exists($customCssPath)) {
+        $system[] = '    <link rel="stylesheet" href="' . $base . 'theme/child_theme/' . $theme . '/css/style.css'
+            . _asset_version($customCssPath) . '">';
+    }
 
-    return implode("\n", array_merge($system, $hljs, $headerScripts, $themeScript)) . "\n";
+    $customScriptPath = $root . '/theme/child_theme/' . $theme . '/js/script.js';
+    if (file_exists($customScriptPath)) {
+        $themeScript[] = '    <script defer src="' . $base . 'theme/child_theme/' . $theme . '/js/script.js'
+            . _asset_version($customScriptPath) . '"></script>';
+    }
+
+    $hljs = render_hljs_scripts($base, $root, $theme);
+    render_collapsibles_script();
+
+    $rendered = implode("\n", array_merge($system, $hljs, $headerScripts, $themeScript)) . "\n";
+
+    return $rendered . render_enqueued_assets();
 }
 
-/**
- * Conditionally emits highlight.js (core + the languages SynaptikCMS content
- * can produce a fenced code block in) plus its own init script — only when
- * the current page's actual rendered HTML contains a code block, so pages
- * without one carry zero extra weight. $pageContent is mirrored into
- * $GLOBALS by index.php once the page body is fully rendered, since this
- * function runs from a separate scope (reached via loadThemeTemplate()).
- *
- * @return string[] `<script>` tag lines, or [] when nothing is needed.
- */
+function render_collapsibles_script(): void
+{
+    global $pageContent;
+    if (empty($pageContent)) return;
+    if (stripos($pageContent, 'c-col') === false && stripos($pageContent, 'tab-group') === false) return;
+    enqueue_js('collapsibles', 'assets/js/features/collapsibles.js');
+}
+
 function render_hljs_scripts(string $base, string $root, string $theme): array
 {
     global $pageContent;
@@ -350,10 +269,6 @@ function render_hljs_scripts(string $base, string $root, string $theme): array
         return [];
     }
 
-    // Pinned to the same highlight.js version + CDN the synaptik-docs theme
-    // already used, with real SRI hashes (computed from the exact files
-    // this loads, not guessed). One file per language render_content_html()
-    // can actually tag a fenced code block with — see core/render/tf-markdown.php.
     $cdnBase = 'https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/';
     $files = [
         'highlight.min.js'           => 'sha384-F/bZzf7p3Joyp5psL90p/p89AZJsndkSoGwRpXcZhleCWhd8SnRuoYo4d0yirjJp',
@@ -368,12 +283,6 @@ function render_hljs_scripts(string $base, string $root, string $theme): array
     ];
 
     $tags = [];
-
-    // highlight.js only adds .hljs-* class names — it ships no colors of its
-    // own. Skip the shared fallback theme for any theme that already styles
-    // .hljs itself (synaptik-docs does, with its own light/dark palette);
-    // loading it there would just add rules its own CSS already overrides
-    // less predictably, since the fallback loads after the theme stylesheet.
     $themeStylePath = $root . '/theme/' . $theme . '/css/style.css';
     $themeHasOwnHljsTheme = file_exists($themeStylePath)
         && str_contains(file_get_contents($themeStylePath), '.hljs');
@@ -391,17 +300,11 @@ function render_hljs_scripts(string $base, string $root, string $theme): array
     return $tags;
 }
 
-/**
- * Renders the featured image block for a content item.
- */
 function render_featured_image($item)
 {
     if (!isset($item['image']) || (isset($item['show_featured_image']) && !$item['show_featured_image'])) {
         return '';
     }
-    // No loading="lazy" here on purpose — this is a single content item's
-    // one prominent image, almost always the page's LCP candidate, and
-    // lazy-loading the LCP image delays it rather than speeding anything up.
     ob_start(); ?>
 <div class="featured-image">
     <img src="<?php echo getBaseUrl() . htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars(!empty($item['image_alt']) ? $item['image_alt'] : $item['title']); ?>"<?php echo _image_dimensions_attr($item['image']); ?>>
@@ -410,9 +313,6 @@ function render_featured_image($item)
     return ob_get_clean();
 }
 
-/**
- * Renders the publication date for a content item.
- */
 function render_content_date($item)
 {
     if (!isset($item['date']) || !isset($item['show_date']) || !$item['show_date']) {
@@ -421,11 +321,6 @@ function render_content_date($item)
     return '<div class="article-date">' . htmlspecialchars(format_date($item['date'])) . '</div>';
 }
 
-/**
- * Renders the category badge link for a content item.
- * Category is stored as a slug; the display name is resolved from the categories store.
- * Handles legacy items that still store display strings via sanitizeSlug().
- */
 function render_content_category($item)
 {
     if (empty($item['category'])) {
@@ -445,11 +340,6 @@ function render_content_category($item)
     return ob_get_clean();
 }
 
-/**
- * Renders the tag links for a content item.
- * Tags are stored as slugs; display names are resolved from the tags store.
- * Handles legacy items that still store display strings via sanitizeSlug().
- */
 function render_content_tags($item)
 {
     if (empty($item['tags']) || !is_array($item['tags'])) {
@@ -472,9 +362,6 @@ function render_content_tags($item)
     return ob_get_clean();
 }
 
-/**
- * Renders the legacy gallery attached to a content item.
- */
 function render_content_gallery($item)
 {
     if (empty($item['gallery']) || !is_array($item['gallery'])) {
@@ -489,12 +376,6 @@ function render_content_gallery($item)
     return ob_get_clean();
 }
 
-/**
- * Renders the footer text and optional social links.
- * Appends a "Powered by SynaptikCMS" attribution link — visible, crawlable,
- * and honest. Never hidden: hidden backlinks are a Google spam violation.
- * Uses the global $settings variable populated by index.php.
- */
 function render_footer_content()
 {
     global $settings;
@@ -523,18 +404,11 @@ function render_footer_content()
         echo '</div>';
     }
 
-    // Attribution — visible, honest, crawlable. Do not hide with CSS.
     echo '<p class="snk-credit">Powered by <a href="https://synaptikcms.com" target="_blank" rel="noopener">SynaptikCMS</a></p>';
 
     return ob_get_clean();
 }
 
-/**
- * Returns an inline SVG icon for a social platform.
- * Supported: bluesky, discord, facebook, github, instagram, linkedin, mastodon,
- * pinterest, reddit, snapchat, telegram, threads, tiktok, twitch, twitter,
- * whatsapp, x, youtube. Falls back to a generic circle.
- */
 function get_social_icon($platform)
 {
     switch (strtolower($platform)) {
@@ -579,30 +453,19 @@ function get_social_icon($platform)
     }
 }
 
-/**
- * Returns the server path to a resource in the active theme folder.
- *
- * @param string $resource Resource subdirectory (e.g. 'css', 'js').
- * @param string $file     Filename within that subdirectory.
- * @return string Relative path from CMS root.
- */
 function getThemeResourcePath($resource, $file = '')
 {
     $theme = loadConfig()['active_theme'] ?? 'default';
     return "theme/{$theme}/{$resource}/{$file}";
 }
 
-/**
- * Loads a theme partial and returns its rendered HTML, or null if not found.
- *
- * @param string $name  Partial name without .php (e.g. 'article-card').
- * @param array  $vars  Variables to extract into the partial's scope.
- * @return string|null  Rendered HTML, or null — caller uses its own fallback.
- */
 function loadThemePartial(string $name, array $vars = []): ?string
 {
     $theme = loadConfig()['active_theme'] ?? 'default';
-    $path  = CMS_ROOT . '/theme/' . $theme . '/partials/' . $name . '.php';
+    $path  = CMS_ROOT . '/theme/child_theme/' . $theme . '/partials/' . $name . '.php';
+    if (!file_exists($path)) {
+        $path = CMS_ROOT . '/theme/' . $theme . '/partials/' . $name . '.php';
+    }
     if (!file_exists($path)) {
         return null;
     }
@@ -612,19 +475,6 @@ function loadThemePartial(string $name, array $vars = []): ?string
     return ob_get_clean();
 }
 
-/**
- * Renders the full search overlay HTML.
- * Always generated regardless of show_search_icon — ensures Ctrl+K works
- * even when the visible icon is disabled.
- *
- * Structure must stay in exact sync with the overlay assets/js/main.js builds
- * at runtime when a theme does NOT call this function — main.js's own result
- * rendering, loading indicator and CSS (assets/css/search.css) all target
- * .search-bar / .search-results / .search-loading / .search-results-content
- * by class name, regardless of which side created the surrounding markup. A
- * structural mismatch here means the overlay opens but silently never shows
- * results — see changelog.
- */
 function render_search_ui()
 {
     ob_start(); ?>
@@ -637,9 +487,9 @@ function render_search_ui()
         </div>
         <div class="search-options">
             <label><input type="checkbox" id="search-in-content"> <?php echo __t('search_in_content'); ?></label>
-            <label><input type="checkbox" id="search-articles" checked> <?php echo __t('search_filter_articles'); ?></label>
-            <label><input type="checkbox" id="search-pages"    checked> <?php echo __t('search_filter_pages'); ?></label>
-            <label><input type="checkbox" id="search-projects" checked> <?php echo __t('search_filter_projects'); ?></label>
+            <label><input type="checkbox" id="search-articles" checked> <?php echo hsc(sl_type_label('article', true)); ?></label>
+            <label><input type="checkbox" id="search-pages"    checked> <?php echo hsc(sl_type_label('page', true)); ?></label>
+            <label><input type="checkbox" id="search-projects" checked> <?php echo hsc(sl_type_label('project', true)); ?></label>
         </div>
     </div>
     <div class="search-results" id="search-results">
@@ -651,14 +501,10 @@ function render_search_ui()
     return ob_get_clean();
 }
 
-/**
- * Renders the search icon <li> for the navigation.
- * Returns empty string when show_search_icon is false.
- */
 function render_search_icon()
 {
-    global $appSettings;
-    if (isset($appSettings['show_search_icon']) && !$appSettings['show_search_icon']) {
+    $settings = loadConfig();
+    if (isset($settings['show_search_icon']) && !$settings['show_search_icon']) {
         return '';
     }
     ob_start(); ?>

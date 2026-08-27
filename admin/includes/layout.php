@@ -1,26 +1,5 @@
 <?php
-/**
- * Shared admin layout.
- *
- * Every admin page — routed (via index.php) and standalone — uses this single
- * file to emit the full HTML document. No other header/footer includes exist.
- *
- * Expected variables (all optional except $pageContent):
- *   string $pageContent          Buffered HTML output of the page body.
- *   string $pageTitle            Page title. Falls back to admin_get_page_title()
- *                                when called from the routed context.
- *   string $extraHead            Additional <link>/<style>/<script> tags for <head>.
- *   string $extraFooterScripts   Additional <script> tags injected before </body>,
- *                                after the shared scripts but before the inline block.
- *   bool   $isEditor             True on add/edit pages — activates editor topbar.
- *
- * Variables available to all pages via $data / $contentCounts (loaded here if
- * not already set by the calling file):
- *   array  $data
- *   array  $contentCounts
- */
 
-// Allow templates that guard against direct access via INCLUDED constant.
 if (!defined('INCLUDED')) {
 	define('INCLUDED', true);
 }
@@ -62,12 +41,6 @@ $_isEditor      = $isEditor ?? in_array($_currentAction, ['add', 'edit']);
 $_layoutTitle = $pageTitle
 	?? (function_exists('admin_get_page_title') ? admin_get_page_title() : 'Admin');
 
-// ── Editor topbar: current item's publish status ────────────────────────────
-// Drives the submit button's initial label below (re-synced client-side by
-// content-edit-editor.js when the status dropdown changes): "Mettre à jour"
-// once published, "Programmer" while scheduled, "Enregistrer" for
-// draft/unpublished (stays offline — "Publier" would be misleading), else
-// "Publier" (new item).
 $_editItemStatus  = null;
 if ($_isEditor && $_currentAction === 'edit'
 	&& in_array($_currentType, ['article', 'page', 'project'], true)) {

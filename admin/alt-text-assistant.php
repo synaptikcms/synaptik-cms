@@ -10,19 +10,6 @@ if (!admin_is_logged_in()) {
 $data        = admin_load_data();
 $appSettings = admin_load_config();
 
-// ── Inline content image helpers ────────────────────────────────────────────────
-// Content is stored as raw source (HTML or Markdown, per content_format), never
-// as a structured array like gallery images — so inline images have no stable
-// index of their own. Both functions below walk the source in the same order
-// (regex match order), so "the Nth image in this content" means the same thing
-// in both: extraction assigns indices 0..N-1, and the save handler replaces by
-// that same index against a freshly-loaded copy of the content.
-
-/**
- * Finds every image embedded directly in a content string (not part of a
- * gallery). Markdown regex mirrors _md_inline()'s image pattern exactly
- * (core/render/tf-markdown.php) so extraction matches what actually renders.
- */
 function alt_extract_inline_images(string $content, string $format): array
 {
 	$images = [];
@@ -53,10 +40,6 @@ function alt_extract_inline_images(string $content, string $format): array
 	return $images;
 }
 
-/**
- * Rewrites the alt text of the $targetIndex-th inline image (0-based, same
- * order as alt_extract_inline_images()) and returns the updated content.
- */
 function alt_replace_inline_image_alt(string $content, string $format, int $targetIndex, string $newAlt): string
 {
 	$counter = -1;
@@ -89,11 +72,6 @@ function alt_replace_inline_image_alt(string $content, string $format, int $targ
 	);
 }
 
-/**
- * Resolves a stored image src to a URL renderable from /admin/. Gallery and
- * featured-image src values are relative ("files/..."); inline images store
- * absolute URLs (editor.js always builds one on insert) and are used as-is.
- */
 function alt_resolve_thumb_url(string $src): string
 {
 	if (stripos($src, 'http://') === 0 || stripos($src, 'https://') === 0) {
@@ -104,13 +82,6 @@ function alt_resolve_thumb_url(string $src): string
 	}
 	return '../files/' . $src;
 }
-
-// ── AJAX save handler ─────────────────────────────────────────────────────────
-// Saves alt text/caption for one image. Three targets:
-//   gallery  : image inside a named gallery   (gallery_index, image_index, field: alt_text|caption)
-//   featured : a post's featured image        (field: alt_text only, writes image_alt)
-//   inline   : an image embedded in the body  (inline_index, field: alt_text only, rewrites content)
-// Common fields: post_type, post_index, field, value.
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_alt_save'])) {
 	header('Content-Type: application/json');
@@ -199,10 +170,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_alt_save'])) {
 $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
 $baseUrl  = $protocol . '://' . $_SERVER['HTTP_HOST'] . rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');
 
-// ── Collect every image across all content types: featured image, gallery
-// images, and images embedded directly in the body content. Each entry in
-// $allImages holds enough context to display the image card and write back
-// to the correct location in data.json on save (see 'target' above).
 $contentTypes = ['article', 'page', 'project'];
 
 $allImages = [];

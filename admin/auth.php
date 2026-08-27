@@ -15,18 +15,11 @@ if ($action === 'logout') {
 	exit;
 }
 
-// Fixed bcrypt hash of a string that is never a real account's password —
-// verified against on every failed lookup so "wrong password" and "no such
-// user" cost the same amount of time (password_verify() is the one
-// expensive step in this flow; the username lookup itself is cheap enough
-// that timing it doesn't leak anything worth hiding).
 const AUTH_DUMMY_HASH = '$2y$12$IK7g7s7.eXnvaS4Kc.ZTZ.FNIrARloa1EHRgM5h8IsgDv3wFjuk9a';
 
 $max_attempts = 5;
 $lockout_time = 15 * 60;
 
-// IP-based rate limiting
-// If behind Cloudflare, define TRUSTED_PROXY_IP and uncomment the relevant block below.
 function get_client_ip(): string {
 	// Uncomment for Cloudflare:
 	// if (defined('TRUSTED_PROXY_IP') && $_SERVER['REMOTE_ADDR'] === TRUSTED_PROXY_IP) {
@@ -50,13 +43,9 @@ $now     = time();
 $rateFile = dirname(__DIR__) . '/private/auth_rate.json';
 $ipKey   = hash('sha256', $ip);
 
-// Load the centralized rate file and purge stale entries to keep it small.
-// Retained: currently locked IPs, recently unlocked (within 24 h — preserves
-// the re-lock penalty for persistent attackers), and IPs accumulating attempts.
 $rateData = [];
 $_lockFp  = null;
 if (!file_exists($rateFile)) {
-	// Create the file so we can lock it on first request
 	@file_put_contents($rateFile, '{}', LOCK_EX);
 }
 $_lockFp = @fopen($rateFile, 'c+');
@@ -98,11 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_locked) {
 	} else {
 		$username = trim($_POST['username'] ?? '');
 		$password = $_POST['password'] ?? '';
-
 		$matchedUser = admin_find_user_by_username($username);
-
-		// Always exactly one password_verify() call, matched user or not —
-		// see AUTH_DUMMY_HASH above.
 		$passwordOk = password_verify($password, $matchedUser['password_hash'] ?? AUTH_DUMMY_HASH);
 
 		if ($matchedUser !== null && $passwordOk) {
@@ -154,7 +139,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_locked) {
 	}
 }
 
-// Release lock if still held (no POST, or locked-out request)
 if ($_lockFp) {
 	flock($_lockFp, LOCK_UN);
 	fclose($_lockFp);

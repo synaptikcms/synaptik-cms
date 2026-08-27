@@ -1,13 +1,10 @@
 <?php
-/**
- * Build the full URL path for a category by walking up its parent chain.
- * Returns a slash-separated string of slugs: "grandparent/parent/child"
- * Falls back to just the category slug if the categories store is unavailable.
- *
- * @param string $categorySlug  The slug of the leaf category
- * @param array  $data          The full data array (must contain 'categories' key)
- * @return string               Slash-joined path, no leading/trailing slashes
- */
+function sl_admin_preview_session_active(): bool {
+    return isset($_SESSION['admin']) && $_SESSION['admin'] === true
+        && isset($_SESSION['admin_last_activity'])
+        && (time() - $_SESSION['admin_last_activity']) <= 7200;
+}
+
 function getCategoryPath(string $categorySlug, array $data): string {
     if (empty($categorySlug)) return '';
 
@@ -26,14 +23,6 @@ function getCategoryPath(string $categorySlug, array $data): string {
     return implode('/', $parts);
 }
 
-/**
- * Return every descendant slug (children, grandchildren, etc.) of a category.
- * Used to make category pages inclusive of their sub-categories' content.
- *
- * @param string $categorySlug  The slug of the parent category
- * @param array  $categories    The categories store (slug => {name, parent, description})
- * @return array                Flat array of descendant slugs (does not include $categorySlug itself)
- */
 function getCategoryDescendants(string $categorySlug, array $categories): array {
     if (empty($categorySlug)) return [];
 
@@ -55,27 +44,14 @@ function getCategoryDescendants(string $categorySlug, array $categories): array 
     return $descendants;
 }
 
-/**
- * Data Functions
- *
- * Handle data loading, saving, and manipulation for the CMS.
- */
-
-/**
- * Parse request URI and extract parameters
- * @return array Parsed URI parameters
- */
 function parseRequestUri()
 {
     $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
     $basePath = dirname($_SERVER['SCRIPT_NAME']);
 
-    // Strip base path from URI if it exists
     if ($basePath !== '/' && strpos($uri, $basePath) === 0) {
         $uri = substr($uri, strlen($basePath));
     }
-
-    // Remove leading and trailing slashes
     $uri = trim($uri, '/');
 
     // If empty, it's the homepage
@@ -87,21 +63,7 @@ function parseRequestUri()
             'category' => '',
         ];
     }
-
-    // Parse URI segments
     $segments = explode('/', $uri);
-
-    // ── Localized URL slug map ────────────────────────────────────────────────
-    // Build a two-way map between incoming URL prefixes (which may be translated,
-    // or overridden per site via Settings > Reading — see sl_type_label()/
-    // url_slug()) and internal type identifiers. url_slug() falls back to the
-    // English key when neither an override nor a locale string is set, so
-    // English always works with no extra configuration.
-    //
-    // singular slug  → internal type
-    // plural slug    → internal type (list pages)
-    // 'category' slug → 'category'
-    // 'tag' slug      → 'tag'
     $typeFromSlug = []; // localized_slug → internal_type
     $slugFromType = []; // internal_type  → localized_slug (singular)
     $slugPluralFromType = []; // internal_type → localized plural slug
@@ -119,13 +81,20 @@ function parseRequestUri()
     $typeFromSlug[$catSlug] = 'category';
     $typeFromSlug[$tagSlug] = 'tag';
 
-    // All recognized first-segment reserved keywords (localized + English fallbacks)
     $reserved = array_keys($typeFromSlug);
 
     // ── 0. Single segment: root-level page (e.g. /a-propos/) ────────────────
     if (count($segments) === 1 && !isset($typeFromSlug[$segments[0]])) {
         if (isset($GLOBALS['data']['page'])) {
             foreach ($GLOBALS['data']['page'] as $page) {
+                $pageSlug = !empty($page['custom_slug']) ? $page['custom_slug'] : $page['slug'];
+                if ($pageSlug === $segments[0]) {
+                    return ['type' => 'page', 'slug' => $segments[0], 'page' => '', 'category' => ''];
+                }
+            }
+        }
+        if (sl_admin_preview_session_active()) {
+            foreach (sl_load_index_unfiltered('page') as $page) {
                 $pageSlug = !empty($page['custom_slug']) ? $page['custom_slug'] : $page['slug'];
                 if ($pageSlug === $segments[0]) {
                     return ['type' => 'page', 'slug' => $segments[0], 'page' => '', 'category' => ''];
@@ -155,8 +124,6 @@ function parseRequestUri()
     }
 
     // ── 3. Category listing: /categorie/slug/ or /categorie/parent/child/ ─────
-    // Supports any depth: first segment must be the localized category prefix;
-    // the leaf (last) segment is the category slug passed to the renderer.
     if (count($segments) >= 2 && $segments[0] === $catSlug) {
         $leafCat = end($segments); // last segment = leaf category slug
         return ['type' => 'category', 'slug' => '', 'page' => '', 'category' => $leafCat];
@@ -167,8 +134,7 @@ function parseRequestUri()
         return ['type' => 'tag', 'slug' => '', 'page' => '', 'category' => '', 'tag' => $segments[1]];
     }
 
-    // ── 5. Single article/page without category: /article/slug/ ─────────────
-    //   or localized: /article/slug/
+    // ── 5. Single article/page without category: /article/slug/ or localized: /article/slug/
     if (count($segments) === 2
         && isset($typeFromSlug[$segments[0]])
         && in_array($typeFromSlug[$segments[0]], ['article', 'page'])
@@ -201,9 +167,6 @@ function parseRequestUri()
     }
 
     // ── 8. Article/page with hierarchical category path ───────────────────────
-    // URL shape: [cat/][subcat/]slug  — first segment is NOT a reserved keyword.
-    // Handles 2–4 segments. Matches by comparing the full category path stored
-    // on each content item against the incoming segment prefix.
     if (count($segments) >= 2 && count($segments) <= 4 && !isset($typeFromSlug[$segments[0]])) {
         $potentialSlug     = end($segments);
         $potentialCatParts = array_slice($segments, 0, -1);
@@ -238,6 +201,30 @@ function parseRequestUri()
             }
         }
 
+        if (!$foundArticle && sl_admin_preview_session_active()) {
+            foreach (sl_load_index_unfiltered('article') as $article) {
+                if (!isset($article['category'])) continue;
+                $itemCatSlug = sanitizeSlug($article['category']);
+                $itemSlug    = !empty($article['custom_slug']) ? $article['custom_slug'] : $article['slug'];
+                $fullCatPath = getCategoryPath($itemCatSlug, $GLOBALS['data']);
+                if ($fullCatPath === $requestedCatPath) {
+                    $foundCategory = true;
+                    if ($itemSlug === $potentialSlug) { $foundArticle = true; break; }
+                }
+            }
+            if (!$foundArticle) {
+                foreach (sl_load_index_unfiltered('page') as $page) {
+                    if (!isset($page['category'])) continue;
+                    $itemCatSlug = sanitizeSlug($page['category']);
+                    $itemSlug    = !empty($page['custom_slug']) ? $page['custom_slug'] : $page['slug'];
+                    $fullCatPath = getCategoryPath($itemCatSlug, $GLOBALS['data']);
+                    if ($fullCatPath === $requestedCatPath && $itemSlug === $potentialSlug) {
+                        return ['type' => 'page', 'slug' => $potentialSlug, 'page' => '', 'category' => $potentialCatSlug];
+                    }
+                }
+            }
+        }
+
         if ($foundArticle) {
             return ['type' => 'article', 'slug' => $potentialSlug, 'page' => '', 'category' => $potentialCatSlug];
         } elseif ($foundCategory) {
@@ -249,22 +236,11 @@ function parseRequestUri()
     return ['type' => '404', 'slug' => '', 'page' => '', 'category' => ''];
 }
 
-/**
- * Generate SEO title and description based on page context
- * @param string $pageTitle The current page title
- * @param string $type The content type
- * @param string $slug The content slug
- * @param array $data The data array
- * @param array $settings The settings array
- * @return array SEO data
- */
 function generateSEO($pageTitle, $type, $slug, $data, $settings)
 {
     $metaTitle = $settings["site_title"]; // Default
     $metaDescription = $settings["site_description"]; // Default
 
-    // Homepage SEO overrides (homepage_type === 'default' only;
-    // when a page is set as homepage it carries its own meta fields).
     if (empty($type) && empty($slug)) {
         if (!empty($settings['home_meta_title']))
             $metaTitle = decodeHtmlEntities($settings['home_meta_title']);
@@ -314,22 +290,11 @@ function generateSEO($pageTitle, $type, $slug, $data, $settings)
     ];
 }
 
-/**
- * Render a category page
- * @param string $category The category slug
- * @param array $data The data array containing all content
- * @return string The HTML output for the category page
- */
 function renderCategoryPage($category, $data)
 {
-    // Resolve display name from the categories store; fall back to the slug itself
     $catStore    = function_exists('sl_load_categories') ? sl_load_categories() : [];
     $categoryName = $catStore[$category]['name'] ?? $category;
     $foundItems  = [];
-
-    // A category page includes items from the category itself AND all of its
-    // sub-categories (any depth), so a parent category is never shown empty
-    // just because all its content lives under a child category.
     $allowedSlugs = array_flip(array_merge([$category], getCategoryDescendants($category, $catStore)));
 
     foreach (['article', 'project'] as $contentType) {
@@ -343,7 +308,6 @@ function renderCategoryPage($category, $data)
         }
     }
 
-    // Sort by date descending
     if (!empty($foundItems)) {
         usort($foundItems, function ($a, $b) {
             if (isset($a['date']) && isset($b['date'])) {
@@ -353,7 +317,6 @@ function renderCategoryPage($category, $data)
         });
     }
 
-    // Pre-compute typed subsets for the content-list.php template
     $articles = array_values(array_filter($foundItems, function ($item) {
         return $item['_content_type'] === 'article';
     }));
@@ -361,9 +324,11 @@ function renderCategoryPage($category, $data)
         return $item['_content_type'] === 'project';
     }));
 
-    // Use the theme's content-list.php template when available
     $settings       = loadConfig();
-    $contentListTpl = CMS_ROOT . '/theme/' . ($settings['active_theme'] ?? 'default') . '/content-list.php';
+    $contentListTpl = CMS_ROOT . '/theme/child_theme/' . ($settings['active_theme'] ?? 'default') . '/content-list.php';
+    if (!file_exists($contentListTpl)) {
+        $contentListTpl = CMS_ROOT . '/theme/' . ($settings['active_theme'] ?? 'default') . '/content-list.php';
+    }
 
     ob_start();
     if (file_exists($contentListTpl)) {
@@ -372,8 +337,6 @@ function renderCategoryPage($category, $data)
         $items        = $foundItems;
         include $contentListTpl;
     } else {
-        // Legacy hardcoded fallback — delegates to render_article_card() / render_project_card()
-        // so partial overrides still apply even without content-list.php
         echo '<section class="category-content">';
         if (empty($foundItems)) {
             echo '<p>' . __t('no_content_in_category') . '</p>';
@@ -400,15 +363,8 @@ function renderCategoryPage($category, $data)
     return ob_get_clean();
 }
 
-/**
- * Render a tag page
- * @param string $tag The tag slug
- * @param array $data The data array containing all content
- * @return string The HTML output for the tag page
- */
 function renderTagPage($tag, $data)
 {
-    // Resolve display name from the tags store; fall back to the slug itself
     $tagStore   = function_exists('sl_load_tags') ? sl_load_tags() : [];
     $tagName    = $tagStore[$tag]['name'] ?? $tag;
     $foundItems = [];
@@ -429,7 +385,6 @@ function renderTagPage($tag, $data)
         }
     }
 
-    // Sort by date descending
     if (!empty($foundItems)) {
         usort($foundItems, function ($a, $b) {
             if (isset($a['date']) && isset($b['date'])) {
@@ -439,7 +394,6 @@ function renderTagPage($tag, $data)
         });
     }
 
-    // Pre-compute typed subsets for the content-list.php template
     $articles = array_values(array_filter($foundItems, function ($item) {
         return $item['_content_type'] === 'article';
     }));
@@ -447,9 +401,11 @@ function renderTagPage($tag, $data)
         return $item['_content_type'] === 'project';
     }));
 
-    // Use the theme's content-list.php template when available
     $settings       = loadConfig();
-    $contentListTpl = CMS_ROOT . '/theme/' . ($settings['active_theme'] ?? 'default') . '/content-list.php';
+    $contentListTpl = CMS_ROOT . '/theme/child_theme/' . ($settings['active_theme'] ?? 'default') . '/content-list.php';
+    if (!file_exists($contentListTpl)) {
+        $contentListTpl = CMS_ROOT . '/theme/' . ($settings['active_theme'] ?? 'default') . '/content-list.php';
+    }
 
     ob_start();
     if (file_exists($contentListTpl)) {
@@ -458,8 +414,6 @@ function renderTagPage($tag, $data)
         $items        = $foundItems;
         include $contentListTpl;
     } else {
-        // Legacy hardcoded fallback — delegates to render_article_card() / render_project_card()
-        // so partial overrides still apply even without content-list.php
         echo '<section class="tag-content">';
         if (empty($foundItems)) {
             echo '<p>' . __t('no_content_with_tag') . '</p>';

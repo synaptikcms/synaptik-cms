@@ -1,31 +1,4 @@
 <?php
-/**
- * Content Rendering & Shortcodes — SynaptikCMS
- * render_content_html() pipeline, all shortcode render functions,
- * excerpt helpers, and the contact form.
- */
-
-/**
- * Renders content HTML with full shortcode + Markdown pipeline.
- * ALWAYS use this instead of echoing $item['content'] directly.
- *
- * Pipeline order:
- *  1. Markdown → HTML (when content_format === 'markdown')
- *  2. Strip c-col open class, contenteditable attributes, and admin-only editor buttons
- *  3. [gallery id="X"]
- *  4. [toc]
- *  5. [callout type="..."]...[/callout]
- *  6. [quote author="..."]...[/quote]
- *  7. [button ...]
- *  8. [recent_articles ...]
- *  9. [recent_projects ...]
- * 10. [articles_by_tag ...]
- * 11. [contact_form]
- *
- * @param string     $html Raw HTML stored in the content field.
- * @param array|null $item Full content item (required for inline gallery shortcode).
- * @return string    Processed HTML safe for theme output.
- */
 function render_content_html($html, $item = null)
 {
     if (empty($html)) {
@@ -36,7 +9,6 @@ function render_content_html($html, $item = null)
         $html = _md_to_html($html);
     }
 
-    // Strip the 'open' class from .c-col elements (so collapsibles start collapsed)
     $html = preg_replace_callback(
         '/class\s*=\s*"([^"]*\bc-col\b[^"]*)"/i',
         function ($m) {
@@ -49,10 +21,6 @@ function render_content_html($html, $item = null)
     // Strip contenteditable attributes
     $html = preg_replace('/\s*contenteditable\s*=\s*"(?:true|false)"/i', '', $html);
     $html = preg_replace("/\s*contenteditable\s*=\s*'(?:true|false)'/i", '', $html);
-
-    // Strip admin-only editor buttons injected by the WYSIWYG editor
-    // (editor.js .c-del-btn, .c-color-btn) — these controls have no purpose
-    // and must never reach visitors.
     $html = preg_replace('/<button[^>]*\bclass\s*=\s*"[^"]*\b(?:c-del-btn|c-color-btn)\b[^"]*"[^>]*>.*?<\/button>/is', '', $html);
 
     // ── [gallery id="X"] ──────────────────────────────────────────────────────
@@ -196,23 +164,11 @@ function render_content_html($html, $item = null)
         );
     }
 
-    // Theme filter ('the_content') runs first — a theme's own functions.php
-    // customizing its own markup — then the plugin filter, for cross-cutting
-    // concerns like tracking or link rewriting that shouldn't live in a theme.
     $html = apply_theme_filters('the_content', $html);
     return pl_apply_filter('render_content_html', $html, $item);
 }
 
 // ── Excerpt & attribute helpers ───────────────────────────────────────────────
-
-/**
- * Generates a clean plain-text excerpt from raw HTML content.
- * Strips shortcodes before strip_tags() so they never appear in card excerpts.
- *
- * @param string $html   Raw HTML content.
- * @param int    $length Maximum character length.
- * @return string        Plain text excerpt, word-boundary trimmed.
- */
 function _clean_excerpt(string $html, int $length = 150): string
 {
     $text = preg_replace('/\[[^\]]+\].*?\[\/[^\]]+\]/s', '', $html); // wrapped shortcodes
@@ -228,10 +184,6 @@ function _clean_excerpt(string $html, int $length = 150): string
     return $lastSpace !== false ? mb_substr($cut, 0, $lastSpace) : $cut;
 }
 
-/**
- * Parses a shortcode attribute string into a key => value array.
- * Handles key="value", key='value', and key=value.
- */
 function _shortcode_parse_attrs(string $str): array
 {
     $attrs = [];
@@ -243,12 +195,6 @@ function _shortcode_parse_attrs(string $str): array
 }
 
 // ── Shortcode render functions ────────────────────────────────────────────────
-
-/**
- * Renders [recent_articles limit="N" tag="slug" category="slug"].
- * Always uses sl_load_index() directly — never $GLOBALS['data']['article'],
- * which is replaced by a single item on single-item page views.
- */
 function render_recent_articles_shortcode(int $limit, string $tag = '', string $category = ''): string
 {
     $articles = sl_load_index('article');
@@ -322,10 +268,6 @@ function render_recent_articles_shortcode(int $limit, string $tag = '', string $
     return $html;
 }
 
-/**
- * Renders [recent_projects limit="N"].
- * Always uses sl_load_index() directly — never $GLOBALS['data']['project'].
- */
 function render_recent_projects_shortcode(int $limit): string
 {
     $projects = sl_load_index('project');
@@ -363,21 +305,12 @@ function render_recent_projects_shortcode(int $limit): string
     return $html;
 }
 
-/**
- * Renders [articles_by_tag tag="slug" limit="N"].
- * Alias for render_recent_articles_shortcode() with a mandatory tag filter.
- */
 function render_articles_by_tag_shortcode(string $tag, int $limit): string
 {
     return render_recent_articles_shortcode($limit, $tag);
 }
 
 // ── Contact form ──────────────────────────────────────────────────────────────
-
-/**
- * Generates a stateless HMAC CSRF token for the contact form.
- * Format: "{timestamp}.{HMAC-SHA256(timestamp, secret)}"
- */
 function _contact_generate_csrf(): string
 {
     $secretFile = CMS_ROOT . '/private/contact.secret';
@@ -394,11 +327,6 @@ function _contact_generate_csrf(): string
     return $ts . '.' . hash_hmac('sha256', (string)$ts, $secret);
 }
 
-/**
- * Renders the full contact form HTML.
- * Used by [contact_form] shortcode and contact page templates.
- * Injects contact.css once per page via a static flag.
- */
 function render_contact_form_html(): string
 {
     static $cssInjected = false;

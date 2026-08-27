@@ -1,29 +1,10 @@
 <?php
-/**
- * Markdown Parser — SynaptikCMS
- * Converts Markdown content to HTML. CMS shortcodes ([...]) are left intact
- * so tf-shortcodes.php can process them afterward.
- */
-
-/**
- * Convert a Markdown string to HTML.
- *
- * @param  string $md  Raw Markdown input.
- * @return string      HTML output (shortcodes not yet parsed).
- */
 function _md_to_html(string $md): string
 {
     $md = str_replace("\r\n", "\n", $md);
     $md = str_replace("\r",   "\n", $md);
 
-    // -------------------------------------------------------------------------
-    // Step 1 — protect fenced code blocks FIRST so that [^n]: lines inside
-    // them are never mistaken for footnote definitions.
-    // We use a temporary placeholder map keyed by a NUL-delimited token.
-    // -------------------------------------------------------------------------
-    // The fence regex matches N backticks (N >= 3) and requires the closing
-    // fence to use the same number, so a 4-backtick wrapper around a 3-backtick
-    // inner block is handled correctly — matching CommonMark fenced-code rules.
+    // Step 1 — protect fenced code blocks FIRST so that [^n]: lines inside them are never mistaken for footnote definitions.
     $earlyCodeBlocks = [];
     $md = preg_replace_callback(
         '/^(`{3,})([^\n]*)\n([\s\S]*?)^\1[ \t]*$/m',
@@ -46,18 +27,10 @@ function _md_to_html(string $md): string
         $md
     );
 
-    // Step 3 — restore the raw fenced blocks so the main parsing pass can
-    // handle them normally (syntax-highlight, bracket encoding, etc.).
+    // Step 3 — restore the raw fenced blocks so the main parsing pass can handle them normally (syntax-highlight, bracket encoding, etc.).
     $md = strtr($md, $earlyCodeBlocks);
     $md = trim($md);
 
-    // Container directives  :::type [optional title]\n...\n:::
-    // Replaced with an opaque token, not the HTML directly — the paragraph
-    // pass further down wraps any line it doesn't recognize in <p>...</p>,
-    // and a <div> nested inside a <p> is invalid HTML that browsers "fix" by
-    // closing the <p> early, breaking the layout. The token is restored to
-    // the real HTML in the main loop below, the same way fenced code blocks
-    // (search $codeBlocks) are protected from paragraph-wrapping.
     $calloutBlocks = [];
     if (strpos($md, ':::') !== false) {
         $md = preg_replace_callback(
@@ -95,8 +68,6 @@ function _md_to_html(string $md): string
         );
     }
 
-    // Protect fenced code blocks — encode brackets so shortcode parsers ignore them.
-    // Same N-backtick rule: closing fence must match the opening fence length.
     $codeBlocks = [];
     $md = preg_replace_callback(
         '/^(`{3,})([^\n]*)\n([\s\S]*?)^\1[ \t]*$/m',
@@ -112,8 +83,6 @@ function _md_to_html(string $md): string
         $md
     );
 
-    // Protect inline code — handles both single and double backtick spans.
-    // Pattern: N backticks, any content (no newline), same N backticks.
     $inlineCodes = [];
     $md = preg_replace_callback(
         '/(`{1,2})([^`\n]+?)\1/',
@@ -181,7 +150,6 @@ function _md_to_html(string $md): string
             continue;
         }
 
-        // GFM table  | Col | Col |
         if (strpos($line, '|') !== false && $i + 1 < $n && preg_match('/^[|:\s-]+$/', $lines[$i + 1])) {
             $headerCells = array_map('trim', explode('|', trim($line, '|')));
             $output .= '<table><thead><tr>';
@@ -227,7 +195,6 @@ function _md_to_html(string $md): string
             $paraText = preg_replace('/  \n/', '<br>', $paraText);
             $output  .= '<p>' . _md_inline($paraText) . '</p>' . "\n";
         } else {
-            // Safety: if no block matched and no para lines collected, advance to prevent infinite loop
             $i++;
         }
     }
@@ -253,27 +220,14 @@ function _md_to_html(string $md): string
     return $output;
 }
 
-/**
- * Recursively render a Markdown list (ul or ol) from a lines array.
- * Handles arbitrary nesting via indentation (2 or 4 spaces, or a tab).
- *
- * @param  array  $lines    All lines of the document.
- * @param  int    &$i       Current line index, advanced by reference.
- * @param  int    $n        Total line count.
- * @param  int    $indent   Expected indentation level in spaces for this list.
- * @param  string $tag      'ul' or 'ol'.
- * @return string           HTML for the complete list.
- */
 function _md_render_list(array $lines, int &$i, int $n, int $indent, string $tag): string
 {
     $html = '<' . $tag . ">\n";
 
     if ($indent === 0) {
-        // Root level: no leading whitespace
         $ulPat = '/^[*+\-]\s+(.+)/';
         $olPat = '/^\d+\.\s+(.+)/';
     } else {
-        // Nested level: exactly $indent spaces/tabs, then the marker
         $ulPat = '/^[ \t]{' . $indent . '}[*+\-]\s+(.+)/';
         $olPat = '/^[ \t]{' . $indent . '}\d+\.\s+(.+)/';
     }
@@ -288,7 +242,6 @@ function _md_render_list(array $lines, int &$i, int $n, int $indent, string $tag
             $itemText = trim($m[1]);
             $html    .= '<li>' . _md_inline($itemText);
 
-            // Detect child indentation from the very next line
             if ($i < $n) {
                 $nextLine = $lines[$i];
                 if (preg_match('/^([ \t]+)[*+\-\d]/', $nextLine, $ind)) {
@@ -304,8 +257,6 @@ function _md_render_list(array $lines, int &$i, int $n, int $indent, string $tag
             continue;
         }
 
-        // A blank line is tolerated; continue only if the next non-blank line
-        // is still a list item at the current indent level
         if (trim($line) === '') {
             $j = $i + 1;
             while ($j < $n && trim($lines[$j]) === '') {
@@ -318,47 +269,27 @@ function _md_render_list(array $lines, int &$i, int $n, int $indent, string $tag
             break;
         }
 
-        // Any other content ends this list level
         break;
     }
 
     return $html . '</' . $tag . ">\n";
 }
 
-/**
- * Allow-list URL sanitizer for Markdown links.
- * Strips control characters (browsers strip them before scheme evaluation),
- * then permits only safe schemes and relative targets.
- * Everything else becomes '#'.
- */
 function _md_sanitize_url(string $url): string
 {
-    // Strip control characters (U+0000–U+001F) that browsers ignore in schemes
     $url = preg_replace('/[\x00-\x1F]+/', '', $url);
     $url = trim($url);
     if ($url === '') return '#';
 
-    // Extract scheme (everything before the first ':')
     if (preg_match('/^([a-zA-Z][a-zA-Z0-9+\-.]*):/', $url, $m)) {
         $scheme = strtolower($m[1]);
         if (!in_array($scheme, ['http', 'https', 'mailto', 'tel'], true)) return '#';
     }
-    // No scheme: relative path, #anchor, or protocol-relative //host — all safe
 
     return $url;
 }
 
-/**
- * Process inline Markdown: images, links, bold, italic, strikethrough, text color.
- * CMS shortcodes are preserved intact.
- */
-function _md_inline(string $text): string
-{
-    // Images support an optional size suffix inside the URL parentheses:
-    //   ![alt](url =300x)      -> width=300
-    //   ![alt](url =x200)      -> height=200
-    //   ![alt](url =300x200)   -> width=300 height=200
-    // Values without units default to pixels; a trailing '%' keeps the unit.
+function _md_inline(string $text): string {
     $text = preg_replace_callback(
         '/!\[([^\]]*)\]\(\s*([^)\s]+?)(?:\s+=(\d+%?)?x(\d+%?)?)?\s*\)/',
         function ($m) {
@@ -375,9 +306,6 @@ function _md_inline(string $text): string
             if ($h !== '') {
                 $attrs .= ' height="' . $h . '"';
             }
-            // Body-content images sit below the header, title and intro, so
-            // they are never the LCP element — unlike the site logo and the
-            // featured image, which stay eager on purpose.
             return '<img src="' . $src . '" alt="' . $alt . '"' . $attrs . ' loading="lazy" decoding="async" style="' . $style . '">';
         },
         $text
@@ -395,11 +323,6 @@ function _md_inline(string $text): string
         $text
     );
 
-    // Text color — {#hex:text} -> <span style="color:#hex">text</span>. Runs
-    // before bold/italic/strike below so those can still apply inside colored
-    // text (e.g. {#e74c3c:some **bold** word}). The editor's color picker
-    // inserts this syntax directly (see editor-markdown.js) instead of raw
-    // HTML, matching the plain-text feel of the rest of the Markdown editor.
     $text = preg_replace_callback(
         '/\{(#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?):([^{}]+)\}/',
         function ($m) {
@@ -408,16 +331,10 @@ function _md_inline(string $text): string
         $text
     );
 
-    // Underscore emphasis is restricted to non-word boundaries (CommonMark rule)
-    // so intraword underscores in filenames or URLs (e.g. editor_wysiwyg_mode.webp)
-    // are not converted to <em>/<strong> tags inside img/link attributes.
     $text = preg_replace('/\*\*(.+?)\*\*|(?<!\w)__(.+?)__(?!\w)/', '<strong>$1$2</strong>', $text);
     $text = preg_replace('/\*(.+?)\*|(?<!\w)_(.+?)_(?!\w)/',       '<em>$1$2</em>',         $text);
     $text = preg_replace('/~~(.+?)~~/',                              '<s>$1</s>',             $text);
 
-    // Footnote references [^1] -> <sup><a href="{url}#fn-1" id="fnref-1">[1]</a></sup>
-    // href must include the current page path because <base href="..."> in the
-    // <head> rebases bare fragment-only hrefs ("#fn-1") to the site root.
     $currentPath = htmlspecialchars(strtok($_SERVER['REQUEST_URI'] ?? '/', '?'), ENT_QUOTES, 'UTF-8');
     $text = preg_replace_callback(
         '/\[\^([^\]]+)\]/',
@@ -430,10 +347,7 @@ function _md_inline(string $text): string
         $text
     );
 
-    // Superscript ^text^
     $text = preg_replace('/\^([^\^\s]+)\^/', '<sup>$1</sup>', $text);
-
-    // Autolink bare URLs not already wrapped in an <a> tag or href attribute
     $text = preg_replace_callback(
         '/(?<!["\'=>])\b(https?:\/\/[^\s<>"\)\]]+)/',
         function ($m) {

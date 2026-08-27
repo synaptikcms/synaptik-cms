@@ -23,6 +23,10 @@ if (!admin_is_logged_in()) {
 	http_response_code(403);
 	exit('Forbidden');
 }
+if (!admin_is_admin()) {
+	http_response_code(403);
+	exit('Forbidden');
+}
 
 $requested = $_GET['file'] ?? '';
 if (empty($requested)) {

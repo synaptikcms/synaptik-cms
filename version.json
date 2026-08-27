@@ -1,5 +1,5 @@
 {
-    "version": "1.4.0",
-    "released": "2026-08-24",
-    "notes": "New features, improvements and fixes."
+    "version": "1.4.1",
+    "released": "2026-08-27",
+    "notes": "Child themes, full page cache, faster loading, improved preview."
 }

@@ -166,12 +166,6 @@ if ($action === 'delete' && $contentType && isset($data[$contentType][$index])) 
 	exit;
 }
 
-// Handle unpublish action via GET — pulls a published/scheduled item back
-// off the site so it can be reworked. Status becomes 'unpublished', not
-// 'draft': the two are shown differently (a never-published item vs. one
-// that used to be live) even though both are hidden from the front end
-// and treated the same way by autosave/trash. A pure status change: no
-// content is touched, so no revision snapshot (nothing to diff against).
 if ($action === 'unpublish' && $contentType && isset($data[$contentType][$index]) && !admin_can_edit_item($data[$contentType][$index])) {
 	http_response_code(403);
 	exit(__t('access_denied', 'Access denied.'));
@@ -526,12 +520,6 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 	}
 }
 
-// Handle drafts actions — data/drafts/*.json only ever holds a pending
-// autosave snapshot layered on top of an already-published/scheduled item
-// (see autosave.php). A never-published item now materializes as a real
-// content item on its first autosave, so there is no "restore into a blank
-// add form" case here anymore — restoring always means "load this pending
-// snapshot into that item's normal edit page".
 if ($action === 'drafts') {
 	$draftsDir = sl_admin_drafts_dir();
 	$draftSubAction = $_GET['draft_action'] ?? '';
@@ -555,9 +543,6 @@ if ($action === 'drafts') {
 		exit;
 	}
 
-	// Discard a pending snapshot without applying it — the published/scheduled
-	// item it was layered on top of is untouched either way, so this is a
-	// simple, permanent delete (no trash, nothing "content"-like is lost).
 	if ($draftSubAction === 'delete' && isset($_GET['id'])) {
 		$draftFile = $draftsDir . '/' . basename($_GET['id']) . '.json';
 		$draftData = file_exists($draftFile) ? json_decode(file_get_contents($draftFile), true) : null;
@@ -586,13 +571,8 @@ if ($action === 'trash') {
 	$trashSubAction = $_GET['trash_action'] ?? '';
 	$trashTypes = ['article', 'page', 'project'];
 
-	// Lazy sweep — no cron in this codebase, so expired items are purged
-	// whenever the trash view is opened.
 	sl_admin_purge_expired_trash(30);
 
-	// Trash entries carry the same index fields as live items (including
-	// author_id), so ownership can be checked the same way as content.php's
-	// other guards. Looks up by type+file since that's all GET/POST carry.
 	$_trash_find_entry = function (string $type, string $file) use ($trashTypes) {
 		if (!in_array($type, $trashTypes, true)) return null;
 		foreach (sl_admin_load_trash_index($type) as $entry) {
@@ -744,10 +724,6 @@ if (($action === 'revision_diff' || $action === 'revision_restore' || $action ==
 	$revisionTimestamp = $revTimestamp;
 }
 
-// Handle the pending-autosave diff view — shows what differs between the
-// live saved item and a not-yet-applied Case B snapshot (see autosave.php),
-// so clicking the "unsaved changes" badge explains itself instead of just
-// dumping the pending content into the editor with no context.
 if ($action === 'pending_diff' && $contentType && isset($data[$contentType][$index]) && !admin_can_edit_item($data[$contentType][$index])) {
 	http_response_code(403);
 	exit(__t('access_denied', 'Access denied.'));
@@ -768,7 +744,6 @@ if ($action === 'pending_diff' && $contentType && isset($data[$contentType][$ind
 	$pendingTimestamp = $pendingDraftData['timestamp'] ?? time();
 }
 
-// Display appropriate content template based on action
 switch ($action) {
 	case 'add':
 		include 'templates/content-add.php';
@@ -801,9 +776,6 @@ switch ($action) {
 		}
 }
 
-/**
- * Handle adding new content
- */
 function handleContentAddition() {
 	global $data, $contentTypes;
 
@@ -844,9 +816,6 @@ function handleContentAddition() {
 		}
 	}
 
-	// Status is chosen explicitly via the sidebar dropdown. "Scheduled" still needs
-	// a valid future publish_at to stick — otherwise it falls back to published,
-	// same safety net the old auto-detection relied on.
 	$status = $_POST['status'] ?? 'published';
 	if (!in_array($status, ['published', 'scheduled', 'draft', 'unpublished'], true)) $status = 'published';
 
@@ -858,22 +827,14 @@ function handleContentAddition() {
 		$newItem['publish_at'] = '';
 	}
 	$newItem['status'] = $status;
-
 	$data[$formContentType][] = $newItem;
 	saveData($data);
-
-	// Find the index of the newly added item
 	$newIndex = count($data[$formContentType]) - 1;
-
 	$_SESSION['message'] = __t('content_added');
-	// Redirect to edit page for the new content
 	header('Location: index.php?action=edit&type=' . $formContentType . '&index=' . $newIndex . '&message=show');
 	exit;
 }
 
-/**
- * Handle editing existing content
- */
 function handleContentEdit() {
 	global $data, $index, $contentType;
 
@@ -905,9 +866,6 @@ function handleContentEdit() {
 		}
 	}
 
-	// Status is chosen explicitly via the sidebar dropdown. "Scheduled" still needs
-	// a valid future publish_at to stick — otherwise it falls back to published,
-	// same safety net the old auto-detection relied on.
 	$status = $_POST['status'] ?? 'published';
 	if (!in_array($status, ['published', 'scheduled', 'draft', 'unpublished'], true)) $status = 'published';
 
@@ -921,13 +879,11 @@ function handleContentEdit() {
 	}
 	$updatedItem['status'] = $status;
 
-	// Capture old slug/category BEFORE overwrite, for menu sync
 	$oldMenuSlug = !empty($existingItem['custom_slug'])
 		? $existingItem['custom_slug']
 		: ($existingItem['slug'] ?? '');
 	$oldMenuCategory = $existingItem['category'] ?? '';
 
-	// Snapshot the pre-edit state before it gets overwritten
 	$oldEffectiveSlug = sl_effective_slug($existingItem);
 	$oldFound         = sl_find_in_index($contentType, $oldEffectiveSlug);
 	$oldFileSlug      = $oldFound ? sl_file_slug($oldFound[0]) : $oldEffectiveSlug;
@@ -936,8 +892,6 @@ function handleContentEdit() {
 	$data[$contentType][$index] = $updatedItem;
 	saveData($data);
 
-	// A slug change renames the underlying file — move revision history
-	// along with it, or it silently orphans under the old filename.
 	$newMenuSlug = sl_effective_slug($updatedItem);
 	$newFound    = sl_find_in_index($contentType, $newMenuSlug);
 	$newFileSlug = $newFound ? sl_file_slug($newFound[0]) : $newMenuSlug;
@@ -945,14 +899,10 @@ function handleContentEdit() {
 		sl_admin_migrate_revisions($contentType, $oldFileSlug, $newFileSlug);
 	}
 
-	// Sync menu URLs if slug or category changed
 	if ($oldMenuSlug !== $newMenuSlug || $oldMenuCategory !== $updatedItem['category']) {
 		syncMenuUrls($contentType, $oldMenuSlug, $newMenuSlug, $updatedItem['category']);
 	}
 
-	// Delete ALL drafts related to this item (by type and index OR title) — these
-	// are Case B pending-autosave snapshots (see autosave.php); an explicit save
-	// supersedes them.
 	$draftsDir = sl_admin_drafts_dir();
 	if (is_dir($draftsDir)) {
 		$files = glob($draftsDir . '/*.json');
@@ -984,13 +934,11 @@ function syncMenuUrls($contentType, $oldSlug, $newSlug, $newCategory) {
 	$settings = json_decode(file_get_contents($settingsFile), true);
 	if (!is_array($settings) || empty($settings['main_menu'])) return;
 
-	// Load categories only — all getCategoryPath() needs
 	$data = ['categories' => sl_load_categories()];
 
 	$changed = false;
 	$categorySlug = !empty($newCategory) ? sanitizeSlug($newCategory) : '';
 
-	// Resolve full hierarchical category path for URL construction
 	$catPath = !empty($categorySlug) ? getCategoryPath($categorySlug, $data) : '';
 
 	foreach ($settings['main_menu'] as &$item) {
@@ -1023,12 +971,6 @@ function syncMenuUrls($contentType, $oldSlug, $newSlug, $newCategory) {
 	}
 }
 
-/**
- * Handle image upload for content
- * @param array $file The uploaded file data
- * @param string $contentType The type of content (article, page, project)
- * @return string|false The path to the uploaded image or false on failure
- */
 function handleImageUpload($file, $contentType) {
 	$uploadDir = '../files/' . $contentType . 's/';
 	
@@ -1054,6 +996,3 @@ function handleImageUpload($file, $contentType) {
 	
 	return false;
 }
-
-// sanitizeFileName() lives in includes/admin-functions.php, loaded by
-// admin/index.php before this file is included.

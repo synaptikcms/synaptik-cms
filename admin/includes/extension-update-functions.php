@@ -4,29 +4,6 @@ if (!defined('INCLUDED')) {
 	exit('Direct access to this file is not allowed');
 }
 
-/**
- * Extension (theme/plugin) update system.
- *
- * Mirrors admin_check_for_update() / update.php, but scoped to individual
- * themes and plugins rather than the CMS core. A single remote registry
- * (extensions.json, alongside version.json and news.json in the public
- * synaptik-cms-updates repo) lists the latest version and download URL for
- * every officially distributed theme and plugin, keyed by slug.
- *
- * Unlike the core updater, this never touches admin/ folder remapping or
- * legacy-file migration — a theme/plugin ZIP is always a single self-
- * contained folder copied as-is into theme/{slug}/ or plugins/{slug}/.
- */
-
-// ─── Registry fetch ─────────────────────────────────────────────────────────
-
-/**
- * Fetch the remote extensions registry (theme + plugin versions), cached
- * for 24 hours in admin/cache/ — same TTL and fetch strategy (cURL first,
- * file_get_contents fallback) as admin_check_for_update().
- *
- * @return array{themes: array, plugins: array}  Empty sub-arrays on failure.
- */
 function admin_fetch_extensions_registry(): array {
 	$remoteUrl = 'https://raw.githubusercontent.com/synaptikcms/synaptik-cms-updates/main/extensions.json';
 	$cacheDir  = __DIR__ . '/../cache';
@@ -53,8 +30,6 @@ function admin_fetch_extensions_registry(): array {
 		]);
 		$json = curl_exec($ch);
 		if (curl_errno($ch)) $json = false;
-		// No curl_close() call: deprecated since PHP 8.5 and a no-op since PHP 8.0 —
-		// handles are freed automatically by garbage collection.
 	}
 	if ($json === false && ini_get('allow_url_fopen')) {
 		$ctx  = stream_context_create(['http' => ['timeout' => 3]]);
@@ -71,31 +46,14 @@ function admin_fetch_extensions_registry(): array {
 	return $remote + $empty;
 }
 
-/**
- * Compare every installed theme against the remote registry.
- *
- * @return array<string, array{name:string, local_version:string, remote_version:string, download_url:string}>
- *         Keyed by theme slug — only themes with a newer remote version are included.
- */
 function admin_check_theme_updates(): array {
 	return _admin_check_extension_updates('theme');
 }
 
-/**
- * Compare every installed plugin against the remote registry.
- *
- * @return array<string, array{name:string, local_version:string, remote_version:string, download_url:string}>
- *         Keyed by plugin slug — only plugins with a newer remote version are included.
- */
 function admin_check_plugin_updates(): array {
 	return _admin_check_extension_updates('plugin');
 }
 
-/**
- * Shared implementation for admin_check_theme_updates() / admin_check_plugin_updates().
- *
- * @param string $type  'theme' or 'plugin'
- */
 function _admin_check_extension_updates(string $type): array {
 	$root     = dirname(dirname(__DIR__));
 	$isTheme  = ($type === 'theme');
@@ -134,21 +92,6 @@ function _admin_check_extension_updates(string $type): array {
 	return $updates;
 }
 
-// ─── Apply update ───────────────────────────────────────────────────────────
-
-/**
- * Download and apply an update for a single installed theme or plugin.
- *
- * Flow mirrors update.php (download → validate → safety backup → extract →
- * copy → cleanup), scoped to the extension's own folder instead of the CMS
- * root. For plugins, data/ and private/ (user data, never shipped in
- * distribution ZIPs per the plugin-system convention) are preserved
- * unconditionally even if the downloaded ZIP happens to contain them.
- *
- * @param string $type  'theme' or 'plugin'
- * @param string $slug  Folder name under theme/ or plugins/
- * @return array{success: bool, error?: string}
- */
 function admin_apply_extension_update(string $type, string $slug): array {
 	require_once __DIR__ . '/backup-functions.php';
 	require_once __DIR__ . '/zip-validation.php';
@@ -211,8 +154,6 @@ function admin_apply_extension_update(string $type, string $slug): array {
 		} else {
 			$downloaded = (file_exists($releaseZip) && filesize($releaseZip) > 0);
 		}
-		// No curl_close() call: deprecated since PHP 8.5 and a no-op since PHP 8.0 —
-		// handles are freed automatically by garbage collection.
 	}
 	if (!$downloaded && !$httpFailure && ini_get('allow_url_fopen')) {
 		$ctx  = stream_context_create(['http' => ['timeout' => 120, 'ignore_errors' => true]]);
@@ -286,9 +227,6 @@ function admin_apply_extension_update(string $type, string $slug): array {
 	$zip->close();
 	@unlink($releaseZip);
 
-	// The extracted source is either $tmpDir itself (files at ZIP root) or
-	// $tmpDir/{prefix} if the ZIP wraps everything in a single folder —
-	// same convention as theme-upload.php / plugin-upload.php.
 	$srcDir = $zipPrefix !== '' ? rtrim($tmpDir . '/' . $zipPrefix, '/') : $tmpDir;
 	if (!is_dir($srcDir)) {
 		_backup_clear_dir($tmpDir, false);
@@ -296,11 +234,6 @@ function admin_apply_extension_update(string $type, string $slug): array {
 		return ['success' => false, 'error' => __t('update_failed_extract')];
 	}
 
-	// ── Copy over the existing folder ──────────────────────────────────────
-	// Plugins: data/ and private/ hold user data (subscribers, bookings,
-	// CSRF secrets, rate-limit stores) and are never part of a distributed
-	// ZIP by convention — but skip them here too as a hard guarantee, in
-	// case a release ZIP was built incorrectly.
 	$preserve = $isTheme ? [] : ['data', 'private'];
 	$ok = _ext_upd_copy_over($srcDir, $destDir, $preserve);
 
@@ -308,8 +241,6 @@ function admin_apply_extension_update(string $type, string $slug): array {
 	_backup_clear_dir($tmpDir, false);
 	@rmdir($tmpDir);
 
-	// Force a fresh registry check next page load so the badge disappears
-	// immediately instead of waiting out the 24h cache.
 	$cacheFile = __DIR__ . '/../cache/extensions-check.json';
 	if (file_exists($cacheFile)) @unlink($cacheFile);
 	if (function_exists('sl_clear_all_cache')) sl_clear_all_cache();
@@ -320,13 +251,6 @@ function admin_apply_extension_update(string $type, string $slug): array {
 	return ['success' => true];
 }
 
-// ─── Internal helpers ───────────────────────────────────────────────────────
-
-/**
- * Detects a common root prefix in a ZIP archive (e.g. "vanta-1.3.0/").
- * Same logic as _upd_detect_prefix() in update.php, duplicated locally
- * to keep this file self-contained and independently includable.
- */
 function _ext_upd_detect_prefix(ZipArchive $zip): string {
 	if ($zip->numFiles === 0) return '';
 	$first = $zip->getNameIndex(0);
@@ -339,12 +263,6 @@ function _ext_upd_detect_prefix(ZipArchive $zip): string {
 	return $candidate;
 }
 
-/**
- * Build a safety-backup ZIP of a single theme/plugin folder before an
- * update overwrites it — scoped version of _backup_build_zip() from
- * backup-functions.php, which always backs up data/ and files/ at the
- * CMS root rather than an arbitrary folder.
- */
 function _ext_upd_backup_dir(string $srcDir, string $zipPath): bool {
 	if (!class_exists('ZipArchive') || !is_dir($srcDir)) return false;
 	$zip = new ZipArchive();
@@ -362,11 +280,6 @@ function _ext_upd_backup_dir(string $srcDir, string $zipPath): bool {
 	return file_exists($zipPath) && filesize($zipPath) > 0;
 }
 
-/**
- * Recursively copy $src over $dst, overwriting existing files, while never
- * touching any top-level subfolder named in $preserve (e.g. a plugin's
- * data/ and private/ directories).
- */
 function _ext_upd_copy_over(string $src, string $dst, array $preserve = []): bool {
 	$ok = true;
 	$dh = @opendir($src);

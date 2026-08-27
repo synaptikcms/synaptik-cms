@@ -1,35 +1,13 @@
 <?php
-/**
- * extension-upload.php — admin/extension-upload.php
- *
- * Unified ZIP import endpoint for themes, plugins and locale packs.
- * Accepts a POST field `_type` = 'theme' | 'plugin' | 'locale' to determine
- * the pipeline.
- *
- * Security pipeline (shared by all three): method check → auth → CSRF →
- * file present → PHP upload errors → .zip extension → size cap →
- * ZipArchive available → path-traversal/extension scan
- * (zip_validate_entries(), see includes/zip-validation.php).
- *
- * Themes and plugins then continue: manifest present & valid → required
- * files present → extract to tmp → copy to destination. Both may contain
- * PHP files; .htaccess is allowed for plugins only (they protect their
- * data/ and private/ folders) — themes must never ship one.
- *
- * Locale packs are a much narrower, JSON-only pipeline handled in their own
- * self-contained branch below (no manifest, no PHP, two fixed destinations:
- * lang/admin/ and lang/front/) — see the "Locale import" section.
- */
-
 require_once __DIR__ . '/includes/session-config.php';
 session_start();
 
 define('INCLUDED', true);
 require_once __DIR__ . '/includes/admin-functions.php';
 require_once __DIR__ . '/includes/zip-validation.php';
+require_once __DIR__ . '/includes/extension-update-functions.php';
 require_once dirname(__DIR__) . '/core/plugin-api.php';
 
-// ── Resolve type early so redirects are correct ───────────────────────────────
 $type = in_array($_POST['_type'] ?? '', ['theme', 'locale'], true) ? $_POST['_type'] : 'plugin';
 
 $redirect = match ($type) {
@@ -92,9 +70,6 @@ function ext_upload_success(string $msg): never
     header('Location: ' . $redirect); exit;
 }
 
-// ── Locale import — its own narrow pipeline, exits before the theme/plugin
-// ── config section below (manifest lookup, extract-to-tmp/copy, etc. do
-// ── not apply here at all — see the header comment).
 if ($type === 'locale') {
     $label = trim((string)($_POST['locale_label'] ?? ''));
     if ($label === '' || mb_strlen($label) > 50) {
@@ -136,17 +111,12 @@ if ($type === 'locale') {
         ext_upload_error(sprintf(__t('theme_upload_zip_open_failed', 'Could not open ZIP (error code: %s).'), $zipOpenResult));
     }
 
-    // Path-traversal / dangerous-extension scan — same shared helper as
-    // themes/plugins. Only .json allowed, .htaccess never (pure data, no
-    // reason for it to ever appear in a locale pack).
     $valResult = zip_validate_entries($zip, ['json'], []);
     if (!$valResult['ok']) {
         $zip->close();
         ext_upload_error($valResult['error']);
     }
 
-    // Structure: exactly two files, admin/{code}.json and front/{code}.json,
-    // same code in both, nothing else (no subfolders, no stray files).
     $entries = [];
     for ($i = 0; $i < $zip->numFiles; $i++) {
         $name = $zip->getNameIndex($i);
@@ -184,9 +154,6 @@ if ($type === 'locale') {
         ext_upload_error(sprintf(__t('translations_import_locale_exists', 'Locale "%s" already exists. Delete it first if you want to re-import.'), htmlspecialchars($locale)));
     }
 
-    // Validate + prepare both scopes before writing anything — a half
-    // -imported locale (admin written, front rejected) would be worse than
-    // no import at all.
     $toWrite = [];
     $stats   = [];
     foreach (['admin', 'front'] as $scope) {
@@ -204,10 +171,6 @@ if ($type === 'locale') {
         }
         unset($reference['_meta']);
 
-        // Same whitelist policy as the manual translation editor's save
-        // op: only keys that exist in en.json are kept, everything else is
-        // silently dropped (not fatal — lets an import from a slightly
-        // different CMS version through without failing outright).
         $clean   = [];
         $applied = 0;
         foreach ($decoded as $key => $value) {
@@ -228,8 +191,6 @@ if ($type === 'locale') {
     }
     $zip->close();
 
-    // Atomic write (tmp + rename), same pattern as translations-api.php's
-    // trl_write_locale() — plus purge the compiled lang cache for each scope.
     foreach ($toWrite as $scope => $data) {
         $path = $langDir[$scope] . $locale . '.json';
         $tmp  = $path . '.tmp.' . getmypid();
@@ -263,9 +224,6 @@ $destRoot = $isTheme
     ? dirname(__DIR__) . DIRECTORY_SEPARATOR . 'theme'
     : PL_ROOT;                          // defined in plugin-api.php
 
-// Both themes and plugins contain PHP files — PHP is always allowed.
-// .htaccess is allowed for plugins only (they protect their data/ and private/ folders).
-// Themes must never ship .htaccess files.
 $allowedExt = ['php','css','js','json','html','htm','svg','png','jpg','jpeg','webp','gif','ico','woff','woff2','ttf','eot','otf','txt','md'];
 $allowedExt_htaccess = $isTheme ? [] : ['']; // plugins: allowed anywhere; themes: never
 
@@ -465,6 +423,15 @@ function _ext_rmdir_r(string $dir): void
         is_dir($p) ? _ext_rmdir_r($p) : unlink($p);
     }
     rmdir($dir);
+}
+
+if ($isTheme && is_dir($destDir)) {
+    $bckpsDir = dirname(__DIR__) . '/bckps';
+    if (!is_dir($bckpsDir)) mkdir($bckpsDir, 0755, true);
+    $safetyZip = $bckpsDir . '/pre-theme-upload-' . $dirName . '-' . date('Y-m-d-His') . '.zip';
+    if (!_ext_upd_backup_dir($destDir, $safetyZip)) {
+        ext_upload_error(__t('theme_upload_backup_failed', 'Could not back up the existing theme before overwriting it — upload cancelled.'));
+    }
 }
 
 _ext_copy_r($srcDir, $destDir);

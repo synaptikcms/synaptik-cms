@@ -92,7 +92,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_theme'])) {
 }
 
 // ── BUILD THEMES LIST ─────────────────────────────────────────────────────────
-// URL base for preview images
 $protocol   = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
 $domain     = $_SERVER['HTTP_HOST'];
 $baseDir    = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');

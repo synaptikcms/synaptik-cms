@@ -59,10 +59,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_sitemap'])) 
     $urlset = $xml->createElement('urlset');
     $urlset->setAttribute('xmlns', 'http://www.sitemaps.org/schemas/sitemap/0.9');
     $xml->appendChild($urlset);
-
-    /**
-     * Append a <url> node to the sitemap document.
-     */
     $addUrl = function (string $loc, string $lastmod, string $priority) use ($xml, $urlset): void {
         $url = $xml->createElement('url');
         $url->appendChild($xml->createElement('loc',      htmlspecialchars($loc, ENT_XML1 | ENT_QUOTES, 'UTF-8')));
@@ -73,12 +69,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_sitemap'])) 
 
     // ── Homepage ──────────────────────────────────────────────────────────────
     $addUrl($baseUrl . '/', date('Y-m-d'), '1.0');
-
-    // ── Individual content items (published only) ─────────────────────────────
-    // Delegates entirely to admin_content_url() — the same function used in
-    // content-list, SEO overview, etc. It calls admin_front_url_slug() for
-    // localized type prefixes ('projet' not 'project') and getCategoryPath()
-    // for full hierarchical category paths ('parent/sous-categorie').
     $priorities = ['page' => '0.9', 'article' => '0.8', 'project' => '0.7'];
 
     foreach (['article', 'page', 'project'] as $ct) {
@@ -98,9 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_sitemap'])) 
         }
     }
 
-    // ── Category listing pages ────────────────────────────────────────────────
-    // Uses admin_front_url_slug('category') for the localized prefix ('categorie')
-    // and getCategoryPath() so parent segments are also emitted.
+    // ── Category listing pages ───────
     $seenCatUrls = [];
     $catPrefix   = admin_front_url_slug('category');
 
@@ -124,15 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_sitemap'])) 
             }
         }
     }
-
-    // ── Content-type archive pages (/articles/, /projects/, /pages/) ──────────
-    // Not included in the sitemap. These archive pages are noindexed by the
-    // front-end (see tf-page.php) since they duplicate their child items and
-    // add nothing to the search index. Excluding them from the sitemap keeps
-    // signals to Google consistent (no crawl encouragement + noindex on the
-    // page itself).
-
-    // ── Save ─────────────────────────────────────────────────────────────────
+    // ── Save ─────
     try {
         $xml->save($sitemapPath);
         $message = __t('sitemap_generated') . ' <a href="' . $baseUrl . '/sitemap.xml" target="_blank">' . __t('view') . '</a>';
@@ -148,7 +128,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_sitemap'])) 
 }
 
 sitemap_render:
-// Custom format file size function to avoid conflicts
 function sm_format_filesize($bytes) {
     $units = ['B', 'KB', 'MB', 'GB', 'TB'];
     $bytes = max($bytes, 0);

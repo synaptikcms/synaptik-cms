@@ -1,9 +1,4 @@
 <?php
-/**
- * Cats/Tags appear in the inline accordion only (Content section, active state).
- * Icons are inline SVG (Lucide, MIT) — monochrome, currentColor, no external deps.
- */
-
 if (!isset($data)) {
 	require_once dirname(dirname(__DIR__)) . '/core/data-layer.php';
 	$data = sl_build_data_array(['article', 'page', 'project'], false);
@@ -51,16 +46,10 @@ $_sb_tools_active      = $_sb_action === 'backup'
 	|| $_sb_action === 'activity_log'
 	|| in_array($_sb_file, ['batch-optimize.php', 'alt-text-assistant.php', 'sitemap-generator.php', 'seo-overview.php']);
 
-// An active plugin's own admin page (action=plugin_page&slug=...) highlights
-// that plugin's own sub-item within "Plugins" — see $_sb_plugins_active below.
 $_sb_plugin_slug        = ($_sb_action === 'plugin_page') ? ($_GET['slug'] ?? '') : '';
 $_sb_account_active    = $_sb_action === 'account';
 $_sb_settings_tab      = $_GET['tab'] ?? '';
 
-/**
- * Thin wrapper around the shared admin_icon() so existing sidebar call
- * sites don't need to change — keeps the 'sb-icon' class for CSS targeting.
- */
 function sb_icon(string $name): string {
 	return admin_icon($name, '', 18, 'sb-icon');
 }

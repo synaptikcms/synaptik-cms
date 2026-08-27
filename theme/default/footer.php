@@ -19,5 +19,6 @@ $themePath = getBaseUrl() . 'theme/mono';
             <?php echo render_footer_content(); ?>
         </div>
     </footer>
+<?php echo render_search_ui(); ?>
 </body>
 </html>

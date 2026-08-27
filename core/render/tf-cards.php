@@ -1,19 +1,4 @@
 <?php
-/**
- * Content Cards & Home Sections — SynaptikCMS
- * Article/project card renderers, home page sections,
- * article summary helper, related items, and custom fields.
- */
-
-// ── Custom fields ─────────────────────────────────────────────────────────────
-
-/**
- * Renders custom fields for a content item respecting schema order and labels.
- *
- * @param array  $item The full content item array.
- * @param string $type Content type: 'article', 'page', or 'project'.
- * @return string HTML string, or empty string when no fields have values.
- */
 function render_item_custom_fields(array $item, string $type): string
 {
     $values = $item['custom_fields'] ?? [];
@@ -43,24 +28,12 @@ function render_item_custom_fields(array $item, string $type): string
     return '<div class="custom-fields-block"><dl class="custom-fields">' . $rows . '</dl></div>';
 }
 
-/**
- * Returns the value of a single custom field for a content item.
- *
- * @param array  $item    Content item array.
- * @param string $key     Custom field key.
- * @param mixed  $default Returned when the field is absent or empty.
- * @return mixed
- */
 function get_custom_field(array $item, string $key, $default = '')
 {
     return $item['custom_fields'][$key] ?? $default;
 }
 
 // ── Home page sections ────────────────────────────────────────────────────────
-
-/**
- * Renders the articles grid for the homepage with pagination.
- */
 function render_home_articles($data, $settings)
 {
     if (!$settings['show_articles_on_homepage'] || empty($data['article'])) {
@@ -96,9 +69,6 @@ function render_home_articles($data, $settings)
     return ob_get_clean();
 }
 
-/**
- * Renders the projects grid for the homepage.
- */
 function render_home_projects($data, $settings)
 {
     if (empty($data['project']) || !$settings['show_projects_on_homepage']) {
@@ -123,11 +93,6 @@ function render_home_projects($data, $settings)
 }
 
 // ── Article card ──────────────────────────────────────────────────────────────
-
-/**
- * Renders a single article card.
- * Delegates to partials/article-card.php in the active theme if it exists.
- */
 function render_article_card($article)
 {
     $articleSlug  = !empty($article['custom_slug']) ? $article['custom_slug'] : $article['slug'];
@@ -173,15 +138,6 @@ function render_article_card($article)
     return ob_get_clean();
 }
 
-/**
- * Returns the display summary for an article.
- * Uses the explicit summary field when set, otherwise auto-generates a clean excerpt.
- * Safe to echo directly — already htmlspecialchars'd.
- *
- * @param array $article Content item (index entry or full item).
- * @param int   $length  Maximum excerpt length.
- * @return string HTML-safe summary string, or empty string.
- */
 function get_article_summary(array $article, int $length = 150): string
 {
     if (!empty($article['summary'])) {
@@ -205,11 +161,6 @@ function get_article_summary(array $article, int $length = 150): string
 }
 
 // ── Project card ──────────────────────────────────────────────────────────────
-
-/**
- * Renders a single project card.
- * Delegates to partials/project-card.php in the active theme if it exists.
- */
 function render_project_card($project)
 {
     $projectSlug  = !empty($project['custom_slug']) ? $project['custom_slug'] : $project['slug'];
@@ -258,21 +209,6 @@ function render_project_card($project)
 }
 
 // ── Related items ─────────────────────────────────────────────────────────────
-
-/**
- * Renders a related content section for a content item.
- *
- * Manual mode: uses $item['related_items'] if defined.
- * Auto mode: scores candidates by shared tags (+1 each) and category (+2),
- * returns the top-scoring items up to $limit.
- *
- * Only reads index data — no full item files loaded, keeping it fast.
- * Opt-in: item must have show_related_items === true.
- *
- * @param array $item  Full content item.
- * @param int   $limit Maximum items (auto mode only).
- * @return string HTML <section> or empty string.
- */
 function render_related_items(array $item, int $limit = 5): string
 {
     if (!($item['show_related_items'] ?? false)) return '';

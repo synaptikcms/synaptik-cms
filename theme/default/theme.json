@@ -1,12 +1,12 @@
 {
     "name": "Mono",
     "folder": "default",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "author": "Synaptik",
     "author_url": "https://synaptikcms.com",
     "description": "A sidebar-first minimalist theme, ideal for writers and bloggers. Fixed left navigation, warm off-white palette, and a title-list layout that keeps the focus on content over decoration.",
     "synaptik_theme": true,
-    "download_url": "https://synaptikcms.com/files/themes/mono.zip",
+    "download_url": "https://synaptikcms.com/files/themes/default.zip",
     "info_url": "https://synaptikcms.com/theme-info/mono-theme/",
     "demo_url": "theme-info/mono-theme/"
 }

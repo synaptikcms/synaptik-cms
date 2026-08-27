@@ -1,11 +1,4 @@
 <?php
-/**
- * Batch-progress helpers, shared by the file manager's long-running scans.
- */
-
-// Direct-access guard. Effective on nginx too, unlike .htaccess. Safe for its
-// only caller: file-manager.php requires includes/admin-functions.php (which
-// defines INCLUDED) before requiring this file.
 if (!defined('INCLUDED')) {
     http_response_code(403);
     exit;

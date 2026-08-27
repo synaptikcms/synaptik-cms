@@ -1,23 +1,11 @@
 <?php
 ini_set('memory_limit', '256M');
 
-// LLM indexer endpoints — intercept before session/bootstrap overhead.
-// Accessible as /llms.txt and /llms-full.txt via .htaccess rewrite.
 if (isset($_GET['_llms'])) {
     require_once __DIR__ . '/core/' . ($_GET['_llms'] === 'full' ? 'llms-full' : 'llms') . '.php';
     exit;
 }
 
-// Use the same session cookie name as the admin panel (see
-// admin/includes/session-config.php) so an authenticated admin session is
-// visible here too — required for the front-end admin bar (#snk-admin-bar,
-// further below) and the theme-preview token check in loadConfig(). Without
-// this, the front end would start a separate PHPSESSID-based session that can
-// never see $_SESSION['admin'] set by admin/auth.php.
-//
-// admin_dir is read directly from config.json here (not via
-// resolve_admin_dir(), which depends on loadConfig() — not yet available,
-// since functions.php hasn't been required yet at this point).
 $__adminDirForSession = 'admin';
 $__configPathForSession = __DIR__ . '/config.json';
 if (file_exists($__configPathForSession)) {
@@ -27,11 +15,7 @@ if (file_exists($__configPathForSession)) {
     }
 }
 $__sessionConfigPath = __DIR__ . '/' . $__adminDirForSession . '/includes/session-config.php';
-// Fallback: if config.json points to a folder that no longer exists (renamed
-// admin folder not saved back to config, config drift between environments),
-// scan the filesystem for the real admin folder so the shared session cookie
-// name is still configured on the front end. Mirrors resolve_admin_dir() in
-// core-functions.php, inlined here because functions.php is not loaded yet.
+
 if (!file_exists($__sessionConfigPath)) {
     foreach (glob(__DIR__ . '/*/auth.php') ?: [] as $__adminAuthFile) {
         $__candidate = __DIR__ . '/' . basename(dirname($__adminAuthFile)) . '/includes/session-config.php';
@@ -48,40 +32,18 @@ if (file_exists($__sessionConfigPath)) {
 unset($__adminDirForSession, $__configPathForSession, $__decodedForSession, $__sessionConfigPath);
 
 session_start();
-
-// Include the CMS bootstrap loader (core libraries + rendering modules).
 require_once __DIR__ . '/core/functions.php';
 
-// Generic plugin hook: fired as early as possible in the request —
-// right after functions.php (so pl_load_active_plugins() has run) and
-// before the data layer, routing, or any output. A plugin that needs to
-// intercept/block the entire request before the site does any work (e.g.
-// a maintenance-mode page) registers here via pl_add_hook('early_request', ...)
-// from its own init file — index.php itself never names a specific plugin.
 pl_do_hook('early_request');
 
-// data-layer.php is already required by core/functions.php; the guarded
-// SL_DATA_LAYER_LOADED define makes a second require a no-op if kept.
-
-// Load site configuration (formerly loadSettings / config.json).
 $settings = loadConfig();
 
-// ── Public password reset route ─────────────────────────────────
-// Intercepts ?reset_token= BEFORE any routing or output.
-// Lets the admin reset their password without the admin folder name
-// appearing in the emailed link.
 if (isset($_GET['reset_token']) && $_GET['reset_token'] !== '') {
-    // Forward token as the param reset-password.php expects
     $_GET['token'] = $_GET['reset_token'];
 
-    // Resolve admin folder via shared helper (settings → filesystem scan → default)
     $adminDirName = resolve_admin_dir();
     $resetFile = __DIR__ . '/' . $adminDirName . '/reset-password.php';
     if ($resetFile && file_exists($resetFile)) {
-        // chdir() to the admin folder so that relative paths inside
-        // admin-functions.php (e.g. '../data-functions.php') resolve correctly.
-        // Without this, those paths are relative to the CMS root (index.php's CWD)
-        // and point one level too high, causing a fatal error.
         $prevCwd = getcwd();
         chdir(__DIR__ . '/' . $adminDirName);
         require $resetFile;
@@ -93,12 +55,8 @@ if (isset($_GET['reset_token']) && $_GET['reset_token'] !== '') {
     exit;
 }
 
-// Theme preview banner: shown when a valid _tp token is present in the URL.
-// The token is validated inside loadConfig() — if active_theme was overridden,
-// we know the token is valid and we display the banner.
 $_themePreviewBanner = '';
 if (isset($_GET['_tp']) && isset($_SESSION['admin']) && $_SESSION['admin'] === true) {
-	// Decode theme name from token for display (re-decode; no security logic here)
 	$_tpDecoded = base64_decode(strtr($_GET['_tp'], '-_', '+/'), true);
 	$_tpParts   = $_tpDecoded ? explode('|', $_tpDecoded, 3) : [];
 	$_tpTheme   = isset($_tpParts[0]) ? htmlspecialchars(basename($_tpParts[0])) : $settings['active_theme'];
@@ -136,41 +94,40 @@ if (isset($_GET['_tp']) && isset($_SESSION['admin']) && $_SESSION['admin'] === t
 </div>';
 }
 
-// ── Load data — split-file architecture ───────────────────────────────────────
-//
-// Step 1: always load the lightweight index for all types.
-//   - Fast: no content body, only metadata fields (title, slug, date, image, etc.)
-//   - Sufficient for: routing (parseRequestUri), list pages, category/tag pages,
-//     navigation rendering, homepage article/project cards, cleanUrl() helpers.
-//
-// Step 2 (below, after routing): for single-item views, upgrade $data[$type] to
-//   a single full item containing the content body and all SEO/gallery fields.
-//   Only ONE file is read — not all items for the type.
-//
+$__pageCacheEligible = ($_SERVER['REQUEST_METHOD'] === 'GET')
+    && empty($_SERVER['QUERY_STRING'])
+    && !(isset($_SESSION['admin']) && $_SESSION['admin'] === true);
+$__pageCacheKey = null;
+
+if ($__pageCacheEligible) {
+    foreach (['article', 'page', 'project'] as $__scheduledType) {
+        sl_promote_scheduled($__scheduledType);
+    }
+    unset($__scheduledType);
+
+    $__pageCacheKey = trim((string) parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/');
+    $__cachedStatus = 200;
+    $__cachedHtml = sl_page_cache_get($__pageCacheKey, $settings['active_language'] ?? 'en', $__cachedStatus);
+    if ($__cachedHtml !== null) {
+        http_response_code($__cachedStatus);
+        echo $__cachedHtml;
+        exit;
+    }
+    ob_start();
+}
+
 $data = sl_build_data_array(['article', 'page', 'project'], false);
-// Expose globally so parseRequestUri() and cleanUrl() helpers can read it
 $GLOBALS['data'] = $data;
 
-// Clean up content if needed (legacy compat — content no longer lives here at this stage)
 if (isset($data['content'])) {
   $data['content'] = stripslashes($data['content']);
 }
 
-// Define content types
 $contentTypes = ["article", "page", "project"];
-
-// Parse the URI to get routing parameters (reads $GLOBALS['data'] for slug resolution)
 $uriParams = parseRequestUri();
 
-// Generic plugin hook: fired right after parseRequestUri() resolves the
-// route, before any HTTP header or HTML output. Passes whether this
-// request is a genuine 404 so a plugin can act on it (e.g. custom
-// redirects, or a 404→home fallback). A plugin registers here via
-// pl_add_hook('after_routing', ...) from its own init file — index.php
-// itself never names a specific plugin.
 pl_do_hook('after_routing', $uriParams['type'] === '404');
 
-// Override GET parameters if clean URL was used and parsed
 if (!empty($uriParams["type"])) {
 	$_GET["type"] = $uriParams["type"];
 }
@@ -187,25 +144,22 @@ if (!empty($uriParams["tag"])) {
 	$_GET["tag"] = $uriParams["tag"];
 }
 
-// Initialize variables — sanitize all routing inputs before use.
-// $type is already validated by parseRequestUri() which only returns known values;
-// 'tag' and 'category' are valid routing types but not in $contentTypes.
 $_allowedTypes = array_merge($contentTypes, ['tag', 'category', '404']);
 $type     = isset($_GET['type']) ? (in_array($_GET['type'], $_allowedTypes, true) ? $_GET['type'] : '') : '';
 $slug     = isset($_GET['slug'])     ? basename(preg_replace('/[^\p{L}\p{N}\-_\/]/u', '', $_GET['slug'])) : '';
 $category = isset($_GET['category']) ? preg_replace('/[^\p{L}\p{N}\-_]/u', '', $_GET['category']) : '';
 $tag      = isset($_GET['tag'])      ? preg_replace('/[^\p{L}\p{N}\-_]/u', '', $_GET['tag'])      : '';
 
-// ── Step 2: contextual full-item loading ───────────────────────────────────────
-//
-// Single item view (article/page/project + slug): replace the index entries for
-// that type with the single full item file. This loads exactly ONE .json file
-// (~5–15 KB) instead of the entire type's data. All other types keep index data.
-//
-// Homepage set to a specific page: load that page's full content file only.
-//
+$_isDraftPreview = false;
+
 if (!empty($type) && !empty($slug) && in_array($type, $contentTypes)) {
 	$_fullItem = sl_load_item_by_slug($type, $slug);
+	if ($_fullItem === null && sl_admin_preview_session_active()) {
+		$_fullItem = sl_load_item_by_slug_unfiltered($type, $slug);
+		if ($_fullItem !== null) {
+			$_isDraftPreview = true;
+		}
+	}
 	if ($_fullItem !== null) {
 		$data[$type]         = [$_fullItem];
 		$GLOBALS['data']     = $data;
@@ -222,9 +176,33 @@ if (!empty($type) && !empty($slug) && in_array($type, $contentTypes)) {
 	}
 }
 
-// Process content based on type, slug and category
-// Determine routing and call processContent ONCE here, before header output.
-// http_response_code() must be set before loadThemeTemplate('header') emits HTML.
+$_draftPreviewBanner = '';
+if ($_isDraftPreview) {
+	$_dpStatusKey = $_fullItem['status'] ?? 'draft';
+	$_dpStatusLabel = __t('status_' . $_dpStatusKey, ucfirst($_dpStatusKey));
+	$_draftPreviewBanner = '
+<style>
+  #draft-preview-banner {
+	position:fixed;bottom:0;left:0;right:0;z-index:2147483646;
+	background:#3d2800;color:#fde68a;
+	font-family:system-ui,sans-serif;font-size:13px;
+	padding:10px 20px;display:flex;align-items:center;gap:16px;
+	border-top:2px solid #f59e0b;box-shadow:0 -4px 20px rgba(0,0,0,.5);
+  }
+  #draft-preview-banner .dpb-badge {
+	background:#f59e0b;color:#1a1300;font-weight:700;font-size:11px;
+	padding:3px 8px;border-radius:3px;letter-spacing:.08em;
+	text-transform:uppercase;white-space:nowrap;flex-shrink:0;
+  }
+  #draft-preview-banner .dpb-label { flex:1; }
+  body { padding-bottom:56px !important; }
+</style>
+<div id="draft-preview-banner">
+  <span class="dpb-badge">' . htmlspecialchars($_dpStatusLabel) . '</span>
+  <span class="dpb-label">' . __t('draft_preview_notice', 'You are the only one who can see this — visitors get a 404 until it is published.') . '</span>
+</div>';
+}
+
 if ($type === 'category' && !empty($category)) {
 	$pageTitle = 'Category: ' . urldecode($category);
 	$pageContent = renderCategoryPage($category, $data);
@@ -240,18 +218,9 @@ if ($type === 'category' && !empty($category)) {
 	$httpStatus = $pageData['http_status'] ?? 200;
 }
 
-// Mirrored the same way as $GLOBALS['data'] above — lets render_header_scripts()
-// (called from inside loadThemeTemplate('header', ...), a separate function scope)
-// inspect the page's actual rendered HTML, e.g. to conditionally load
-// highlight.js only on pages that actually contain a code block.
 $GLOBALS['pageContent'] = $pageContent;
 
-// Set HTTP status BEFORE any output (header template inclusion below)
 http_response_code($httpStatus);
-
-// Generate SEO metadata
-// At this point $data[$type] contains the full item for single-item views,
-// so generateSEO() can read meta_title, meta_description from it correctly.
 $seoData = generateSEO($pageTitle, $type, $slug, $data, $settings);
 $metaTitle = $seoData['title'];
 $metaDescription = $seoData['description'];
@@ -259,19 +228,11 @@ $metaDescription = $seoData['description'];
 $requiredGalleryScripts = [];
 $galleryLayouts = [];
 
-// Initialize SEO variables that are missing
 $metaKeywords = '';
 $ogImage = '';
 $ogTitle = '';
 $ogDescription = '';
 
-// render_header_scripts() in the theme header automatically injects
-// synaptikCSS.php, the active theme stylesheet, and main.js via its $system
-// array. Do NOT add them here — this array is for page-specific extras only.
-
-// Homepage SEO overrides — only for homepage_type === 'default'.
-// When homepage_type === 'page', the selected page carries its own SEO fields
-// and is handled by the single-item block below.
 if (empty($type) && empty($slug) && ($settings['homepage_type'] ?? 'default') === 'default') {
 	$metaKeywords  = $settings['home_meta_keywords']  ?? '';
 	$ogTitle       = !empty($settings['home_og_title'])       ? $settings['home_og_title']       : $metaTitle;
@@ -279,13 +240,10 @@ if (empty($type) && empty($slug) && ($settings['homepage_type'] ?? 'default') ==
 	$ogImage       = !empty($settings['home_og_image'])       ? getBaseUrl() . $settings['home_og_image'] : '';
 }
 
-// For single content items, extract SEO data
-// $data[$type] now contains only the one matching item — the foreach finds it on the first iteration.
 if (!empty($type) && !empty($slug) && in_array($type, $contentTypes)) {
 	foreach ($data[$type] as $item) {
 		$itemSlug = !empty($item['custom_slug']) ? $item['custom_slug'] : $item['slug'];
 		if ($itemSlug === $slug) {
-			// Set metadata from item
 			$metaKeywords = $item['meta_keywords'] ?? '';
 			$ogImage = !empty($item['og_image']) ? getBaseUrl() . $item['og_image'] :
 			   (!empty($item['image']) ? getBaseUrl() . $item['image'] : '');
@@ -296,7 +254,6 @@ if (!empty($type) && !empty($slug) && in_array($type, $contentTypes)) {
 	}
 }
 
-// For single content items, check if there's a gallery and what layout it uses
 if (!empty($type) && !empty($slug) && in_array($type, $contentTypes)) {
 	foreach ($data[$type] as $item) {
 		$itemSlug = !empty($item['custom_slug']) ? $item['custom_slug'] : $item['slug'];
@@ -316,7 +273,6 @@ if (!empty($type) && !empty($slug) && in_array($type, $contentTypes)) {
 	}
 }
 
-// Check if homepage is a page with gallery
 if (empty($type) && empty($slug) && $settings['homepage_type'] === 'page' && !empty($settings['homepage_page_id'])) {
 	foreach ($data['page'] as $page) {
 		$pageSlug = !empty($page['custom_slug']) ? $page['custom_slug'] : $page['slug'];
@@ -334,49 +290,32 @@ if (empty($type) && empty($slug) && $settings['homepage_type'] === 'page' && !em
 	}
 }
 
-// Load all required scripts for detected gallery layouts
 foreach ($galleryLayouts as $layout) {
 	$layoutScripts = getGalleryScripts($layout);
 	$requiredGalleryScripts = array_merge($requiredGalleryScripts, $layoutScripts);
 }
 
-// Remove duplicate scripts
+if (!empty($galleryLayouts)) {
+	enqueue_js('lightbox', 'assets/js/features/lightbox.js');
+}
+
 $requiredGalleryScripts = array_unique($requiredGalleryScripts);
-
-// Initialize $headerScripts with any gallery-specific scripts detected above.
-// System assets (synaptikCSS, theme CSS, main.js) are always prepended by
-// render_header_scripts() and must NOT be added here.
 $headerScripts = array_values(array_unique($requiredGalleryScripts));
-
-// Schema.org JSON-LD — injected into <head> for single-item views only.
-// render_schema_jsonld() returns '' for all other page types, so this is always safe.
 $_schemaJsonld = render_schema_jsonld($settings, $type, $slug, $data);
 if ($_schemaJsonld !== '') {
 	$headerScripts[] = $_schemaJsonld;
 }
 unset($_schemaJsonld);
-
-// front-boot.js already ran once in $system (before this array is merged in) and
-// missed this island — safe to re-include: it only acts on islands it finds present.
 $headerScripts[] = '	<script type="application/json" id="cms-appsettings-json">'
 	. json_encode(['showSearchIcon' => isset($settings["show_search_icon"]) && $settings["show_search_icon"]])
-	. '</script>'
-	. '	<script src="' . getBaseUrl() . 'assets/js/front-boot.js' . (($_v = @filemtime(CMS_ROOT . '/assets/js/front-boot.js')) ? '?v=' . $_v : '') . '"></script>';
+	. '</script>';
 
-// ── Admin top bar ────────────────────────────────────────────────────────────
-// Visible only when an admin session is active.
-// CSS injected into <head> via $headerScripts.
-// body.has-adminbar adds padding-top so content clears the bar.
-// z-index:2147483647 (CSS max) + isolation:isolate ensures the bar renders
-// above all theme stacking contexts, including those created by backdrop-filter.
 $isAdminLoggedIn = isset($_SESSION['admin']) && $_SESSION['admin'] === true;
 $_adminBarHtml   = '';
 if ($isAdminLoggedIn) {
 	$_adminDir  = resolve_admin_dir();
 	$_adminBase = getBaseUrl() . $_adminDir;
 
-	// Load admin locale strings for correct translations (edit, new_article, etc.).
-	// Direct JSON read — cheap single file, no cache overhead, admin-only path.
 	$_adminLang = [];
 	$_adminLangFile = __DIR__ . '/lang/admin/' . ($settings['active_language'] ?? 'en') . '.json';
 	if (!file_exists($_adminLangFile)) {
@@ -389,23 +328,16 @@ if ($isAdminLoggedIn) {
 		return htmlspecialchars($_adminLang[$key] ?? $key);
 	};
 
-	// Contextual actions: edit/manage button + new item button.
-	// The home icon always goes to the dashboard.
 	$_ctxLabel     = '';
 	$_ctxHref      = '';
 	$_newLabel     = '';
 	$_newHref      = '';
-	$_listLink     = ''; // optional secondary link to current content-type list
+	$_listLink     = '';
 	$_showSettings = true;
 
 	if (!empty($type) && !empty($slug)) {
-		// Single item view
 		$_singleType = in_array($type, $contentTypes) ? $type : rtrim($type, 's');
 		if (in_array($_singleType, $contentTypes)) {
-			// Read the raw _index.json directly to get the position the admin panel
-			// sees — sl_find_in_index() uses the front-end filtered index which
-			// excludes drafts, so its $pos shifts whenever drafts sit before the
-			// current item, causing the Edit link to point to the wrong item.
 			$_rawIndex   = json_decode(file_get_contents(CMS_ROOT . '/data/' . $_singleType . 's/_index.json'), true) ?? [];
 			$_adminIndex = null;
 			foreach ($_rawIndex as $_rawPos => $_rawEntry) {
@@ -420,7 +352,6 @@ if ($isAdminLoggedIn) {
 			}
 		}
 	} elseif (!empty($type) && empty($slug) && in_array(rtrim($type, 's'), $contentTypes)) {
-		// Content list view
 		$_listType     = rtrim($type, 's');
 		$_ctxLabel     = $_adminLang['manage']                  ?? 'Manage';
 		$_ctxHref      = $_adminBase . '/index.php?type=' . $_listType;
@@ -429,8 +360,7 @@ if ($isAdminLoggedIn) {
 		$_showSettings = false;
 	}
 
-	// CSS and JS injected into <head> via $headerScripts.
-	$_s  = '<style>';
+	$_s  = '	<style>';
 	$_s .= ':root{--snk-adminbar-height:36px;}';
 	$_s .= '#snk-admin-bar{position:fixed;top:0;left:0;right:0;z-index:2147483647;isolation:isolate;display:flex;align-items:center;gap:4px;padding:0 12px;height:var(--snk-adminbar-height);background:#1e2a3a;color:#b2bac6;font-family:system-ui,sans-serif;font-size:12px;line-height:1;}';
 	$_s .= 'body.has-adminbar{padding-top:var(--snk-adminbar-height);}';
@@ -443,8 +373,6 @@ if ($isAdminLoggedIn) {
 	$_s .= '#snk-admin-bar .snk-ab-spacer{flex:1;}';
 	$_s .= '#snk-admin-bar svg{flex-shrink:0;}';
 	$_s .= '</style>';
-	// body.has-adminbar is added by front-boot.js (in $system), which checks for
-	// #snk-admin-bar's presence on DOMContentLoaded — no inline script needed here.
 	$headerScripts[] = $_s;
 
 	$_ico_home = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>';
@@ -454,23 +382,17 @@ if ($isAdminLoggedIn) {
 	$_ico_cog  = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l-.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
 
 	$_adminBarHtml  = '<div id="snk-admin-bar">';
-
-	// Home icon — always goes to the admin dashboard
 	$_adminBarHtml .= '<a class="snk-ab-site" href="' . htmlspecialchars($_adminBase . '/index.php') . '">' . $_ico_home . htmlspecialchars($settings['site_title'] ?? 'SynaptikCMS') . '</a>';
-
 	$_adminBarHtml .= '<div class="snk-ab-divider"></div>';
 
-	// Link to the current content-type list (only on single item or list pages)
 	if (!empty($_listLink)) {
 		$_adminBarHtml .= '<a href="' . htmlspecialchars($_listLink) . '">' . $_ico_list . htmlspecialchars($_adminLang[rtrim($type, 's') . 's'] ?? ucfirst($type)) . '</a>';
 	}
 
-	// Contextual primary action (edit this item / manage this list)
 	if (!empty($_ctxLabel) && !empty($_ctxHref)) {
 		$_adminBarHtml .= '<a class="snk-ab-ctx" href="' . htmlspecialchars($_ctxHref) . '">' . $_ico_edit . htmlspecialchars($_ctxLabel) . '</a>';
 	}
 
-	// New item shortcut
 	if (!empty($_newLabel) && !empty($_newHref)) {
 		$_adminBarHtml .= '<a href="' . htmlspecialchars($_newHref) . '">' . $_ico_new . htmlspecialchars($_newLabel) . '</a>';
 	}
@@ -485,7 +407,6 @@ if ($isAdminLoggedIn) {
 	$GLOBALS['_adminBarHtml'] = $_adminBarHtml;
 }
 
-// Pass all relevant data to the header template
 loadThemeTemplate('header', [
 	'settings' => $settings,
 	'data' => $data,
@@ -502,14 +423,10 @@ loadThemeTemplate('header', [
 	'headerScripts' => $headerScripts
 ]);
 
-// Emit admin top bar after the theme header for themes that do not call render_adminbar() directly.
-// Themes with backdrop-filter navs (nova, prism, etc.) should call render_adminbar() as the
-// first child of <body> in their header.php to avoid stacking context conflicts.
 if (!empty($_adminBarHtml) && empty($GLOBALS['_adminBarHtml_emitted'])) {
 	echo $_adminBarHtml;
 }
 
-// Display breadcrumbs if enabled in settings
 if (isset($settings['show_breadcrumbs']) && $settings['show_breadcrumbs']) {
 	$breadcrumbTitle = '';
 	if (!empty($type) && !empty($slug)) {
@@ -524,37 +441,29 @@ if (isset($settings['show_breadcrumbs']) && $settings['show_breadcrumbs']) {
 	echo getBreadcrumbs($type, $slug, $breadcrumbTitle, $category);
 }
 
-// Display the title if needed
 $displayTitle = true; // Default to true for non-content pages
-// Special case for pages set as homepage
 if (empty($type) && empty($slug) && isset($settings['homepage_type']) && $settings['homepage_type'] === 'page' && !empty($settings['homepage_page_id'])) {
-	// Find the homepage page
 	foreach ($data['page'] as $item) {
 		$pageSlug = !empty($item['custom_slug']) ? $item['custom_slug'] : $item['slug'];
 		if ($pageSlug === $settings['homepage_page_id']) {
-			// Use the show_title preference if it exists
 			$displayTitle = isset($item['show_title']) ? $item['show_title'] : false;
 			break;
 		}
 	}
 }
-// For regular content pages
 else if (!empty($type) && !empty($slug) && in_array($type, $contentTypes)) {
 	foreach ($data[$type] as $item) {
 		$itemSlug = !empty($item['custom_slug']) ? $item['custom_slug'] : $item['slug'];
 		
 		if ($itemSlug === $slug) {
-			// Use the show_title preference if it exists, otherwise default to false
 			$displayTitle = isset($item['show_title']) ? $item['show_title'] : false;
 			break;
 		}
 	}
 }
 
-// Display the content
 echo $pageContent;
 
-// Load footer template with all necessary parameters
 loadThemeTemplate('footer', [
 	'settings' => $settings,
 	'data' => $data,
@@ -562,7 +471,15 @@ loadThemeTemplate('footer', [
 	'baseUrl' => getBaseUrl()
 ]);
 
-// Theme preview banner injected after footer so it overlays all content
 if (!empty($_themePreviewBanner)) {
 	echo $_themePreviewBanner;
+}
+if (!empty($_draftPreviewBanner)) {
+	echo $_draftPreviewBanner;
+}
+
+if ($__pageCacheEligible) {
+	$__pageHtml = ob_get_clean();
+	echo $__pageHtml;
+	sl_page_cache_set($__pageCacheKey, $settings['active_language'] ?? 'en', $httpStatus, $__pageHtml);
 }

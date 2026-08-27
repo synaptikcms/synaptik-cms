@@ -4,13 +4,7 @@ if (!defined('INCLUDED')) {
 	exit('Direct access to this file is not allowed');
 }
 
-// _backup_build_zip(), _backup_clear_dir(), _backup_copy_dir() and
-// _backup_remove_dir() are shared with the updater (which needs them for
-// its own safety backup and tmp-dir cleanup) — defined once, guarded, in
-// includes/backup-functions.php. Do not redefine them here.
 require_once dirname(__DIR__) . '/includes/backup-functions.php';
-
-// ── Delete a server-side backup ─────────────────────────────────────────────
 if (isset($_POST['delete_backup'])) {
 	$root      = dirname(dirname(__DIR__));
 	$backupDir = realpath($root . '/bckps');
@@ -118,8 +112,6 @@ if (isset($_POST['restore_zip_backup']) && isset($_FILES['backup_zip_file'])) {
 		exit;
 	}
 
-	// Full entry scan: path traversal + extension whitelist
-	// Backup archives contain JSON and media — .htaccess allowed only under data/, files/, private/.
 	$bckpAllowedExt = ['json','jpg','jpeg','png','gif','webp','svg','ico','mp4','webm','pdf','txt','md','csv'];
 	$valResult = zip_validate_entries($zip, $bckpAllowedExt, ['data/', 'files/', 'private/']);
 	if (!$valResult['ok']) {
@@ -150,9 +142,6 @@ if (isset($_POST['restore_zip_backup']) && isset($_FILES['backup_zip_file'])) {
 		exit;
 	}
 
-	// Guarantee tmpDir is removed even if the script dies mid-restore
-	// (PHP timeout, fatal error, memory limit on large /files/ copies).
-	// Without this, a crash leaves tmp-restore-* directories on disk forever.
 	register_shutdown_function(function () use ($tmpDir) {
 		if (is_dir($tmpDir)) {
 			_backup_remove_dir($tmpDir);
@@ -167,11 +156,8 @@ if (isset($_POST['restore_zip_backup']) && isset($_FILES['backup_zip_file'])) {
 		exit;
 	}
 	$zip->close();
-
-	// ── Apply restore ─────────────────────────────────────────────────────────
 	$ok = true;
 
-	// config.json (or legacy settings.json)
 	$tmpSettings = $tmpDir . '/config.json';
 	if (!file_exists($tmpSettings)) {
 		$tmpSettings = $tmpDir . '/settings.json';
@@ -203,12 +189,7 @@ if (isset($_POST['restore_zip_backup']) && isset($_FILES['backup_zip_file'])) {
 	header('Location: index.php?action=backup');
 	exit;
 }
-// ── Scan /bckps/ for existing backups ───────────────────────────────────────
 $_bckpsDir = dirname(dirname(__DIR__)) . '/bckps';
-
-// Purge orphaned tmp-restore-* directories left over from interrupted/failed
-// restores (e.g. extractTo() failure, PHP timeout mid-restore). These never
-// persist past a single request normally, so any found here are stale.
 if (is_dir($_bckpsDir)) {
 	foreach (scandir($_bckpsDir) as $_d) {
 		if (strpos($_d, 'tmp-restore-') === 0 && is_dir($_bckpsDir . '/' . $_d)) {
@@ -237,8 +218,6 @@ if (is_dir($_bckpsDir)) {
 
 	<div class="backup-content">
 		<div class="tab-content">
-
-			<!-- ── Full ZIP backup ──────────────────────────────────────── -->
 			<div class="site-settings-section">
 				<h3><?php _e('backup_full_zip_title'); ?></h3>
 				<div class="form-group">
@@ -255,8 +234,6 @@ if (is_dir($_bckpsDir)) {
 					<?php endif; ?>
 				</div>
 			</div>
-
-			<!-- ── Restore from ZIP ─────────────────────────────────────── -->
 			<div class="site-settings-section">
 				<h3><?php _e('restore_zip_title'); ?></h3>
 				<div class="form-group">
@@ -277,8 +254,6 @@ if (is_dir($_bckpsDir)) {
 					<?php endif; ?>
 				</div>
 			</div>
-
-			<!-- ── Server backups table ──────────────────────────────────── -->
 			<div class="site-settings-section">
 				<h3><?php _e('server_backups'); ?></h3>
 				<div class="form-group">
@@ -319,5 +294,4 @@ if (is_dir($_bckpsDir)) {
 
 		</div>
 	</div>
-
 	<script src="assets/js/backup.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/backup.js'); ?>"></script>

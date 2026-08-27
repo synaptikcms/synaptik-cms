@@ -4,14 +4,6 @@ if (!defined('INCLUDED')) {
 	exit('Direct access to this file is not allowed');
 }
 
-/**
- * Returns true if OPcache is enabled and actually running for the current request.
- * Tries opcache_get_status() first (reflects real runtime state, e.g. catches
- * a module that failed to initialize despite opcache.enable=1). Falls back to
- * the opcache.enable ini directive if the status function is unavailable —
- * some shared hosts (e.g. OVH) block opcache_* functions via disable_functions
- * or opcache.restrict_api_key while OPcache itself runs normally.
- */
 function sysinfo_opcache_enabled(): bool {
 	if (!extension_loaded('Zend OPcache')) return false;
 
@@ -29,11 +21,6 @@ if (!isset($appSettings)) {
 	$appSettings = admin_load_config();
 }
 
-/**
- * Total on-disk size of the site (cached, since walking the whole install
- * root is expensive) — same 5-minute cache pattern as the dashboard's
- * media-stats cache.
- */
 function sysinfo_site_size(string $root, string $cacheFile): int {
 	if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < 300) {
 		$cached = json_decode(file_get_contents($cacheFile), true);
@@ -66,8 +53,6 @@ $_si_installLocked = file_exists($_si_root . '/install.lock');
 $_si_adminDir      = $appSettings['admin_dir'] ?? 'admin';
 $_si_adminRenamed  = $_si_adminDir !== 'admin';
 
-// Same probe used by the dashboard's htaccess warning banner — reads the
-// same 1-hour cache, so listing it again here costs nothing extra.
 $_si_htaccessCache = dirname(__DIR__) . '/cache/htaccess-check.json';
 $_si_htaccessOk    = null; // null = not yet probed (cache miss and no way to probe cheaply here)
 if (file_exists($_si_htaccessCache)) {

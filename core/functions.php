@@ -1,51 +1,22 @@
 <?php
-/**
- * Core Functions
- *
- * Contains essential system functions for the CMS.
- */
-
-// Absolute path to the CMS root — one level above /core/.
-// Every subsequent path built from CMS_ROOT is safe regardless of where
-// this file is required from.
 if (!defined('CMS_ROOT')) define('CMS_ROOT', dirname(__DIR__));
-
-// Include specialized function libraries (all live in /core/ or /core/render/)
 require_once __DIR__ . '/core-functions.php';
 require_once __DIR__ . '/data-functions.php';
 require_once __DIR__ . '/render/theme-api.php';
 require_once __DIR__ . '/data-layer.php';
 require_once __DIR__ . '/plugin-api.php';
 
-/**
- * HTML-escape a string for safe output in HTML attributes and content.
- * Enforces ENT_QUOTES so both single and double quotes are encoded,
- * regardless of attribute quoting style used in theme or plugin templates.
- * Drop-in replacement for htmlspecialchars() with safer defaults.
- *
- * @param  string $s      Input string.
- * @param  int    $flags  htmlspecialchars flags (default: ENT_QUOTES|ENT_SUBSTITUTE).
- * @param  string $enc    Character encoding (default: UTF-8).
- * @return string
- */
 function hsc(?string $s, int $flags = ENT_QUOTES | ENT_SUBSTITUTE, string $enc = 'UTF-8'): string
 {
     return htmlspecialchars((string) ($s ?? ''), $flags, $enc);
 }
 
-/**
- * Sanitize a string to create a valid slug
- * @param string $text The text to sanitize
- * @param bool $allowSpecialChars Whether to allow special characters
- * @return string Sanitized slug
- */
 function sanitizeSlug($text, $allowSpecialChars = false) {
 	$text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 	if (empty($text)) {
 		return 'item-' . time();
 	}
 
-	// Transliterate accented characters to ASCII equivalents (explicit map — iconv TRANSLIT unreliable)
 	$accents = [
 		'À'=>'A','Á'=>'A','Â'=>'A','Ã'=>'A','Ä'=>'A','Å'=>'A','Æ'=>'AE',
 		'Ç'=>'C',
@@ -66,42 +37,21 @@ function sanitizeSlug($text, $allowSpecialChars = false) {
 		'œ'=>'oe','Œ'=>'OE','Ÿ'=>'Y',
 	];
 	$text = strtr($text, $accents);
-
-	// Convert to lowercase
 	$text = strtolower($text);
-
 	if ($allowSpecialChars) {
-		// For custom slugs, allow hyphens and certain special characters
 		$text = preg_replace('/[^\w\-\.]/', '-', $text);
 	} else {
-		// For auto-generated slugs, be more restrictive
 		$text = preg_replace('/[^a-z0-9]/', '-', $text);
 	}
-
-	// Replace multiple hyphens with a single hyphen
 	$text = preg_replace('/-+/', '-', $text);
-
-	// Remove hyphens from start and end
 	$text = trim($text, '-');
-
 	return $text;
 }
 
-/**
- * Decode HTML entities
- * @param string $text The text to decode
- * @return string Decoded text
- */
 function decodeHtmlEntities($text) {
 	return html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 }
 
-/**
- * Returns ' width="W" height="H"' for a stored image path (e.g. 'files/x.jpg'),
- * read directly from the file so the browser can reserve layout space before
- * the image loads — avoiding layout shift. Empty string if the path is empty,
- * remote, or the file's dimensions can't be read.
- */
 function _image_dimensions_attr(string $relativePath): string {
 	if ($relativePath === '' || strpos($relativePath, '://') !== false) return '';
 	$size = @getimagesize(CMS_ROOT . '/' . ltrim($relativePath, '/'));
@@ -109,16 +59,6 @@ function _image_dimensions_attr(string $relativePath): string {
 	return ' width="' . (int)$size[0] . '" height="' . (int)$size[1] . '"';
 }
 
-/**
- * Get the base URL with proper trailing slash.
- *
- * Derives the sub-directory from CMS_ROOT vs DOCUMENT_ROOT so the result
- * is stable regardless of which PHP script is the actual entry point
- * (index.php, core/search.php, core/feed.php, etc.). Falls back to
- * SCRIPT_NAME when DOCUMENT_ROOT is unavailable.
- *
- * @return string  e.g. 'https://example.com/' or 'http://localhost:8888/cmsapp/'
- */
 function getBaseUrl() {
 	$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
 	          || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
@@ -131,18 +71,12 @@ function getBaseUrl() {
 	if ($docRoot !== '' && $cmsRoot !== '' && strpos($cmsRoot, $docRoot) === 0) {
 		$subDir = substr($cmsRoot, strlen($docRoot));
 	} else {
-		// Fallback: derive from SCRIPT_NAME (works when running from CMS root)
 		$subDir = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
 	}
 
 	return $origin . $subDir . '/';
 }
 
-/**
- * Returns the effective display label for a content type (article/page/project),
- * honoring a per-site override from Settings > Reading before falling back to
- * the active language's translation. Empty override = use the default label.
- */
 function sl_type_label(string $type, bool $plural = false): string {
 	$settings = loadConfig();
 	$override = $settings['type_labels'][$type][$plural ? 'plural' : 'singular'] ?? '';
@@ -150,17 +84,21 @@ function sl_type_label(string $type, bool $plural = false): string {
 	return __t($plural ? $type . 's' : $type, ucfirst($type));
 }
 
+// Content-type labels for front-end JS (search result badges/headings, or any
+// theme/plugin script that needs the current — possibly renamed — type name).
+// Emitted once by render_header_scripts() as a data-window-var JSON island;
+// front-boot.js's generic island reader assigns it to window.CMS_TYPE_LABELS,
+// no per-theme wiring needed. See docs/theme-contract.md.
+function sl_type_labels_json(): string {
+	$labels = [];
+	foreach (['article', 'page', 'project'] as $type) {
+		$labels[$type]         = sl_type_label($type, false);
+		$labels[$type . 's']   = sl_type_label($type, true);
+	}
+	return json_encode($labels, JSON_UNESCAPED_UNICODE);
+}
+
 function url_slug(string $type): string {
-	// No static cache here: lang_load() already keeps strings in $GLOBALS['_LANG_STRINGS'],
-	// so this is a plain array lookup — fast enough without a second cache layer.
-	// A static cache here caused stale English values when the locale was not yet
-	// loaded on the first call (e.g. 'category' instead of 'categorie').
-	//
-	// Content-type slugs (article/page/project, singular or plural) can be
-	// overridden per site via Settings > Reading — see sl_type_label(). The
-	// override drives the label AND the URL together, so renaming a type
-	// renames its URL section too. No override → falls through unchanged
-	// to the normal per-locale url_slug_* lookup below.
 	foreach (['article', 'page', 'project'] as $_baseType) {
 		$_plural = null;
 		if ($type === $_baseType) $_plural = false;
@@ -177,14 +115,6 @@ function url_slug(string $type): string {
 	return sanitizeSlug($raw);
 }
 
-/**
- * Generate clean URL for content
- * @param string $type Content type (article, page, project, etc.)
- * @param string $slug Content slug
- * @param string $page Page number (for pagination)
- * @param string $category Category slug
- * @return string Clean URL
- */
 function cleanUrl($type, $slug = null, $page = null, $category = null) {
 	$baseUrl = getBaseUrl();
 
@@ -192,19 +122,16 @@ function cleanUrl($type, $slug = null, $page = null, $category = null) {
 		return $baseUrl;
 	}
 
-	// Accept plural type aliases — map them to the singular and force list mode
 	$pluralMap = ['articles' => 'article', 'projects' => 'project', 'pages' => 'page'];
 	if (isset($pluralMap[$type])) {
 		$type = $pluralMap[$type];
 		return $baseUrl . url_slug($type . 's') . "/";
 	}
 
-	// Category listing: use localized 'category' prefix
 	if ($type === "category") {
 		return $baseUrl . url_slug('category') . "/" . $category . "/";
 	}
 
-	// Tag listing: use localized 'tag' prefix
 	if ($type === "tag") {
 		return $baseUrl . url_slug('tag') . "/" . $category . "/";
 	}
@@ -220,7 +147,6 @@ function cleanUrl($type, $slug = null, $page = null, $category = null) {
 					$catPath = getCategoryPath(sanitizeSlug($category), $data);
 					return $baseUrl . $catPath . "/" . $slug . "/";
 				}
-				// Pages without category appear at root level (no type prefix)
 				return $baseUrl . $slug . "/";
 			} elseif ($type === "article") {
 				if ($category !== null && !empty($category)) {
@@ -228,7 +154,6 @@ function cleanUrl($type, $slug = null, $page = null, $category = null) {
 					$catPath = getCategoryPath(sanitizeSlug($category), $data);
 					return $baseUrl . $catPath . "/" . $slug . "/";
 				}
-				// Articles without category: use localized 'article' prefix
 				return $baseUrl . url_slug('article') . "/" . $slug . "/";
 			} elseif ($type === "project") {
 				if ($category !== null && !empty($category)) {
@@ -239,7 +164,6 @@ function cleanUrl($type, $slug = null, $page = null, $category = null) {
 				return $baseUrl . url_slug('project') . "/" . $slug . "/";
 			}
 		} elseif ($page !== null) {
-			// Pagination: use localized plural prefix
 			return $baseUrl . url_slug($type . 's') . "/page/" . $page . "/";
 		}
 	}
@@ -247,10 +171,6 @@ function cleanUrl($type, $slug = null, $page = null, $category = null) {
 	return $baseUrl;
 }
 
-/**
- * Generate clean URL for viewing content from admin
- * This function ensures compatibility with the cleanUrl function from functions.php
- */
 function adminCleanUrl($contentType, $slug, $customSlug = '', $category = '') {
 	$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
 	          || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
@@ -261,7 +181,6 @@ function adminCleanUrl($contentType, $slug, $customSlug = '', $category = '') {
 	$finalSlug    = !empty($customSlug) ? $customSlug : $slug;
 	$categorySlug = !empty($category) ? sanitizeSlug($category) : '';
 
-	// Resolve full hierarchical category path when a category is set
 	$catPath = '';
 	if (!empty($categorySlug)) {
 		$data    = loadData();
@@ -269,7 +188,6 @@ function adminCleanUrl($contentType, $slug, $customSlug = '', $category = '') {
 	}
 
 	if ($contentType === 'page') {
-		// Pages without category appear at root; with category they nest under it
 		if (!empty($catPath)) {
 			return $baseUrl . $baseDir . '/' . $catPath . '/' . $finalSlug . '/';
 		}
@@ -293,24 +211,6 @@ function adminCleanUrl($contentType, $slug, $customSlug = '', $category = '') {
 	return $baseUrl . $baseDir . '/' . $finalSlug . '/';
 }
 
-/**
- * Load settings from config.json, with per-request GLOBALS cache.
- *
- * The file is read from disk only once per PHP request. Every subsequent
- * call within the same request returns the cached array instantly.
- * Call loadConfig_invalidate() after writing config.json to force
- * a fresh read on the next call within the same request.
- *
- * @return array Merged settings array (defaults + config.json overrides)
- */
-
-/**
- * Dedicated per-install secret backing the theme-preview HMAC token.
- * Previously derived from the single admin's password hash — broke
- * conceptually once there could be more than one account/password. Same
- * generate-once, private/-stored convention used by several plugins
- * (Analytics, Newsletter) for their own secrets.
- */
 function themePreviewSecret(): string {
     if (!defined('CMS_ROOT')) return '';
     $secretFile = CMS_ROOT . '/private/theme_preview.secret';
@@ -324,8 +224,6 @@ function themePreviewSecret(): string {
 }
 
 function loadConfig() {
-	// Per-request cache — avoids repeated file_get_contents / json_decode
-	// on the same config.json within a single PHP request.
 	if (isset($GLOBALS['_config_cache'])) {
 		return $GLOBALS['_config_cache'];
 	}
@@ -338,29 +236,20 @@ function loadConfig() {
 			$settings = array_merge($settings, $loadedSettings);
 		}
 	}
-
-	// Always refresh the theme list from filesystem — runs even when config.json is absent
 	$settings['available_themes'] = getAvailableThemes();
-
-	// Ensure theme setting always exists and is valid
 	if (!isset($settings['active_theme']) || !in_array($settings['active_theme'], $settings['available_themes'])) {
 		$settings['active_theme'] = 'default';
 	}
 
-	// Theme preview override via signed GET token (_tp).
-	// Token is HMAC-SHA256(themeName, themePreviewSecret()) with a TTL of 2 hours.
-	// No session state is used — the token is self-contained and per-request only.
 	if (isset($_GET['_tp']) && session_status() === PHP_SESSION_ACTIVE &&
 		isset($_SESSION['admin']) && $_SESSION['admin'] === true
 	) {
 		$decoded = base64_decode(strtr($_GET['_tp'], '-_', '+/'), true);
 		if ($decoded !== false) {
-			// Format stored in token: "themeName|timestamp|hmac"
 			$parts = explode('|', $decoded, 3);
 			if (count($parts) === 3) {
 				[$tpTheme, $tpTs, $tpMac] = $parts;
 				$tpTheme = basename($tpTheme);
-				// Validate TTL (2 hours)
 				if (is_numeric($tpTs) && (time() - (int)$tpTs) < 7200) {
 					$secret   = themePreviewSecret();
 					$expected = hash_hmac('sha256', $tpTheme . '|' . $tpTs, $secret);
@@ -374,8 +263,6 @@ function loadConfig() {
 		}
 	}
 
-	// Apply timezone from settings so all PHP date() calls use the correct zone.
-	// Falls back to server default if the setting is missing or invalid.
 	if (!empty($settings['timezone'])) {
 		@date_default_timezone_set($settings['timezone']);
 	}
@@ -384,51 +271,29 @@ function loadConfig() {
 	return $settings;
 }
 
-/**
- * Invalidate the per-request config cache.
- * Call this immediately after writing config.json so that subsequent
- * loadConfig() calls within the same request see the updated values.
- */
 function loadConfig_invalidate(): void {
 	unset($GLOBALS['_config_cache']);
 }
 
-/**
- * Get available themes by scanning the theme directory
- * @return array List of available themes
- */
 function getAvailableThemes() {
 	$themesDir = CMS_ROOT . '/theme/';
 	$themes = [];
-	
-	// Make sure the theme directory exists
 	if (!file_exists($themesDir) || !is_dir($themesDir)) {
-		// If no theme directory, return at least the default theme
 		return ['default'];
 	}
-	
-	// Scan the theme directory for subdirectories (themes)
 	$items = scandir($themesDir);
 	
 	foreach ($items as $item) {
-		// Skip . and .. directories, and hidden directories starting with .
 		if ($item === '.' || $item === '..' || $item[0] === '.') {
 			continue;
 		}
-		
 		$themePath = $themesDir . $item;
-		
-		// Check if it's a directory
 		if (is_dir($themePath)) {
-			// Make sure it's a valid theme by checking for essential files
-			// At minimum, a theme should have a CSS file
 			if (file_exists($themePath . '/css/style.css')) {
 				$themes[] = $item;
 			}
 		}
 	}
-	
-	// If no valid themes found, at least return default
 	if (empty($themes)) {
 		$themes[] = 'default';
 	}
@@ -436,60 +301,39 @@ function getAvailableThemes() {
 	return $themes;
 }
 
-/**
-* Load a theme template file
-* @param string $template The template name without extension
-* @param array $params Parameters to pass to the template
-* @return void
-*/
 function loadThemeTemplate($template, $params = []) {
    $settings = loadConfig();
    $theme = $settings['active_theme'] ?? 'default';
-
-   // Extract parameters into local variables — EXTR_SKIP prevents overwriting
-   // $template and $theme which are used below to build the include path.
    extract($params, EXTR_SKIP);
-
-   // Define possible template paths with FULL server paths
    $basePath = CMS_ROOT;
    $templatePaths = [
+   $basePath . "/theme/child_theme/{$theme}/{$template}.php",
    $basePath . "/theme/{$theme}/{$template}.php", // Theme-specific template
    $basePath . "/theme/default/{$template}.php", // Default theme fallback
    $basePath . "/{$template}.php" // Root fallback
    ];
 
-   // Try to include the first template that exists
    foreach ($templatePaths as $path) {
 	   if (file_exists($path)) {
 		   include $path;
 		   return;
 	   }
    }
-   // If no template was found, output an error message
-   echo "<!-- Template not found: {$template} (Looked in theme/{$theme}/, theme/default/, and root) -->";
+   echo "<!-- Template not found: {$template} (Looked in theme/child_theme/{$theme}/, theme/{$theme}/, theme/default/, and root) -->";
 }
 
-// ─── Internationalisation ─────────────────────────────────────────────────────
 require_once __DIR__ . '/lang-cache.php';
 
-
-// ─── Theme functions ──────────────────────────────────────────────────────────
-// Auto-load the active theme's functions.php after all core libraries are ready.
-// Theme functions.php can register hooks, define custom shortcodes, or add any
-// theme-specific PHP behaviour. It cannot redeclare core functions — use theme
-// partial files (partials/article-card.php etc.) to override rendered HTML instead.
 (function () {
-	$__s    = loadConfig();
-	$__path = CMS_ROOT . '/theme/' . ($__s['active_theme'] ?? 'default') . '/functions.php';
+	$__s     = loadConfig();
+	$__theme = $__s['active_theme'] ?? 'default';
+	$__path  = CMS_ROOT . '/theme/' . $__theme . '/functions.php';
 	if (file_exists($__path)) {
 		require_once $__path;
 	}
+	$__customPath = CMS_ROOT . '/theme/child_theme/' . $__theme . '/functions.php';
+	if (file_exists($__customPath)) {
+		require_once $__customPath;
+	}
 })();
-
-// ─── Plugin autoload ───────────────────────────────────────────────────────────
-// Loads every plugin marked active in plugins/plugins.json (managed from Admin →
-// Extensions). See plugin-api.php for the registry, activation, and hook
-// points a plugin can use. A plugin is a self-contained folder at the CMS
-// root — it owns its own routing, data storage, and admin; this is the only
-// core file a plugin system needs to hook into.
 pl_load_active_plugins();

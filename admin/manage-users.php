@@ -1,11 +1,4 @@
 <?php
-/**
- * manage-users.php — SynaptikCMS user account management (admin-only)
- *
- * POST handler for create/update/delete/role-change on private/users.json
- * entries. Renders no output of its own — always redirects back to
- * index.php?action=users with a flash message.
- */
 require_once __DIR__ . '/includes/session-config.php';
 session_start();
 require_once 'includes/admin-functions.php';

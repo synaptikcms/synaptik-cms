@@ -7,34 +7,23 @@ if (!defined('INCLUDED')) {
 
 require_once 'includes/admin-functions.php';
 
-// Role gate: this file serves two tiers — Menu Builder (admin+editor) and
-// everything else here, i.e. Settings tabs + save_settings/cache-clear (admin-only).
 $_settings_isMenuRequest = (($_GET['action'] ?? '') === 'menu_builder') || isset($_POST['save_menu']);
 if ($_settings_isMenuRequest ? !admin_can_manage_all_content() : !admin_is_admin()) {
 	http_response_code(403);
 	exit(__t('access_denied', 'Access denied.'));
 }
 
-// Load configuration
 $appSettings = admin_load_config();
-
-// Active settings tab, posted by the hidden #settings-active-tab field so a
-// redirect after save lands back on the tab the admin was editing. Falls back
-// to 'general' for any request that doesn't carry it (e.g. the standalone
-// cache-clear form).
 $activeTab = $_POST['tab'] ?? 'general';
 
-// Handle cache clear request
 if (isset($_POST['clear_cache'])) {
 	admin_csrf_check();
 	sl_clear_all_cache();
-	// Also remove the media stats cache
 	$_mediaCacheFile = dirname(__DIR__) . '/cache/media-stats.json';
 	if (file_exists($_mediaCacheFile)) {
 		@unlink($_mediaCacheFile);
 	}
-	// Also purge the compiled language cache — otherwise a lang/*.json file
-	// edited directly on disk keeps serving stale strings after "Clear Cache".
+
 	if (function_exists('lang_cache_purge_all')) {
 		lang_cache_purge_all();
 	}
@@ -43,7 +32,6 @@ if (isset($_POST['clear_cache'])) {
 	exit;
 }
 
-// Handle admin cache clear request
 if (isset($_POST['clear_admin_cache'])) {
 	admin_csrf_check();
 	$_adminCacheDir = __DIR__ . '/cache';
@@ -57,21 +45,15 @@ if (isset($_POST['clear_admin_cache'])) {
 	exit;
 }
 
-// Handle menu builder submissions
 if (isset($_POST['save_menu'])) {
-	// Set the use_custom_menu flag
 	$appSettings['use_custom_menu'] = isset($_POST['use_custom_menu']);
-	// Save default menu settings
 	$appSettings['default_menu_style'] = isset($_POST['default_menu_style']) ? $_POST['default_menu_style'] : 'flat';
 	$appSettings['default_menu_order'] = isset($_POST['default_menu_order']) ? $_POST['default_menu_order'] : 'alphabetical';
 	$menuItems = [];
 	
-	// Process menu items if they exist
 	if (isset($_POST['menu']) && is_array($_POST['menu'])) {
 		foreach ($_POST['menu'] as $item) {
-			// Make sure all required fields are set
 			if (isset($item['type']) && isset($item['label']) && isset($item['url'])) {
-				// Create a basic menu item with explicit parent_id
 				$menuItem = [
 					'type' => $item['type'],
 					'label' => $item['label'],
@@ -79,36 +61,31 @@ if (isset($_POST['save_menu'])) {
 					'id' => isset($item['id']) ? $item['id'] : 'menu_item_' . uniqid()
 				];
 				
-				// Explicitly include parent_id, even if it's empty string
 				if (isset($item['parent_id'])) {
 					$menuItem['parent_id'] = $item['parent_id'] !== '' ? $item['parent_id'] : null;
 				} else {
 					$menuItem['parent_id'] = null;
 				}
 				
-				// Add content-specific fields if they exist
 				if ($item['type'] === 'content' && isset($item['content_type']) && isset($item['content_slug'])) {
 					$menuItem['content_type'] = $item['content_type'];
 					$menuItem['content_slug'] = $item['content_slug'];
+					if ($item['content_type'] === 'list' && !empty($item['label_auto'])) {
+						$menuItem['label_auto'] = true;
+					}
 				}
-				// Add tag-specific fields if they exist
 				if (isset($item['tag_slug'])) {
 					$menuItem['tag_slug'] = $item['tag_slug'];
 				}
 
-				// Add target (open in new tab)
 				$menuItem['target'] = (isset($item['target']) && $item['target'] === '_blank') ? '_blank' : '';
-				
-				// Add the item to our menu array
 				$menuItems[] = $menuItem;
 			}
 		}
 	}
 	
-	// Update settings with the new menu
 	$appSettings['main_menu'] = $menuItems;
-	
-	// Save settings to file
+
 	$jsonData = json_encode($appSettings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 	$result = file_put_contents(dirname(__DIR__) . '/config.json', $jsonData);
 	
@@ -121,12 +98,8 @@ if (isset($_POST['save_menu'])) {
 	exit;
 }
 
-// Handle general settings
 if (isset($_POST['save_settings'])) {
-	// Get auto-detected themes
 	$autoDetectedThemes = getAvailableThemes();
-	
-	// Front-end language: validated against lang/*.json
 	$frontLangs   = lang_available_for_scope('front');
 	$selectedLang = $_POST['active_language'] ?? 'en';
 	if (array_key_exists($selectedLang, $frontLangs)) {
@@ -135,7 +108,6 @@ if (isset($_POST['save_settings'])) {
 		$appSettings['active_language'] = 'en';
 	}
 
-	// Admin language: validated against lang/admin/*.json, independent of the front locale
 	$adminLangs        = lang_available_for_scope('admin');
 	$selectedAdminLang = $_POST['admin_language'] ?? $appSettings['active_language'];
 	if (array_key_exists($selectedAdminLang, $adminLangs)) {
@@ -169,12 +141,10 @@ if (isset($_POST['save_settings'])) {
 	$appSettings['projects_per_page'] = max(1, min(20, (int)($_POST['projects_per_page'] ?? 3)));
 	$appSettings['show_breadcrumbs'] = isset($_POST['show_breadcrumbs']);
 	$appSettings['date_format'] = $_POST['date_format'] ?? 'Y-m-d';
-	// Validate timezone against PHP's list to prevent arbitrary string injection
 	$submittedTz = $_POST['timezone'] ?? 'UTC';
 	$appSettings['timezone'] = in_array($submittedTz, DateTimeZone::listIdentifiers(), true)
 		? $submittedTz
 		: 'UTC';
-	// $appSettings['footer_text'] = htmlspecialchars(trim($_POST['settings']['footer_text'] ?? 'Developed with ♥ by Dorian • &copy; {year}'));
 	$appSettings['footer_text'] = trim($_POST['settings']['footer_text'] ?? 'Developed with ♥ by Dorian • &copy; {year}');
 	$appSettings['footer_show_login'] = isset($_POST['settings']['footer_show_login']);
 	$appSettings['footer_show_social'] = isset($_POST['settings']['footer_show_social']);
@@ -194,52 +164,37 @@ if (isset($_POST['save_settings'])) {
 		}
 	}
 	$appSettings['footer_social_links'] = $socialLinks;
-	
-	// Preserve active_theme — the theme selector now lives in the Appearance sidebar section,
-	// not in the settings form, so active_theme is not posted here. Only update it when
-	// a valid value is explicitly submitted (e.g. from the theme manager).
+
 	if (!empty($_POST['active_theme']) && in_array($_POST['active_theme'], $autoDetectedThemes)) {
 		$appSettings['active_theme'] = $_POST['active_theme'];
 	}
-	// If absent or invalid, keep the current value already loaded in $appSettings.
-	
-	// Always update the available_themes with the auto-detected ones
+
 	$appSettings['available_themes'] = $autoDetectedThemes;
 	
-	// Contact form settings
 	$appSettings['contact_email']           = trim($_POST['contact_email'] ?? '');
 	$appSettings['contact_subject']         = trim($_POST['contact_subject'] ?? 'New message from {name}');
 	$appSettings['contact_success_message'] = trim($_POST['contact_success_message'] ?? '');
 	$appSettings['contact_error_message']   = trim($_POST['contact_error_message'] ?? '');
-	// hCaptcha keys — secret key kept as-is if field left blank (avoids accidental clearing)
 	$appSettings['hcaptcha_site_key']       = trim($_POST['hcaptcha_site_key'] ?? '');
 	$newSecret = trim($_POST['hcaptcha_secret_key'] ?? '');
 	if (!empty($newSecret)) {
 		$appSettings['hcaptcha_secret_key'] = $newSecret;
 	}
 
-	// Homepage SEO overrides
 	$appSettings['home_meta_title']       = trim($_POST['home_meta_title']       ?? '');
 	$appSettings['home_meta_description'] = trim($_POST['home_meta_description'] ?? '');
 	$appSettings['home_meta_keywords']    = trim($_POST['home_meta_keywords']    ?? '');
 	$appSettings['home_og_title']         = trim($_POST['home_og_title']         ?? '');
 	$appSettings['home_og_description']   = trim($_POST['home_og_description']   ?? '');
-	// home_og_image is handled by the image picker below
 
-	// WebP conversion settings
 	$appSettings['convert_to_webp'] = isset($_POST['convert_to_webp']);
 
-	// robots.txt — write directly to the file at the CMS root
 	if (isset($_POST['robots_txt'])) {
 		$_robotsContent = str_replace("\r\n", "\n", $_POST['robots_txt']);
 		$_robotsPath    = dirname(__DIR__) . '/robots.txt';
 		file_put_contents($_robotsPath, $_robotsContent);
 	}
 
-	// Custom fields schema — always fully replaced on save.
-	// We iterate all three types unconditionally so that deleting all fields
-	// from a type (which sends no POST data for that type) correctly saves an
-	// empty array instead of preserving the old values.
 	$_cfSchema     = [];
 	$_cfRaw        = (isset($_POST['custom_fields_schema']) && is_array($_POST['custom_fields_schema']))
 		? $_POST['custom_fields_schema']
@@ -298,11 +253,6 @@ if (isset($_POST['save_settings'])) {
 		$appSettings['home_og_image'] = '';
 	}
 
-	// ── Content type labels (Settings > Reading > "Renommer les types de contenu")
-	// Empty field = revert to the built-in default label/URL for that type — not
-	// "leave the current override unchanged" — so defaults must be computed here
-	// without going through url_slug()'s override lookup (which would still see
-	// the old, pre-save config and defeat the "empty means revert" behavior).
 	$_tlSubmitted = [];
 	foreach (['article', 'page', 'project'] as $_tlType) {
 		$_tlSubmitted[$_tlType] = [
@@ -310,6 +260,14 @@ if (isset($_POST['save_settings'])) {
 			'plural'   => trim($_POST['type_label_' . $_tlType . '_plural'] ?? ''),
 		];
 	}
+	// Keyed by slug => the type that claimed it, not a plain seen-set — a
+	// type's own singular and plural are allowed to share a slug (many
+	// languages have no distinct plural form, e.g. "Info"/"Info" or
+	// Japanese generally). The router maps both to the same internal type
+	// either way (see parseRequestUri()'s $typeFromSlug build), so that's
+	// never ambiguous. Only a slug shared across two *different* types (or
+	// colliding with the reserved "category"/"tag" segments) is a real
+	// routing conflict worth blocking.
 	$_tlSlugsSeen  = [];
 	$_tlCollision  = false;
 	foreach ($_tlSubmitted as $_tlType => $_tlPair) {
@@ -317,31 +275,27 @@ if (isset($_POST['save_settings'])) {
 			$_tlKey   = $_tlType . ($_tlField === 'plural' ? 's' : '');
 			$_tlValue = $_tlPair[$_tlField];
 			$_tlSlug  = $_tlValue !== '' ? sanitizeSlug($_tlValue) : sanitizeSlug(__t('url_slug_' . $_tlKey, $_tlKey));
-			if ($_tlSlug === '' || in_array($_tlSlug, ['category', 'tag'], true) || isset($_tlSlugsSeen[$_tlSlug])) {
+			if ($_tlSlug === '' || in_array($_tlSlug, ['category', 'tag'], true)) {
+				$_tlCollision = true;
+			} elseif (isset($_tlSlugsSeen[$_tlSlug]) && $_tlSlugsSeen[$_tlSlug] !== $_tlType) {
 				$_tlCollision = true;
 			} else {
-				$_tlSlugsSeen[$_tlSlug] = true;
+				$_tlSlugsSeen[$_tlSlug] = $_tlType;
 			}
 		}
 	}
 	if ($_tlCollision) {
 		$_SESSION['error'] = __t('type_labels_collision_error');
-		// Leave $appSettings['type_labels'] untouched — it already holds the
-		// last valid state loaded from config.json at the top of this file.
 	} else {
 		$appSettings['type_labels'] = $_tlSubmitted;
 	}
 
-	// Save settings
 	$saveResult = file_put_contents(dirname(__DIR__) . '/config.json', json_encode($appSettings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 	if ($saveResult === false) {
 		error_log('Failed to save configuration to file: ../config.json');
 		$_SESSION['error'] = __t('settings_save_failed');
 	} else {
 		if (function_exists('loadConfig_invalidate')) loadConfig_invalidate();
-		// Don't overwrite the type-label collision error (if any) with a
-		// generic success toast — the rest of the settings did save, but the
-		// user still needs to see why their type labels were left unchanged.
 		if (!isset($_SESSION['error'])) {
 			$_SESSION['message'] = __t('settings_saved');
 		}
@@ -350,7 +304,6 @@ if (isset($_POST['save_settings'])) {
 	exit;
 }
 
-// Dispatch vers le bon template selon l'action
 $action = $_GET['action'] ?? 'settings';
 if ($action === 'menu_builder') {
 	include 'templates/menu-builder.php';
@@ -358,10 +311,6 @@ if ($action === 'menu_builder') {
 	include 'templates/settings-view.php';
 }
 
-/**
- * Upload an image from $_FILES to /files/ and return its relative path (files/name.ext).
- * Returns empty string on failure or invalid file type.
- */
 function _settings_upload_image(string $inputName): string
 {
 	$file = $_FILES[$inputName] ?? [];
@@ -391,10 +340,6 @@ function _settings_upload_image(string $inputName): string
 	return 'files/' . $destName;
 }
 
-/**
- * Validate and sanitize a files/-relative image path coming from POST.
- * Returns empty string if the path fails validation.
- */
 function _settings_sanitize_image_path(string $path): string
 {
 	$path = ltrim(str_replace(['..', "\0"], '', $path), '/');

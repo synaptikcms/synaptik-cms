@@ -1,1 +1,0 @@
-document.getElementById("pb-close-btn")?.addEventListener("click",function(){window.close(),setTimeout(function(){window.closed||(window.location.href=document.referrer||"index.php")},300)});

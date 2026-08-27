@@ -4,7 +4,6 @@ if (!defined('INCLUDED')) {
 	exit(__t('direct_access_denied'));
 }
 
-// ── Build categories index with count + linked items ──────────────────────────
 $categories = [];
 
 foreach (['article', 'project', 'page'] as $ct) {
@@ -35,15 +34,6 @@ if (isset($data['categories'])) {
 
 $orphanCount = count(array_filter($categories, fn($c) => $c['count'] === 0));
 
-/**
- * Build a hierarchy-aware sorted list of categories (max 3 levels).
- * Returns a flat array with each entry carrying a 'depth' and 'label_prefix' for display.
- *
- * @param array  $categories  Flat map: slug => ['name', 'count', 'items', 'parent']
- * @param string $parentSlug  Current parent being processed
- * @param int    $depth       Current nesting depth (0 = root)
- * @return array
- */
 function buildCategoryTree(array $categories, string $parentSlug = '', int $depth = 0): array {
 	if ($depth >= 3) return []; // Hard limit: 3 sub-levels maximum
 	$result = [];

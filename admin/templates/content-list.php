@@ -6,14 +6,9 @@ if (!defined('INCLUDED')) {
 }
 require_once 'includes/admin-functions.php';
 
-// ── Total count and category list (read from full index) ─────────────────────
-// These are always built from the complete index so filters and counts
-// are accurate regardless of how many items we send in the initial payload.
 $_cl_all_items  = [];
 $_cl_categories = [];
 
-// Author name shown per item only on multi-user sites — on the common
-// single-admin site it would just be visual noise repeated on every row.
 $_cl_authors = [];
 foreach (admin_load_users() as $_cl_u) {
 	$_cl_authors[$_cl_u['id']] = $_cl_u['display_name'] ?: $_cl_u['username'];
@@ -69,15 +64,6 @@ if (isset($data[$contentType]) && is_array($data[$contentType])) {
 }
 sort($_cl_categories);
 
-// ── Pending autosave detection ──────────────────────────────────────────────
-// A never-published item materializes as a real content item (status=draft)
-// on its first autosave (see autosave.php) — it's just a normal row below,
-// nothing to synthesize here. data/drafts/*.json only ever holds a pending
-// snapshot layered on top of an already-published/scheduled item; flag that
-// item's real row with 'has_pending_autosave' instead of overwriting it,
-// since autosave deliberately never touches the live file for those.
-$_cl_pending_autosave_idx = []; // real idx => draft id, for items with a newer unsaved snapshot
-
 $_cl_draftsDir = sl_admin_drafts_dir();
 if (is_dir($_cl_draftsDir)) {
 	foreach (glob($_cl_draftsDir . '/*.json') ?: [] as $_cl_draftFile) {
@@ -90,9 +76,6 @@ if (is_dir($_cl_draftsDir)) {
 	}
 }
 
-// Backfill the "unsaved changes" flag now that the drafts scan above has
-// run — can't do this inline in the first loop since it needs to know
-// about every draft file first.
 foreach ($_cl_all_items as &$_cl_row) {
 	if (isset($_cl_pending_autosave_idx[$_cl_row['idx']])) {
 		$_cl_row['has_pending_autosave'] = true;
@@ -103,15 +86,10 @@ foreach ($_cl_all_items as &$_cl_row) {
 }
 unset($_cl_row);
 
-// ── Initial payload cap ───────────────────────────────────────────────────────
-// Send only the first CL_INITIAL_LIMIT items inline.
-// Beyond that threshold the JS switches to server-side AJAX automatically.
-// This keeps the HTML payload small regardless of total item count.
 define('CL_INITIAL_LIMIT', 200);
 $_cl_total        = count($_cl_all_items);
 $_cl_use_ajax     = $_cl_total > CL_INITIAL_LIMIT;
-// Sort newest-first before slicing so the initial payload shows the most
-// recent items (matches the default sort order in the UI).
+
 usort($_cl_all_items, fn($a, $b) => strcmp($b['date'], $a['date']));
 $_cl_items        = $_cl_use_ajax
 	? array_slice($_cl_all_items, 0, CL_INITIAL_LIMIT)
@@ -149,8 +127,6 @@ $_cl_items        = $_cl_use_ajax
 <?php if (!empty($_cl_items)): ?>
 
 <?php
-// Inline JSON payload — consumed by initContentListPagination() in panel.js.
-// json_encode with JSON_HEX_TAG prevents XSS if a title contains HTML.
 $_cl_json_items      = json_encode($_cl_items,      JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE);
 $_cl_json_categories = json_encode($_cl_categories, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE);
 ?>

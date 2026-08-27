@@ -1,45 +1,9 @@
 <?php
-/**
- * SynaptikCMS — Split-File Data Layer (read-only)
- *
- * Replaces the monolithic data.json with a split-file architecture:
- *
- *   data/{type}s/_index.json   — lightweight metadata array (no content body)
- *   data/{type}s/{slug}.json   — full item data including content body
- *   data/categories.json       — categories store
- *   data/tags.json             — tags store
- *
- * All public functions are prefixed sl_ (SynaptikLayer).
- * Internal helpers are prefixed _sl_ and should not be called directly.
- *
- * Cache strategy (3 levels, fastest first):
- *   1. APCu  — shared memory, survives across requests (TTL: SL_CACHE_TTL seconds)
- *   2. File  — PHP-literal array in /cache/ (`<?php return [...];`), read via
- *      include so OPcache caches the compiled bytecode instead of re-parsing
- *      JSON on every request (TTL: SL_CACHE_TTL seconds)
- *   3. Disk  — raw JSON read (always available)
- *
- * APCu is used when available; the file cache is the fallback — this matters
- * on shared hosting where APCu is opt-in but OPcache is on by default.
- * The in-request GLOBALS cache (level 0) sits on top and avoids any I/O
- * for repeated reads within the same PHP request.
- *
- * Cache invalidation: every sl_admin_write_index() / sl_admin_save_*()
- * call in admin-data-layer.php triggers sl_invalidate_index_cache(), which
- * purges all three levels so the next front-end request sees fresh data.
- */
 if (!defined('CMS_ROOT')) define('CMS_ROOT', dirname(__DIR__));
 
 if (defined('SL_DATA_LAYER_LOADED')) return;
 define('SL_DATA_LAYER_LOADED', true);
-
-// Persistent cache TTL in seconds (safety net — explicit invalidation on write
-// should always fire first).
 define('SL_CACHE_TTL', 60);
-
-// ─── Internal GLOBALS-based request cache ─────────────────────────────────────
-// Level 0: per-request only. Using GLOBALS so admin-data-layer.php can
-// invalidate entries after writes within the same PHP request.
 
 function _sl_cache_get(string $key)
 {
@@ -59,45 +23,24 @@ function _sl_cache_del(string $key): void
     unset($GLOBALS['_sl_cache'][$key]);
 }
 
-// ─── Persistent cache helpers (APCu + file fallback) ──────────────────────────
-
-/**
- * Returns the absolute path to the persistent file cache directory.
- * Cache lives at the CMS root, not inside /core/.
- */
 function _sl_cache_dir(): string
 {
     return CMS_ROOT . '/cache';
 }
 
-/**
- * Returns the file path for a given persistent cache key.
- * PHP extension so OPcache treats it like any other compiled script.
- *
- * @param string $key  Cache key (e.g. 'sl_idx_article').
- */
 function _sl_cache_file(string $key): string
 {
     return _sl_cache_dir() . '/' . $key . '.cache.php';
 }
 
-/**
- * Read a value from the persistent cache (APCu first, then file).
- * Returns null on miss or when both backends are unavailable.
- *
- * @param  string $key  Cache key.
- * @return mixed|null
- */
 function _sl_persistent_get(string $key)
 {
-    // APCu
     if (function_exists('apcu_fetch')) {
         $success = false;
         $value   = apcu_fetch($key, $success);
         if ($success) return $value;
     }
 
-    // File cache — PHP-literal, compiled/cached by OPcache on include()
     $file = _sl_cache_file($key);
     if (!file_exists($file)) return null;
     if ((time() - filemtime($file)) >= SL_CACHE_TTL) return null;
@@ -106,22 +49,12 @@ function _sl_persistent_get(string $key)
     return is_array($data) ? $data : null;
 }
 
-/**
- * Write a value to the persistent cache (APCu + file).
- * Silently skips unavailable backends.
- *
- * @param string $key    Cache key.
- * @param mixed  $value  Value to cache.
- */
 function _sl_persistent_set(string $key, $value): void
 {
-    // APCu
     if (function_exists('apcu_store')) {
         apcu_store($key, $value, SL_CACHE_TTL);
     }
 
-    // File cache — write as a PHP-literal `<?php return [...];` file so
-    // OPcache serves the compiled bytecode instead of re-parsing JSON.
     $dir = _sl_cache_dir();
     if (!is_dir($dir)) {
         @mkdir($dir, 0755, true);
@@ -132,8 +65,6 @@ function _sl_persistent_set(string $key, $value): void
         $php  = "<?php\nreturn " . var_export($value, true) . ";\n";
         if (file_put_contents($tmp, $php, LOCK_EX) !== false) {
             rename($tmp, $file);
-            // Avoid serving a stale compiled version if OPcache already
-            // cached the previous file at this path.
             if (function_exists('opcache_invalidate')) {
                 opcache_invalidate($file, true);
             }
@@ -141,19 +72,12 @@ function _sl_persistent_set(string $key, $value): void
     }
 }
 
-/**
- * Delete a value from all persistent cache backends.
- *
- * @param string $key  Cache key.
- */
 function _sl_persistent_del(string $key): void
 {
     // APCu
     if (function_exists('apcu_delete')) {
         apcu_delete($key);
     }
-
-    // File cache
     $file = _sl_cache_file($key);
     if (file_exists($file)) {
         @unlink($file);
@@ -163,14 +87,8 @@ function _sl_persistent_del(string $key): void
     }
 }
 
-/**
- * Purge all SynaptikCMS persistent cache entries (content indices + taxonomy).
- * Removes all *.cache files from /cache/ and clears matching APCu keys.
- * Called by the admin "Clear Cache" action.
- */
 function sl_clear_all_cache(): void
 {
-    // APCu — clear only sl_* keys to avoid nuking unrelated entries
     if (function_exists('apcu_delete') && function_exists('apcu_cache_info')) {
         $info = @apcu_cache_info(false);
         if (isset($info['cache_list'])) {
@@ -183,7 +101,6 @@ function sl_clear_all_cache(): void
         }
     }
 
-    // File cache — delete all *.cache.php files
     $dir = _sl_cache_dir();
     $canInvalidate = function_exists('opcache_invalidate');
     if (is_dir($dir)) {
@@ -193,17 +110,134 @@ function sl_clear_all_cache(): void
                 opcache_invalidate($f, true);
             }
         }
-        // Also remove stale .tmp leftovers from interrupted writes
         foreach (glob($dir . '/*.cache.php.*.tmp') ?: [] as $f) {
             @unlink($f);
         }
     }
 
-    // Reset the in-request GLOBALS cache
+    $pagesDir = _sl_page_cache_dir();
+    if (is_dir($pagesDir)) {
+        foreach (glob($pagesDir . '/*.page.php') ?: [] as $f) {
+            @unlink($f);
+            if ($canInvalidate) {
+                opcache_invalidate($f, true);
+            }
+        }
+        foreach (glob($pagesDir . '/*.page.php.*.tmp') ?: [] as $f) {
+            @unlink($f);
+        }
+    }
+
     $GLOBALS['_sl_cache'] = [];
 }
 
-// ─── Path helpers ──────────────────────────────────────────────────────────────
+function _sl_page_cache_dir(): string
+{
+    $dir = _sl_cache_dir() . '/pages';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0755, true);
+    }
+    return $dir;
+}
+
+function _sl_page_cache_file(string $urlPath, string $lang): string
+{
+    return _sl_page_cache_dir() . '/' . sha1($lang . '|' . $urlPath) . '.page.php';
+}
+
+function _sl_content_signature_path(): string
+{
+    return _sl_cache_dir() . '/.signature';
+}
+
+function sl_content_signature(): string
+{
+    $stored = @file_get_contents(_sl_content_signature_path());
+    if ($stored !== false && $stored !== '') return trim($stored);
+    return sl_bump_content_signature();
+}
+
+function sl_bump_content_signature(): string
+{
+    $dir = _sl_cache_dir();
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0755, true);
+    }
+
+    $newSig = bin2hex(random_bytes(16));
+    $path   = _sl_content_signature_path();
+    $tmp    = $path . '.' . getmypid() . '.tmp';
+    if (@file_put_contents($tmp, $newSig, LOCK_EX) !== false) {
+        @rename($tmp, $path);
+    }
+    return $newSig;
+}
+
+function sl_page_signature(): string
+{
+    static $sig = null;
+    if ($sig !== null) return $sig;
+
+    $parts = [];
+
+    $configPath = CMS_ROOT . '/config.json';
+    if (file_exists($configPath)) {
+        $parts[] = 'config.json:' . filemtime($configPath) . ':' . filesize($configPath);
+    }
+
+    $parts[] = 'content:' . sl_content_signature();
+
+    $activeTheme = loadConfig()['active_theme'] ?? 'default';
+    foreach ([
+        CMS_ROOT . '/theme/' . $activeTheme,
+        CMS_ROOT . '/theme/child_theme/' . $activeTheme,
+    ] as $themeDir) {
+        if (!is_dir($themeDir)) continue;
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($themeDir, FilesystemIterator::SKIP_DOTS)
+        );
+        foreach ($iterator as $file) {
+            $parts[] = $file->getPathname() . ':' . $file->getMTime() . ':' . $file->getSize();
+        }
+    }
+
+    sort($parts);
+    $sig = hash('xxh3', implode('|', $parts));
+    return $sig;
+}
+
+function sl_page_cache_get(string $urlPath, string $lang, ?int &$status = null): ?string
+{
+    $file = _sl_page_cache_file($urlPath, $lang);
+    if (!file_exists($file)) return null;
+
+    $cached = @include $file;
+    if (!is_array($cached) || !isset($cached['sig'], $cached['html'], $cached['status'])) return null;
+    if ($cached['sig'] !== sl_page_signature()) return null;
+
+    $status = $cached['status'];
+    return $cached['html'];
+}
+
+function sl_page_cache_set(string $urlPath, string $lang, int $status, string $html): void
+{
+    $dir = _sl_page_cache_dir();
+    if (!is_writable($dir)) return;
+
+    $file = _sl_page_cache_file($urlPath, $lang);
+    $tmp  = $file . '.' . getmypid() . '.tmp';
+    $payload = [
+        'sig'    => sl_page_signature(),
+        'status' => $status,
+        'html'   => $html,
+    ];
+    if (file_put_contents($tmp, "<?php\nreturn " . var_export($payload, true) . ";\n", LOCK_EX) !== false) {
+        rename($tmp, $file);
+        if (function_exists('opcache_invalidate')) {
+            opcache_invalidate($file, true);
+        }
+    }
+}
 
 function sl_data_dir(): string
 {
@@ -226,27 +260,12 @@ function sl_item_path(string $type, string $fileSlug): string
     return sl_data_dir() . '/' . sl_type_dir($type) . '/' . $fileSlug . '.json';
 }
 
-// ─── Index loading ─────────────────────────────────────────────────────────────
-
-/**
- * Loads and returns the lightweight index for a content type.
- *
- * Cache lookup order: GLOBALS (L0) → APCu/file (L1/L2) → disk (L3).
- * Results are stored in every available layer on a cache miss.
- *
- * @param  string $type  Internal type name (article, page, project).
- * @return array         Array of index entries, or [] if file not found.
- */
 function sl_load_index(string $type): array
 {
     $globalsKey    = 'idx_' . $type;
     $persistentKey = 'sl_idx_' . $type;
-
-    // L0 — in-request GLOBALS cache
     $cached = _sl_cache_get($globalsKey);
     if ($cached !== null) return $cached;
-
-    // L1/L2 — APCu or file cache (only on front-end; admin always reads fresh data)
     $isAdmin = defined('LANG_CONTEXT') && LANG_CONTEXT === 'admin';
     if (!$isAdmin) {
         $persistent = _sl_persistent_get($persistentKey);
@@ -255,8 +274,6 @@ function sl_load_index(string $type): array
             return $persistent;
         }
     }
-
-    // L3 — disk
     $path = sl_index_path($type);
     if (!file_exists($path)) {
         _sl_cache_set($globalsKey, []);
@@ -267,10 +284,6 @@ function sl_load_index(string $type): array
     $decoded = ($raw !== false && $raw !== '') ? json_decode($raw, true) : null;
     $result  = is_array($decoded) ? $decoded : [];
 
-    // On the front-end, exclude drafts, unpublished and future scheduled
-    // items so they never leak into footers, shortcodes, menus, or any
-    // other call site. The admin panel defines LANG_CONTEXT === 'admin'
-    // and needs the full unfiltered index to manage this content.
     if (!$isAdmin) {
         $now    = time();
         $result = array_values(array_filter($result, function (array $item) use ($now): bool {
@@ -293,12 +306,6 @@ function sl_load_index(string $type): array
     return $result;
 }
 
-/**
- * Invalidates the index cache for one type, or all types if null is passed.
- * Purges GLOBALS (L0), APCu (L1), and file cache (L2).
- *
- * @param string|null $type  Type to invalidate, or null for all.
- */
 function sl_invalidate_index_cache(?string $type = null): void
 {
     $types = ($type !== null) ? [$type] : ['article', 'page', 'project'];
@@ -308,8 +315,6 @@ function sl_invalidate_index_cache(?string $type = null): void
         _sl_persistent_del('sl_idx_' . $t);
     }
 }
-
-// ─── Item loading ──────────────────────────────────────────────────────────────
 
 function sl_file_slug(array $entry): string
 {
@@ -355,21 +360,29 @@ function sl_load_item_by_slug(string $type, string $effectiveSlug): ?array
         [$entry] = $found;
         return sl_load_item($type, sl_file_slug($entry));
     }
-
-    // No index entry — content does not exist. The raw slug is never used
-    // as a filesystem path to prevent directory traversal on the front end.
     return null;
 }
 
-/**
- * Loads ALL full item files for a given type in index order.
- *
- * WARNING: expensive for large datasets. Only use when the full content
- * body is needed (search, SEO overview, sitemap).
- *
- * @param  string $type  Internal type name.
- * @return array
- */
+function sl_load_index_unfiltered(string $type): array
+{
+    $path = sl_index_path($type);
+    if (!file_exists($path)) return [];
+
+    $raw     = file_get_contents($path);
+    $decoded = ($raw !== false && $raw !== '') ? json_decode($raw, true) : null;
+    return is_array($decoded) ? $decoded : [];
+}
+
+function sl_load_item_by_slug_unfiltered(string $type, string $effectiveSlug): ?array
+{
+    foreach (sl_load_index_unfiltered($type) as $entry) {
+        if (is_array($entry) && sl_effective_slug($entry) === $effectiveSlug) {
+            return sl_load_item($type, sl_file_slug($entry));
+        }
+    }
+    return null;
+}
+
 function sl_load_all_items(string $type): array
 {
     $index = sl_load_index($type);
@@ -382,8 +395,6 @@ function sl_load_all_items(string $type): array
     }
     return $items;
 }
-
-// ─── Categories and tags ───────────────────────────────────────────────────────
 
 function sl_load_categories(): array
 {
@@ -445,27 +456,12 @@ function sl_load_tags(): array
     return $result;
 }
 
-// ─── Taxonomy cache invalidation ──────────────────────────────────────────────
-
-/**
- * Invalidates the persistent cache for categories or tags after a write.
- * Called by sl_admin_save_categories() and sl_admin_save_tags().
- *
- * @param string $type  'categories' or 'tags'.
- */
 function sl_invalidate_taxonomy_cache(string $type): void
 {
     _sl_cache_del($type);
     _sl_persistent_del('sl_' . $type);
 }
 
-// ─── Backward-compatibility helper ────────────────────────────────────────────
-
-/**
- * Promotes scheduled items whose publish_at datetime is now in the past.
- *
- * @param string $type  Internal type name (article, page, project).
- */
 function sl_promote_scheduled(string $type): void
 {
     $index   = sl_load_index($type);
@@ -501,6 +497,7 @@ function sl_promote_scheduled(string $type): void
             json_encode(array_values($index), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
         );
         sl_invalidate_index_cache($type);
+        sl_bump_content_signature();
     }
 }
 
@@ -533,27 +530,10 @@ function sl_build_data_array(
 
         $data[$type] = $items;
     }
-
-    // Plugin filter: lets a plugin add, hide or reorder items in the list
-    // every front-end page (including the homepage) renders from — without
-    // this, a plugin can only add pages, never influence what's on them.
     return pl_apply_filter('content_data_array', $data);
 }
 
-// ─── Shared utility functions ──────────────────────────────────────────────────
-
 if (!function_exists('format_date')) {
-/**
- * Formats a stored Y-m-d (or Y-m-d H:i) date string using the site's
- * configured date_format setting (Admin → Settings → General). Used
- * throughout the core templates and available to themes/plugins as the
- * single source of truth for date display, instead of each call site
- * inlining date($settings['date_format'], strtotime(...)) separately.
- *
- * @param string $date Stored date string (any format strtotime() accepts).
- * @return string      Formatted date, or the original string if it could
- *                      not be parsed, or '' for an empty input.
- */
 function format_date(string $date): string
 {
     if (empty($date)) return '';

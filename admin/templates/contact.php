@@ -1,15 +1,6 @@
 <?php
 /* Template Name: Contact */
-/* Template Description: Page with contact form appended below the content 
- *
- * Renders page content then appends a contact form.
- * If the content already contains a [contact_form] shortcode,
- * render_content_html() expands it inline and no second form is added.
- *
- * Variables injected by loadThemeTemplate():
- *   $item     — the page data array
- *   $settings — site settings array  (also available via loadConfig())
- */
+/* Template Description: Page with contact form appended below the content  */
 $settings = loadConfig();
 $hasInlineShortcode = (mb_strpos($item['content'] ?? '', '[contact_form]') !== false);
 ?>

@@ -73,6 +73,9 @@ $contentTypes = ['article', 'page', 'project'];
 									echo '<input type="hidden" name="menu[' . $index . '][content_type]"  value="' . hsc($menuItem['content_type'])  . '">';
 									echo '<input type="hidden" name="menu[' . $index . '][content_slug]"  value="' . hsc($menuItem['content_slug'])  . '">';
 								}
+								if (($menuItem['content_type'] ?? '') === 'list') {
+									echo '<input type="hidden" name="menu[' . $index . '][label_auto]" value="' . (!empty($menuItem['label_auto']) ? '1' : '0') . '">';
+								}
 								if (isset($menuItem['tag_slug'])) {
 									echo '<input type="hidden" name="menu[' . $index . '][tag_slug]" value="' . hsc($menuItem['tag_slug']) . '">';
 								}
@@ -135,11 +138,6 @@ $contentTypes = ['article', 'page', 'project'];
 							<select id="contentlist-type" name="contentlist-type">
 								<?php foreach ($contentTypes as $type): ?>
 								<?php
-								// The public URL for a content-type list uses the front-end's own
-								// translated plural slug (e.g. German "artikel/"), not an English
-								// "type + s" guess — admin_front_url_slug() already resolves this
-								// correctly (front locale + any Settings > Reading override), so
-								// reuse it instead of re-reading lang/front/ directly here.
 								$pluralSlug = admin_front_url_slug($type . 's');
 								?>
 								<option value="<?php echo $type; ?>" data-plural-slug="<?php echo hsc($pluralSlug); ?>"><?php echo hsc(sl_type_label($type, true)); ?></option>

@@ -1,12 +1,8 @@
 <?php
-// Define constants
 if (!defined('INCLUDED')) define('INCLUDED', true);
-
 require_once __DIR__ . '/admin-icons.php';
 require_once __DIR__ . '/content-purify.php';
 
-// hsc() may already be defined if core/functions.php was loaded first.
-// In admin-only paths (auth.php, template-editor.php) it is not, so we define it here.
 if (!function_exists('hsc')) {
     function hsc(?string $s, int $flags = ENT_QUOTES | ENT_SUBSTITUTE, string $enc = 'UTF-8'): string
     {
@@ -14,11 +10,6 @@ if (!function_exists('hsc')) {
     }
 }
 
-// May already be defined if core/functions.php was loaded first (front-end
-// theme-preview token validation lives there). Duplicated rather than
-// require_once'd from here — core/functions.php's own sanitizeSlug() has no
-// function_exists() guard, so pulling it in after this file (which already
-// defines a guarded sanitizeSlug() below) would fatal on redeclaration.
 if (!function_exists('themePreviewSecret')) {
     function themePreviewSecret(): string {
         $secretFile = dirname(__DIR__, 2) . '/private/theme_preview.secret';
@@ -32,10 +23,6 @@ if (!function_exists('themePreviewSecret')) {
     }
 }
 
-// May already be defined if core/functions.php was loaded first. Duplicated
-// for the same reason as hsc()/themePreviewSecret() above — most admin pages
-// never load core/functions.php. Uses admin_load_config() instead of
-// loadConfig() since that's the equivalent already available here.
 if (!function_exists('sl_type_label')) {
     function sl_type_label(string $type, bool $plural = false): string {
         $settings = admin_load_config();
@@ -45,19 +32,6 @@ if (!function_exists('sl_type_label')) {
     }
 }
 
-/**
- * Admin wrapper for sanitizeSlug function
- * Ensures the function is available in admin context
- */
-/**
- * Sanitize a filename to make it safe for storage.
- *
- * Single home for what used to be two byte-identical copies, in content.php
- * and file-upload.php. They never collided at runtime (file-upload.php is a
- * standalone endpoint, never included), but the duplication invited the two
- * from drifting apart — tightening the rule in one upload path and not the
- * other. Both callers already require this file.
- */
 if (!function_exists('sanitizeFileName')) {
 	function sanitizeFileName($filename) {
 		// Remove any non-alphanumeric characters except dots, hyphens, and underscores
@@ -78,8 +52,6 @@ if (!function_exists('sanitizeFileName')) {
 if (!function_exists('sanitizeSlug')) {
 	function sanitizeSlug($string) {
 		$string = trim($string);
-		// Transliterate accented characters to ASCII equivalents via explicit map
-		// iconv TRANSLIT is unreliable (inserts ', ? or other chars on some systems)
 		$accents = [
 			'À'=>'A','Á'=>'A','Â'=>'A','Ã'=>'A','Ä'=>'A','Å'=>'A','Æ'=>'AE',
 			'Ç'=>'C',
@@ -139,13 +111,6 @@ function admin_load_config(): array {
 	return $settings;
 }
 
-/**
- * Appends a new custom field to a content type's schema in config.json —
- * used by the editor's quick-add form so a field can be created without
- * leaving the Settings page. Key is derived from the label and de-duplicated
- * against the type's existing keys. 'select' is intentionally not offered
- * here since it needs an options list; those still go through Settings.
- */
 function admin_add_custom_field(string $type, string $label, string $fieldType): array|false {
 	if (!in_array($type, ['article', 'page', 'project'], true)) return false;
 
@@ -215,13 +180,6 @@ function admin_set_plugin_pinned(string $slug, bool $pinned): bool {
 	return _sl_write_json($configPath, $config);
 }
 
-/**
- * Format a date according to admin settings.
- * Handles both legacy 'YYYY-MM-DD' and datetime 'YYYY-MM-DD HH:MM' strings.
- *
- * @param string $date  Raw date string stored in JSON
- * @return string       Formatted date (date part only)
- */
 function admin_format_date($date) {
 	if (empty($date)) return '';
 
@@ -234,13 +192,6 @@ function admin_format_date($date) {
 	return date($format, $timestamp);
 }
 
-/**
- * Format the time portion of a stored date string.
- * Returns an empty string for legacy items that have no time component.
- *
- * @param string $date  Raw date string (e.g. '2024-05-15 14:30' or '2024-05-15')
- * @return string       Formatted time string, e.g. '14:30', or ''
- */
 function admin_format_time($date) {
 	if (empty($date)) return '';
 
@@ -253,14 +204,6 @@ function admin_format_time($date) {
 	return date('H:i', $timestamp);
 }
 
-/**
- * Extract the time part (HH:MM) from a stored date string for use in <input type="time">.
- * Returns today's current time for new content, empty for legacy items without time.
- *
- * @param string|null $date  Stored date value
- * @param bool        $defaultNow  Return current time when no time component is found
- * @return string
- */
 function admin_extract_time(string $date = '', bool $defaultNow = false): string {
 	if (!empty($date) && preg_match('/\d{4}-\d{2}-\d{2}[T ](?P<t>\d{2}:\d{2})/', $date, $m)) {
 		return $m['t'];
@@ -268,16 +211,6 @@ function admin_extract_time(string $date = '', bool $defaultNow = false): string
 	return $defaultNow ? date('H:i') : '';
 }
 
-/**
- * Line-based diff between two text blocks (LCS algorithm), used by the
- * revision history view to show what changed in the content field.
- * Returns null instead of computing when both texts together exceed a
- * size guard, to avoid the O(m*n) memory cost on very large documents.
- *
- * @param  string $old
- * @param  string $new
- * @return array{type: string, text: string}[]|null
- */
 function admin_diff_lines(string $old, string $new): ?array {
 	if ($old === $new) return [];
 
@@ -317,11 +250,7 @@ function admin_diff_lines(string $old, string $new): ?array {
 	return $result;
 }
 
-// Define our own versions of functions to avoid conflicts
-// Load main site functions in a way that doesn't cause conflicts
 function admin_require_core_functions() {
-	// Include core functions without function conflicts.
-	// The files live in /core/ (moved out of the CMS root during the /core reorg).
 	include_once dirname(dirname(__DIR__)) . '/core/data-functions.php';
 	include_once dirname(dirname(__DIR__)) . '/core/core-functions.php';
 }
@@ -341,24 +270,10 @@ function admin_get_display_name(): string {
 	return $_SESSION['admin_display_name'] ?? admin_get_username();
 }
 
-/**
- * ─── Multi-user store ───────────────────────────────────────────────────────
- * Users live in private/users.json (not data/ — private/ is denied by
- * .htaccess and already holds other per-install secrets). Lazily migrated
- * from the legacy single-admin admin-credentials.php on first access, so
- * there is no separate migration step to run — the pre-existing admin
- * account becomes the one and only 'admin' automatically.
- */
-
 function admin_users_path(): string {
 	return dirname(__DIR__, 2) . '/private/users.json';
 }
 
-/**
- * Atomic write (tmp file + rename) — mirrors _sl_write_json() in
- * core/admin-data-layer.php, duplicated here to avoid a new cross-file
- * dependency for a couple of small JSON stores.
- */
 function admin_write_json_atomic(string $path, $data): bool {
 	$json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 	if ($json === false) return false;
@@ -367,10 +282,6 @@ function admin_write_json_atomic(string $path, $data): bool {
 	return rename($tmp, $path);
 }
 
-/**
- * Loads every user record, migrating the legacy single-admin credentials
- * file into the store on first access.
- */
 function admin_load_users(): array {
 	$path = admin_users_path();
 
@@ -395,14 +306,9 @@ function admin_load_users(): array {
 		]];
 
 		if (!admin_write_json_atomic($path, $users)) {
-			// Migration failed (permissions?) — surface the account for this
-			// request but don't pretend the store is durable.
 			return $users;
 		}
 
-		// Migration done — the file held a real password hash and has no
-		// further purpose (admin-folder detection uses auth.php, not this
-		// file's presence). Remove it instead of leaving a stub behind.
 		@unlink($credFile);
 
 		return $users;
@@ -424,9 +330,6 @@ function admin_find_user_by_id(string $id): ?array {
 	return null;
 }
 
-/**
- * Timing-safe on purpose — this is the lookup the login flow uses.
- */
 function admin_find_user_by_username(string $username): ?array {
 	foreach (admin_load_users() as $user) {
 		if (hash_equals(strtolower((string)($user['username'] ?? '')), strtolower($username))) return $user;
@@ -442,10 +345,6 @@ function admin_find_user_by_email(string $email): ?array {
 	return null;
 }
 
-/**
- * Counts users with the admin role, optionally excluding one id — used to
- * block ever leaving the install with zero admins (delete or role change).
- */
 function admin_count_admins(array $users, ?string $excludeId = null): int {
 	$count = 0;
 	foreach ($users as $user) {
@@ -455,10 +354,6 @@ function admin_count_admins(array $users, ?string $excludeId = null): int {
 	return $count;
 }
 
-/**
- * Creates a new user. Returns the new user's id, or null on validation
- * failure (duplicate username/email, unknown role).
- */
 function admin_create_user(string $username, string $displayName, string $email, string $password, string $role): ?string {
 	if (!in_array($role, ['admin', 'editor', 'author'], true)) return null;
 
@@ -482,12 +377,6 @@ function admin_create_user(string $username, string $displayName, string $email,
 	return admin_save_users($users) ? $id : null;
 }
 
-/**
- * Updates an existing user. $fields may contain any of: username,
- * display_name, email, password (plain text — will be hashed), role.
- * Refuses a duplicate username/email, and refuses a role change away from
- * 'admin' that would leave the install with zero admins.
- */
 function admin_update_user(string $id, array $fields): bool {
 	$users = admin_load_users();
 	$found = false;
@@ -533,9 +422,6 @@ function admin_update_user(string $id, array $fields): bool {
 	return admin_save_users($users);
 }
 
-/**
- * Deletes a user. Refuses to delete the last remaining admin.
- */
 function admin_delete_user(string $id): bool {
 	$users  = admin_load_users();
 	$target = null;
@@ -551,18 +437,10 @@ function admin_delete_user(string $id): bool {
 	return admin_save_users($users);
 }
 
-// ─── Current-user / role helpers ────────────────────────────────────────────
-
 function admin_current_user_id(): ?string {
 	return $_SESSION['admin_user_id'] ?? null;
 }
 
-/**
- * Defaults to 'admin' (not the usual least-privilege default) — a session
- * with no admin_role key predates this feature, meaning whoever holds it
- * was, by definition, the one-and-only admin under the old single-user
- * model. See admin_is_logged_in()'s self-heal for the durable fix.
- */
 function admin_current_user_role(): string {
 	return $_SESSION['admin_role'] ?? 'admin';
 }
@@ -575,45 +453,12 @@ function admin_can_manage_all_content(): bool {
 	return in_array(admin_current_user_role(), ['admin', 'editor'], true);
 }
 
-/**
- * Whether the current user may edit/delete/duplicate $item — full access
- * for admin/editor, own-content-only for author.
- */
 function admin_can_edit_item(array $item): bool {
 	if (admin_can_manage_all_content()) return true;
 	$ownerId = $item['author_id'] ?? null;
 	return $ownerId !== null && $ownerId === admin_current_user_id();
 }
 
-/**
- * Builds a content item's field set from POST data. Shared by the explicit
- * Add/Edit save actions (content.php) and by autosave's direct-write path
- * for draft-status items (autosave.php) — the three call sites differ only
- * in what they do with the result (status/publish_at, persistence, redirect).
- *
- * Does not validate that title/content are present — Add/Edit require both
- * (matching their forms' `required` attributes) while autosave's materialize
- * path tolerates a title-only or content-only item, so each caller applies
- * its own gate before calling this. Does NOT set 'status' or 'publish_at' —
- * callers decide those too, since Add/Edit evaluate publish_at into
- * published/scheduled while autosave never auto-publishes. Does not persist
- * anything.
- *
- * @param  string     $type              Internal type name.
- * @param  array      $post              $_POST-shaped data.
- * @param  array|null $existingItem      The item being edited, or null when creating.
- *                                        Drives author_id/image/custom_fields/
- *                                        related_items/content_format fallbacks
- *                                        and whether 'last_modified' is stamped.
- * @param  array      $existingIndexForDedup  Index entries to dedupe the slug
- *                                        against (Add-shaped calls only — Edit
- *                                        has never deduped on rename, preserved
- *                                        as-is here by passing []).
- * @param  array      $files             $_FILES-shaped data for a direct upload.
- * @return array{item: array, slug_renamed_to: ?string, new_tags: array, new_category: ?array}
- *                                        new_tags/new_category list display names not yet in
- *                                        the tags/categories store — the caller persists them.
- */
 function admin_build_content_item_from_post(
 	string $type,
 	array $post,
@@ -634,9 +479,6 @@ function admin_build_content_item_from_post(
 	$slug       = sanitizeSlug($title);
 	$customSlug = !empty($post['custom_slug']) ? sanitizeSlug($post['custom_slug'], true) : '';
 
-	// Deduplicate the slug against sibling items of the same type — Add-shaped
-	// calls only (see docblock); an empty $existingIndexForDedup skips this
-	// entirely, matching handleContentEdit()'s long-standing no-dedup behavior.
 	$slugRenamedTo = null;
 	if (!empty($existingIndexForDedup)) {
 		$existingSlugs = array_map(
@@ -654,14 +496,6 @@ function admin_build_content_item_from_post(
 		}
 	}
 
-	// Tags/category — resolve to slugs and report back any display name not
-	// already in the tags/categories store. Deliberately NOT persisted here:
-	// the Add/Edit callers fold new entries into the in-memory $data array
-	// they're about to save as a whole via saveData($data), and autosave's
-	// leaner callers persist them immediately via sl_admin_save_tags()/
-	// sl_admin_save_categories() — writing to the store directly from here
-	// would race with (and be silently undone by) the Add/Edit callers'
-	// later saveData($data) call, which still holds the pre-upsert snapshot.
 	$tags       = [];
 	$newTags    = [];
 	if (!empty($post['tags'])) {
@@ -713,11 +547,7 @@ function admin_build_content_item_from_post(
 		'content_format'       => $contentFormat,
 	];
 
-	// Featured image: explicit removal > newly selected/uploaded > fall back
-	// to whatever the existing item already had (Add has no existing item,
-	// so it simply ends up unset, matching its previous behavior).
 	if (!empty($post['remove_featured_image'])) {
-		// Omitted on purpose — clears the field.
 	} elseif (!empty($post['selected_image_path'])) {
 		$selectedImagePath = $post['selected_image_path'];
 		if (strpos($selectedImagePath, 'files/') !== 0) {
@@ -731,8 +561,6 @@ function admin_build_content_item_from_post(
 		$item['image'] = $existingItem['image'];
 	}
 
-	// Publish date/time — combined datetime-local field, falling back to
-	// separate hidden date/time fields (old form submissions or autosave).
 	$dtRaw = trim($post['publish_datetime'] ?? '');
 	if ($dtRaw !== '') {
 		$date = str_replace('T', ' ', $dtRaw);
@@ -764,8 +592,6 @@ function admin_build_content_item_from_post(
 	$item['show_in_menu'] = isset($post['show_in_menu']);
 	$item['menu_order']   = isset($post['menu_order']) ? max(0, min(999, (int)$post['menu_order'])) : 0;
 
-	// Custom fields — sanitize POST, or fall back to the existing item's
-	// values when the form sent none (e.g. no custom fields defined for this type).
 	if (isset($post['custom_fields']) && is_array($post['custom_fields'])) {
 		$cleanCf = [];
 		foreach ($post['custom_fields'] as $cfKey => $cfVal) {
@@ -776,9 +602,6 @@ function admin_build_content_item_from_post(
 		$item['custom_fields'] = $existingItem['custom_fields'];
 	}
 
-	// Related items — decode JSON from the hidden input, sanitize each
-	// reference; falls back to the existing value only if the field was
-	// absent entirely (an explicitly empty submission clears all links).
 	$riRaw = (string)($post['related_items'] ?? '');
 	if ($riRaw !== '') {
 		$riDecoded = json_decode(stripslashes($riRaw), true);
@@ -813,7 +636,6 @@ function admin_build_content_item_from_post(
 		if (!empty($galleryItems)) $item['gallery'] = $galleryItems;
 	}
 
-	// Named inline galleries
 	if (isset($post['galleries']) && is_array($post['galleries'])) {
 		$galleries = [];
 		foreach ($post['galleries'] as $gIdx => $galleryData) {
@@ -851,21 +673,12 @@ function admin_build_content_item_from_post(
 	];
 }
 
-/**
- * Same access rule as admin_can_edit_item(), for autosave drafts — which
- * are not content items and track ownership via admin_user_id rather than
- * author_id (stamped by autosave.php).
- */
 function admin_can_edit_draft(array $draftData): bool {
 	if (admin_can_manage_all_content()) return true;
 	$ownerId = $draftData['admin_user_id'] ?? null;
 	return $ownerId !== null && $ownerId === admin_current_user_id();
 }
 
-/**
- * Check if user is logged in as admin
- * Enforces a 2-hour inactivity timeout.
- */
 function admin_is_logged_in() {
 	if (!isset($_SESSION['admin']) || $_SESSION['admin'] !== true) {
 		return false;
@@ -879,15 +692,8 @@ function admin_is_logged_in() {
 		return false;
 	}
 
-	// Timestamp update with each authenticated request
 	$_SESSION['admin_last_activity'] = time();
 
-	// Self-heal a session that started before multi-user roles existed: it
-	// carries $_SESSION['admin']=true (still valid) but no admin_user_id/
-	// admin_role yet. Backfill both from the user store now rather than
-	// leaving admin_current_user_role()'s 'admin' default to carry the
-	// request indefinitely — this only runs once per session, right here,
-	// since every gated file already calls this function.
 	if (!isset($_SESSION['admin_user_id']) && !empty($_SESSION['admin_username'])) {
 		$_matchedUser = admin_find_user_by_username($_SESSION['admin_username']);
 		if ($_matchedUser !== null) {
@@ -896,33 +702,27 @@ function admin_is_logged_in() {
 		}
 	}
 
+	if (isset($_SESSION['admin_user_id'])) {
+		$_currentUser = admin_find_user_by_id($_SESSION['admin_user_id']);
+		if ($_currentUser === null) {
+			session_unset();
+			session_destroy();
+			return false;
+		}
+		$_SESSION['admin_role'] = $_currentUser['role'];
+	}
+
 	return true;
 }
 
-/**
- * Load data from the main data storage
- */
 function admin_load_data() {
-	 // Load full items for all types from the split-file architecture.
-	 // Returns the same legacy array structure as before: ['article'=>[...], ...]
 	 return sl_admin_load_all();
  }
-  
- /**
-  * Save data to the split-file architecture.
-  * Drop-in replacement for the old file_put_contents('../data.json', ...) call.
-  * Distributes items to individual files, rebuilds indices, handles renames/deletes.
-  */
+
  function admin_save_data($data) {
 	 return sl_admin_save_all($data);
  }
 
-/**
- * Get admin URL
- */
-/**
- * Get site URL for the main site
- */
 function admin_site_url() {
 	$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
 	$host = $_SERVER['HTTP_HOST'];
@@ -931,12 +731,6 @@ function admin_site_url() {
 	return $protocol . '://' . $host . $basePath . '/';
 }
 
-/**
- * Translates an activity log machine action key (e.g. "user_deleted") into
- * its localized label. Single source of truth shared by the Activity Log
- * page and the dashboard's recent-activity widget — falls back to the raw
- * key if it's untranslated or unknown.
- */
 function admin_activity_action_label(string $action): string {
 	static $labels = [
 		'login_success'            => 'activity_action_login_success',
@@ -960,9 +754,6 @@ function admin_activity_action_label(string $action): string {
 	return __t($labels[$action] ?? '', $action);
 }
 
-/**
- * Format file size for display
- */
 function admin_format_file_size($bytes) {
 	$units = ['B', 'KB', 'MB', 'GB', 'TB'];
 	$bytes = max($bytes, 0);
@@ -973,24 +764,7 @@ function admin_format_file_size($bytes) {
 	return round($bytes, 2) . ' ' . $units[$pow];
 }
 
-/**
- * Returns the localized URL prefix slug for a content type by reading
- * directly from the FRONT-END lang files (lang/{locale}.json).
- *
- * url_slug_* keys are routing data owned by the front end. Reading them
- * from the admin lang files would require keeping two copies in sync,
- * which is a maintenance hazard. This function always goes to the source.
- *
- * @param string $type  e.g. 'article', 'project', 'page', 'category', 'tag'
- * @return string       Slug-safe localized prefix (e.g. 'projet', 'categorie')
- */
 function admin_front_url_slug(string $type): string {
-	// Content-type slugs (article/page/project, singular or plural) can be
-	// overridden per site via Settings > Reading — see sl_type_label() above.
-	// Same override core/functions.php's url_slug() applies on the front end;
-	// duplicated here because this function deliberately can't go through
-	// __t()/lang_current() (see comment below on why it reads lang/front/
-	// directly), so it can't just delegate to url_slug() either.
 	foreach (['article', 'page', 'project'] as $_aflBaseType) {
 		$_aflPlural = null;
 		if ($type === $_aflBaseType) $_aflPlural = false;
@@ -1005,9 +779,6 @@ function admin_front_url_slug(string $type): string {
 
 	static $strings = null;
 	if ($strings === null) {
-		// Always use the FRONT-end locale here, even when called from admin.
-		// lang_current() now returns admin_language when LANG_CONTEXT === 'admin',
-		// which would break URL generation — so we read active_language directly.
 		$settingsFile = _lang_cms_root() . '/config.json';
 		$locale = 'en';
 		if (file_exists($settingsFile)) {
@@ -1029,16 +800,11 @@ function admin_front_url_slug(string $type): string {
 	return sanitizeSlug($raw);
 }
 
-/**
- * Generate URLs for viewing published content from the admin panel.
- * Uses admin_front_url_slug() so links always match actual front-end routes.
- */
 function admin_content_url($contentType, $slug, $customSlug = '', $category = '') {
 	$baseUrl      = admin_site_url();
 	$finalSlug    = !empty($customSlug) ? $customSlug : $slug;
 	$categorySlug = !empty($category) ? sanitizeSlug($category) : '';
 
-	// Resolve full hierarchical category path (e.g. "parent/child")
 	$catPath = '';
 	if (!empty($categorySlug)) {
 		static $_acu_data = null;
@@ -1172,14 +938,6 @@ function updateProgress($processed, $total, $status = null) {
 	}
 }
 
-/**
- * Sync menu URLs in config.json when a category is renamed.
- * Rebuilds the URL for every menu item whose content belongs to the renamed category.
- *
- * @param array  $data            The already-updated data array (post-save)
- * @param string $oldCategorySlug The slug of the old category name
- * @param string $newCategoryName The new category name (not yet slugified)
- */
 function syncMenuUrlsForCategory($data, $oldCategorySlug, $newCategoryName) {
 	$settingsFile = dirname(dirname(__DIR__)) . '/config.json';
 	if (!file_exists($settingsFile)) return;
@@ -1244,13 +1002,6 @@ function syncMenuUrlsForCategory($data, $oldCategorySlug, $newCategoryName) {
 	}
 }
 
-/**
- * Sync menu URLs in config.json when a tag is renamed or deleted.
- * Updates menu items of type 'tag' whose content_slug matches the old tag slug.
- *
- * @param string      $oldTagSlug  Slug of the old tag name
- * @param string|null $newTagName  New tag name, or null if deleted
- */
 function syncMenuUrlsForTag($oldTagSlug, $newTagName) {
 	$settingsFile = dirname(dirname(__DIR__)) . '/config.json';
 	if (!file_exists($settingsFile)) return;
@@ -1285,13 +1036,6 @@ function syncMenuUrlsForTag($oldTagSlug, $newTagName) {
 	}
 }
 
-/**
- * Scan the active theme's page-templates/ folder and return available page templates.
- * Each .php file must declare a Template Name header comment: /* Template Name: Foo * /
- *
- * @return array  Associative array [ 'filename-without-ext' => 'Template Name' ]
- *                Always includes the empty-string key '' => 'Default'.
- */
 function getPageTemplates(): array {
 	$templates = ['' => __t('page_template_default', 'Default')];
 
@@ -1317,25 +1061,10 @@ function getPageTemplates(): array {
 	return $templates;
 }
 
-/**
- * Whitelist of file extensions editable via the Template Editor.
- * Kept in one place so the scanner and the save/restore handlers always agree.
- */
 function theme_editor_allowed_extensions(): array {
 	return ['php', 'css', 'js', 'json'];
 }
 
-/**
- * Recursively scan a theme directory and return all editable files,
- * grouped by their folder for display in a grouped <select>.
- *
- * Only whitelisted extensions are returned. Hidden files/folders (leading dot)
- * and the screenshot are skipped.
- *
- * @param string $themeDir  Absolute path to the active theme directory.
- * @return array  [ groupLabel => [ relativePath => relativePath, ... ], ... ]
- *                Root-level files are grouped under the empty-string key ''.
- */
 function theme_editor_scan_files(string $themeDir): array {
 	$allowed = theme_editor_allowed_extensions();
 	$groups  = [];
@@ -1380,15 +1109,6 @@ function theme_editor_scan_files(string $themeDir): array {
 	return ($rootGroup ? ['' => $rootGroup] : []) + $groups;
 }
 
-/**
- * Resolve a user-supplied relative file path against a theme directory and
- * guarantee the result stays inside that directory (prevents path traversal
- * via "../" segments or absolute paths smuggled into the request).
- *
- * @param string $themeDir       Absolute, trusted path to the active theme directory.
- * @param string $requestedFile  Untrusted relative path supplied by the client.
- * @return string|null  Absolute real path on success, or null if invalid/outside the theme.
- */
 function theme_editor_resolve_path(string $themeDir, string $requestedFile): ?string {
 	if ($requestedFile === '') return null;
 
@@ -1411,12 +1131,6 @@ function theme_editor_resolve_path(string $themeDir, string $requestedFile): ?st
 	return $candidateReal;
 }
 
-/**
-  * Check for a newer CMS version against the public version endpoint.
-  * Result is cached for 24 hours in admin/cache/ to avoid repeated remote calls.
-  *
-  * @return array|null  Remote version data, or null if up-to-date / unreachable.
-  */
 function admin_check_for_update(): ?array {
 	// Read local version from version.json at the CMS root
 	 $_vFile = dirname(dirname(__DIR__)) . '/version.json';
@@ -1435,7 +1149,6 @@ function admin_check_for_update(): ?array {
 		 }
 	 }
  
-	 // Fetch remote — try cURL first, fall back to file_get_contents
 	 $json = false;
 	 if (function_exists('curl_init')) {
 		 $ch = curl_init($remoteUrl);
@@ -1447,8 +1160,6 @@ function admin_check_for_update(): ?array {
 		 ]);
 		 $json = curl_exec($ch);
 		 if (curl_errno($ch)) $json = false;
-		 // No curl_close() call: deprecated since PHP 8.5 and a no-op since PHP 8.0 —
-		 // handles are freed automatically by garbage collection.
 	 }
 	 if ($json === false && ini_get('allow_url_fopen')) {
 		 $ctx  = stream_context_create(['http' => ['timeout' => 3]]);
@@ -1470,20 +1181,12 @@ function admin_check_for_update(): ?array {
 	 return version_compare($remote['version'], $localVersion, '>') ? $remote : null;
  }
 
-/**
- * Fetch CMS news feed from the public updates repo.
- * Cached for 24 hours in admin/cache/.
- *
- * @return array  Array of news items, each with 'date', 'type', 'message'.
- */
 function admin_fetch_news(): array {
 	$remoteUrl = 'https://raw.githubusercontent.com/synaptikcms/synaptik-cms-updates/main/news.json';
 	$cacheDir  = __DIR__ . '/../cache';
 	$cacheFile = $cacheDir . '/news-cache.json';
 	$cacheTtl  = 86400;
 
-	// Expiry filter applied on every code path — cache stores raw data from GitHub,
-	// filtering happens at read time so expired items disappear without a cache bust.
 	$filterExpired = function(array $items): array {
 		$today = strtotime('today');
 		return array_values(array_filter($items, function($item) use ($today) {
@@ -1507,8 +1210,6 @@ function admin_fetch_news(): array {
 		]);
 		$json = curl_exec($ch);
 		if (curl_errno($ch)) $json = false;
-		// No curl_close() call: deprecated since PHP 8.5 and a no-op since PHP 8.0 —
-		// handles are freed automatically by garbage collection.
 	}
 	if ($json === false && ini_get('allow_url_fopen')) {
 		$ctx  = stream_context_create(['http' => ['timeout' => 3]]);
@@ -1525,17 +1226,6 @@ function admin_fetch_news(): array {
 	return $filterExpired($data['news']);
 }
 
-/**
- * Renders the Settings/Users tab bar shared by settings-view.php and
- * users.php. On the Settings page itself the 7 settings tabs stay
- * JS-toggled panels within that one page (see settings-view.js) — fast,
- * no reload — and only the Users tab is a real link, since Users lives on
- * its own page. Anywhere else (currently just users.php), every settings
- * tab is a real link back to its tab on the Settings page.
- *
- * @param string $activeTab      Current tab key (general/reading/.../users).
- * @param bool   $onSettingsPage Whether this is being rendered from settings-view.php.
- */
 function admin_render_settings_tabs(string $activeTab, bool $onSettingsPage): void {
 	$tabs = [
 		'general'       => ['settings', __t('general')],
@@ -1563,21 +1253,11 @@ function admin_render_settings_tabs(string $activeTab, bool $onSettingsPage): vo
 }
 
 define('LANG_CONTEXT', 'admin');
-require_once dirname(dirname(__DIR__)) . '/core/lang-cache.php';
-// Load split-file data layer (read) and admin data layer (write) — both in /core/
-require_once dirname(dirname(__DIR__)) . '/core/data-layer.php';
+require_once dirname(dirname(__DIR__)) . '/core/lang-cache.php';require_once dirname(dirname(__DIR__)) . '/core/data-layer.php';
 require_once dirname(dirname(__DIR__)) . '/core/plugin-api.php';
-// Load active plugins here (not only from the plugin_page/admin_menu code
-// paths) so pl_apply_filter() calls inside admin-data-layer.php — e.g. the
-// item-before-save filter — actually have a plugin's callbacks registered
-// by the time content.php runs, not just when a plugin's own page is open.
 pl_load_active_plugins();
 require_once dirname(dirname(__DIR__)) . '/core/admin-data-layer.php';
 
-/**
- * Wrapper functions for backwards compatibility
- * This makes it so you don't have to update all your template files
- */
 if (!function_exists('loadData'))          { function loadData() { return admin_load_data(); } }
 if (!function_exists('saveData'))          { function saveData($data) { return admin_save_data($data); } }
 if (!function_exists('getBaseUrl'))        { function getBaseUrl() { return admin_site_url(); } }

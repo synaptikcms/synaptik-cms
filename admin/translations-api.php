@@ -1,24 +1,4 @@
 <?php
-/**
- * Translation Editor — AJAX handler
- *
- * Operations (via ?op=...):
- *   load    GET   — return { reference, current, meta } for a scope+locale
- *   save    POST  — persist edited strings to lang/{scope}/{locale}.json
- *   create  POST  — duplicate en.json into a new locale file
- *
- * Security:
- *   - Requires an authenticated admin session.
- *   - Requires a valid CSRF token on save/create (POST).
- *   - Scope is whitelisted (front|admin).
- *   - Locale codes are validated against a strict regex.
- *   - Save rejects any key absent from en.json — prevents unknown
- *     keys being injected via a forged payload.
- *
- * Writes are atomic (tmp file + rename). The lang cache for the
- * affected locale is purged after every successful save/create.
- */
-
 require_once __DIR__ . '/includes/session-config.php';
 session_start();
 require_once __DIR__ . '/includes/admin-functions.php';
@@ -55,16 +35,10 @@ function trl_scope_dir(string $scope): string {
 	return $scope === 'admin' ? $LANG_ADMIN : $LANG_FRONT;
 }
 
-/**
- * Validate a locale code: 2 lowercase letters, optionally _XX.
- */
 function trl_valid_locale(string $code): bool {
 	return (bool)preg_match('/^[a-z]{2}(_[A-Z]{2})?$/', $code);
 }
 
-/**
- * Read a locale JSON file. Returns [] if missing or invalid.
- */
 function trl_read_locale(string $scope, string $locale): array {
 	$path = trl_scope_dir($scope) . $locale . '.json';
 	if (!is_file($path)) return [];
@@ -72,10 +46,6 @@ function trl_read_locale(string $scope, string $locale): array {
 	return is_array($decoded) ? $decoded : [];
 }
 
-/**
- * Write a locale JSON file atomically and purge the lang cache.
- * Preserves key order from the existing file when possible.
- */
 function trl_write_locale(string $scope, string $locale, array $data): bool {
 	$path    = trl_scope_dir($scope) . $locale . '.json';
 	$tmpPath = $path . '.tmp.' . getmypid();
@@ -92,19 +62,11 @@ function trl_write_locale(string $scope, string $locale, array $data): bool {
 		return false;
 	}
 
-	// Purge the cache for this locale in BOTH contexts: the file we just
-	// wrote lives in one scope, but lang_cache_purge() resolves the path
-	// from LANG_CONTEXT (which is 'admin' here). We invalidate front-side
-	// caches directly to keep things consistent.
 	trl_purge_cache_file($scope, $locale);
 
 	return true;
 }
 
-/**
- * Directly remove the compiled PHP cache file for a locale, regardless
- * of the active LANG_CONTEXT. The lang loader will rebuild it lazily.
- */
 function trl_purge_cache_file(string $scope, string $locale): void {
 	global $CMS_ROOT;
 	$cacheFile = $CMS_ROOT . '/cache/lang/' . ($scope === 'admin' ? 'admin' : 'front') . '/' . $locale . '.php';
@@ -116,10 +78,6 @@ function trl_purge_cache_file(string $scope, string $locale): void {
 	}
 }
 
-/**
- * Build a placeholder signature ("%s", "%d", "%1$s"…) for mismatch
- * detection. Returns a sorted, joined string used as a fingerprint.
- */
 function trl_placeholder_sig(string $s): string {
 	preg_match_all('/%[0-9]*\$?[sdf]/', $s, $m);
 	$tokens = $m[0] ?? [];
@@ -127,9 +85,6 @@ function trl_placeholder_sig(string $s): string {
 	return implode('|', $tokens);
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// LOAD — GET ?op=load&scope=front|admin&locale=xx
-// ════════════════════════════════════════════════════════════════════════════
 if ($op === 'load') {
 	$locale = $_GET['locale'] ?? '';
 	if (!trl_valid_locale($locale)) {
@@ -141,8 +96,6 @@ if ($op === 'load') {
 	$reference = trl_read_locale($scope, 'en');
 	$current   = trl_read_locale($scope, $locale);
 
-	// Strip _meta from the reference (it is editable separately if needed,
-	// but we never want it shown as a "string to translate").
 	$refMeta = $reference['_meta'] ?? null;
 	$curMeta = $current['_meta']   ?? null;
 	unset($reference['_meta'], $current['_meta']);
@@ -161,10 +114,6 @@ if ($op === 'load') {
 	exit;
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// SAVE — POST ?op=save
-// Body (JSON): { csrf_token, scope, locale, strings: { key: value, ... } }
-// ════════════════════════════════════════════════════════════════════════════
 if ($op === 'save') {
 	if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 		http_response_code(405);
@@ -180,7 +129,6 @@ if ($op === 'save') {
 		exit;
 	}
 
-	// CSRF — read from payload (POST JSON body)
 	$token = $payload['csrf_token'] ?? '';
 	if (!isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $token)) {
 		http_response_code(403);
@@ -263,10 +211,6 @@ if ($op === 'save') {
 	exit;
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// CREATE — POST ?op=create
-// Body (JSON): { csrf_token, locale, label, both_scopes: bool }
-// ════════════════════════════════════════════════════════════════════════════
 if ($op === 'create') {
 	if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 		http_response_code(405);
@@ -332,8 +276,6 @@ if ($op === 'create') {
 			exit;
 		}
 
-		// Update _meta for the new locale; values are copied from en.json
-		// untouched so the editor can show them as "reference, untranslated".
 		$reference['_meta'] = [
 			'language' => $label,
 			'locale'   => $locale,
@@ -359,6 +301,5 @@ if ($op === 'create') {
 	exit;
 }
 
-// ── Unknown op ──────────────────────────────────────────────────────────────
 http_response_code(400);
 echo json_encode(['ok' => false, 'error' => 'unknown_op']);

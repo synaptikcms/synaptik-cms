@@ -53,14 +53,17 @@ server {
     }
 
     # ── core/ directory — only allow the three public PHP endpoints ───────────
-    location ~ ^/core/(?!(search|feed|contact-process|llms)\.php$).*\.php$ {
+    location ~ ^/core/(?!(search|feed|contact-process|llms|llms-full)\.php$).*\.php$ {
         deny all;
         return 403;
     }
 
-    # ── llms.txt — rewrite to core/llms.php ──────────────────────────────────
+    # ── llms.txt / llms-full.txt — rewrite to core/llms.php / core/llms-full.php ─
     location = /llms.txt {
         rewrite ^ /core/llms.php last;
+    }
+    location = /llms-full.txt {
+        rewrite ^ /core/llms-full.php last;
     }
 
     # ── Legacy redirects (search and contact-process moved to /core/) ─────────

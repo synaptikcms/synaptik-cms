@@ -2,6 +2,47 @@
 
 All notable changes to SynaptikCMS are documented here.  
 
+## [1.4.1] — 2026-08-27
+
+### Added
+
+- **New "Starter" theme** — a minimal, fully working theme included out of the box, meant as a clean starting point for anyone building a custom theme from scratch.
+- **Light/dark logo variants** — themes with a dark/light mode toggle can now show a different site logo for each. Add a `-light` and `-dark` version of your logo file with the same name (e.g. `logo-dark.webp` / `logo-light.webp`) and it switches automatically, with no flash.
+- **Theme customizations that survive updates** — create a `theme/child_theme/{your-theme}/` folder with just the files you want to change (a template, extra CSS on top of the theme's own, custom PHP functions), and it takes priority automatically. A theme update only ever touches the original theme's folder, so hand-made customizations placed here are never overwritten.
+- **Full-page cache for anonymous visitors** — a page is now rendered once and served instantly to every following visitor until its content, settings, or theme actually change.
+- **Preview a draft or unpublished item at its real URL** — the "view online" button in the content editor (next to the custom slug) now works even before publishing: as the logged-in admin, you see the item exactly as it will look live, with a small badge reminding you it's not visible to anyone else yet. Visitors still get exactly what they got before (a 404, or the category page).
+
+### Changed
+
+- **The editor's "Preview" button now shows the real page** — now saves your current changes and opens the item's actual URL, using the exact same rendering as visitors will see (only you can view it before publishing — see above).
+- **Faster page loads** — search, the image lightbox, and collapsible/tab content blocks now only load their supporting script on pages that actually use that feature, instead of loading all of it on every page regardless of need.
+- **Simplified stylesheet loading** — more reliable loading, just as fast.
+- **Leaner plugin widgets** — pages using Booking, Comments, Form Builder, Newsletter, or Cookie Consent no longer load a small internal helper script multiple times over; it now runs once and picks up each widget's data automatically.
+- **One less script on themes that never used it** — now only shipped by the built-in themes that actually use it, folded into each one's own script instead of a separate request.
+- **Full-page cache check is now instant regardless of site size** — checking whether a cached page is still valid used to re-check every article, page, and project file on every single request, which could grow slower with large sites. It now checks a single marker that's updated only when content actually changes, so the cache check costs the same on a 10-article site as a 5,000-article one.
+
+### Fixed
+
+- **Social footer links** — icon-only links to social profiles had no accessible name for screen readers, and links opening in a new tab were missing a security attribute recommended for external links. Both fixed.
+- **Page language attribute switches automatically** — the page's declared language (used by screen readers, browsers, and search engines) never followed your site's actual language setting, even after switching to another language. Fixed.
+- **Safety backup when manually re-uploading a theme** — reinstalling or updating a theme by uploading a ZIP by hand overwrote the existing theme with no backup, unlike the automated update path. It now backs up the existing theme first, matching the automated flow.
+- **Menu builder links update themselves when you rename the type** — any link left with its default name (i.e. you didn't type a custom label for it) follows the rename automatically. A link you gave a custom label to (e.g. "Features" instead of "Articles") is never touched. The link's actual destination now follows the rename too.
+- **Renamed content types reflected everywhere** — if you renamed "Article" or "Project" to something else in Settings → Reading, the search panel's filter checkboxes and result badges kept showing the original English word instead of your custom name. Fixed across the search UI and all affected built-in themes.
+- **Renaming a content type when singular and plural are the same word** — Settings → Reading refused to save if a type's singular and plural name matched (common when a language has no distinct plural form, or you just want one name for both). Fixed.
+- **Admin confirmation modals appearing too high on the page** — now centers correctly.
+
+### Security
+
+- **Backup downloads check for admin role** — an Editor or Author with a guessed or discovered backup filename could download a full site backup, including `config.json` and its secrets. Now restricted to Admins, matching the page that links to it.
+- **Removing or demoting a user ends their existing session** — a deleted or downgraded account kept its old access for up to two hours instead of losing it immediately. Role and access are now re-checked on every request.
+
+- **Rich content could carry a disguised full-screen overlay via inline styles** — content sanitization now strips a `style` attribute if it contains anything capable of that (fixed/absolute positioning, `url(...)`, `expression(...)`), while still allowing normal styling like colors and alignment.
+- **A theme ZIP could disguise an executable file with a trailing space in its name** (e.g. `shell.php .jpg`) to slip past the forbidden-extension check. Closed.
+- **`llms-full.txt` was unreachable on nginx** — only Apache had been updated to serve it; the nginx example configuration now matches.
+- **Draft/unpublished preview at a live URL didn't expire with the session** — it kept working for a stale admin session past the 2-hour inactivity window, even after the admin panel itself would have logged it out. Now enforced consistently.
+
+---
+
 ## [1.4.0] — 2026-08-24
 
 ### Added
@@ -60,24 +101,45 @@ All notable changes to SynaptikCMS are documented here.
 - **Style updates not reaching visitors** — the bundled system stylesheet was cached in the browser for up to a year with no way to refresh it, so fixes to gallery, search or shortcode styling never arrived for anyone who had already visited the site. It now updates as soon as it changes.
 
 - **Content safety hardening** — closed a gap where certain hand-written HTML in an article could carry active code through to the page. Content is now cleaned the same way whichever formatting mode it was written in.
+
 - **Internal links written by hand in HTML mode** — a link pointing to another page on your own site (for example `/articles/my-post`) was silently turned into a dead link when the article was saved. Fixed, and link options like opening in a new tab are no longer dropped.
+
 - **Comment rate limiting** — a burst of comments submitted at the exact same moment could slip past the hourly limit, and the file tracking it grew forever instead of clearing out old entries. Both fixed.
+
 - **File manager pop-up messages** — could sometimes appear blank. Fixed.
+
 - **Menu Builder links on translated sites** — links to content lists could lead to a broken page if the site isn't in English. Fixed.
+
 - **Update safety backup** — updates now also back up core files, not just content and settings, so you can always roll back if something goes wrong.
+
 - **Update failure reporting** — a failed update now tells the user exactly which files failed.
+
 - **Installer reliability** — fixed a case where a failed setup step could leave the site in a broken state.
+
+- **Synaptik Docs theme blocked by strict Content-Security-Policy setups** — two small scripts controlling dark mode and sidebar state were inline, which some server CSP configurations reject. Moved to an external file so they load cleanly everywhere.
+
 - **hCaptcha settings help text** — removed placeholder text shown by mistake.
+
 - **Markdown callout blocks** — fixed a formatting bug that could break the page layout around them.
+
 - **Notification and warning messages** — some success/error/warning messages and confirmation pop-ups across the admin panel had a see-through background, making them hard to read. Now solid and readable everywhere.
+
 - **Login, reset and forgot-password pages** — login box now centered vertically regardless of window size, instead of sitting near the top.
+
 - **Search overlay silently showing no results when added to a theme manually** — the `render_search_ui()` helper generated HTML that no longer matched the structure the search script expects, so results never appeared. Fixed.
+
 - **Booking plugin — email template editor toolbar** — was missing its icons after a recent editor refresh. Fixed.
+
 - **Settings sidebar highlight** — switching between Settings tabs didn't update which one was highlighted in the sidebar. Fixed.
+
 - **Empty autosave revisions** — autosaving a draft with no actual changes since the last save no longer creates a pointless "no changes" revision.
+
 - **Clear Cache / Clear Admin Cache buttons** — now clear the cache correctly and confirm with a success message.
+
 - **Various fixes and code optimizations** throughout the CMS.
+
 - **Schema.org JSON-LD** — the Schema Type field in the SEO panel now generates a real `<script type="application/ld+json">` block in the page `<head>` for articles, pages and projects. Includes headline, URL, dates, featured image, description, author, and publisher with logo. Two new settings under Settings > SEO let you set the default author name and publisher type (Person or Organization).
+
 - **Batch delete count** — the selected item count in the batch delete button was showing roughly double the actual number of selected items. Fixed.
 
 ### Security

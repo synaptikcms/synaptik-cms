@@ -2,7 +2,7 @@
 $bodyClass = function_exists('mono_body_class') ? mono_body_class() : 'theme-mono';
 ?>
 <!DOCTYPE html>
-<html lang="<?php echo htmlspecialchars($settings['site_language'] ?? 'en'); ?>">
+<html lang="<?php echo htmlspecialchars($settings['active_language'] ?? 'en'); ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">

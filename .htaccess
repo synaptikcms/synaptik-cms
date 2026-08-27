@@ -94,7 +94,7 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     # connect-src : same-origin XHR/fetch + hCaptcha verification API
     Header always set Content-Security-Policy "\
 default-src 'self'; \
-script-src 'self' 'sha256-RqVnOS8pj4947anya5Z/mOyZKJ4qPrskDF5wu1ZDWgM=' https://js.hcaptcha.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.googletagmanager.com; \
+script-src 'self' 'sha256-IkTdP30yHFaVfjZm1HcruKVpJKKwowAYPMKI+GVaAlY=' https://js.hcaptcha.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.googletagmanager.com; \
 frame-src https://newassets.hcaptcha.com; \
 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.bunny.net https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; \
 font-src 'self' https://fonts.gstatic.com https://fonts.bunny.net https://cdn.jsdelivr.net; \

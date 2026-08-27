@@ -12,16 +12,11 @@ if (!admin_is_logged_in()) {
 	exit;
 }
 
-// ── CSRF validation helper ────────────────────────────────────────────────────
-// Validates the CSRF token for all state-changing POST requests and for
-// destructive GET actions (delete, purge). Called before any data mutation.
 function admin_verify_csrf(): bool {
 	$token = $_POST['csrf_token'] ?? $_GET['csrf_token'] ?? '';
 	return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
 }
 
-// Abort with 403 on CSRF failure for state-changing requests.
-// Always rejects when called — the token must be present and valid.
 function admin_csrf_check(): void {
 	if (!admin_verify_csrf()) {
 		http_response_code(403);
@@ -31,7 +26,6 @@ function admin_csrf_check(): void {
 	}
 }
 
-// AJAX request handler for menu builder content items
 if (isset($_GET['action']) && $_GET['action'] === 'get_content_items' &&
 	isset($_GET['type']) && !empty($_GET['type'])) {
 
@@ -172,9 +166,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cf_quick_add'])) {
 	exit;
 }
 
-// Load data — index-only for list views, full items only when needed.
-// On a site with hundreds of articles, loading full items for the list
-// view costs 500+ file reads for nothing: the list only needs index fields.
 $action = $_GET['action'] ?? '';
 $type   = $_GET['type']   ?? '';
 
@@ -193,15 +184,6 @@ if ($type !== '' && in_array($type, ['article', 'page', 'project'], true) && $ac
 	$data = admin_load_data();
 }
 
-// Buffer page content
-
-// Plugin page router — renders a plugin's admin page inside the standard
-// admin layout (sidebar, topbar, footer). A plugin exposes
-// "{slug}_render_admin_page(string $view): array" (see plugin-api.php and
-// the Booking plugin's admin/admin-page.php for the reference contract).
-// Handled separately from the ob_start() block below because $pageTitle
-// and $extraHead come from the plugin's own return value, not from
-// admin_get_page_title() / a static <head> block.
 if ($action === 'plugin_page') {
 	require_once dirname(__DIR__) . '/core/plugin-api.php';
 
@@ -216,13 +198,6 @@ if ($action === 'plugin_page') {
 		exit;
 	}
 
-	// Load every active plugin, in registry order — not just the one being
-	// viewed. Loading only $_pluginSlug here would make its admin_menu hook
-	// register before pl_get_admin_menu_items() (called later by the
-	// sidebar) loads the others, so whichever plugin page was open would
-	// always jump to the top of the sidebar's plugin list. Loading them all
-	// up front, in the same order the sidebar itself uses, keeps that list
-	// stable regardless of which plugin page is currently active.
 	pl_load_active_plugins();
 
 	$_pluginRenderFn = preg_replace('/[^a-z0-9_]/', '_', $_pluginSlug) . '_render_admin_page';
@@ -245,10 +220,6 @@ if ($action === 'plugin_page') {
 	exit;
 }
 
-// Role-gated actions: role required, or null to deny outright (reserved/removed).
-// Actions not listed here (add/edit/delete/drafts/trash/revisions/account/users/
-// tools/type=article|page|project) are open to all logged-in roles — either
-// ownership-scoped in content.php (Phase 7) or self-gated in their own template.
 $_adminOnlyActions        = ['settings', 'translations', 'system_info', 'activity_log', 'backup', 'update', 'plugins', 'manage_themes'];
 $_editorAndAboveActions   = ['menu_builder', 'manage_categories', 'manage_tags'];
 

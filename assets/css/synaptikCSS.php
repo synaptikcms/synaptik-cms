@@ -1,17 +1,4 @@
 <?php
-/**
- * CMS System Styles — css/synaptik.php
- *
- * Serves search.css, shortcodes.css and gallery-layout.css as a single cached
- * HTTP response, reducing 3 requests to 1. (lightbox.css is deliberately not
- * bundled — themes that need it link it themselves.)
- *
- * Cache strategy: `immutable` for a year, busted by the ?v=<newest mtime>
- * render_header_scripts() appends to the URL — see tf-page.php. `immutable`
- * means the browser will not revalidate, so the ETag below is only a
- * fallback for any caller that requests this file without that parameter.
- */
-
 $files = [
     __DIR__ . '/search.css',
     __DIR__ . '/shortcodes.css',

@@ -1,10 +1,4 @@
 <?php
-/**
- * llms.txt — structured site summary for LLM indexers.
- * Spec: https://llmstxt.org/
- * Accessible at /llms.txt via .htaccess rewrite.
- */
-
 require_once __DIR__ . '/functions.php';
 
 $settings = loadConfig();

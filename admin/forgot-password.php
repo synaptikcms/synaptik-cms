@@ -1,16 +1,4 @@
 <?php
-/**
- * forgot-password.php — SynaptikCMS admin password reset request
- *
- * Looked up by email across every user in private/users.json — no
- * config.json contact_email fallback (that's the site's public contact
- * address, not any one person's, and would be wrong to accept here now
- * that there can be more than one personal account).
- *
- * Tokens: stored as an array in private/reset_token.json
- * (.htaccess-protected) so two different users can have an outstanding
- * reset at once. TTL: 15 minutes, one active token per user.
- */
 require_once __DIR__ . '/includes/session-config.php';
 session_start();
 require_once 'includes/admin-functions.php';
@@ -42,12 +30,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $inputEmail  = trim($_POST['email'] ?? '');
         $matchedUser = admin_find_user_by_email($inputEmail);
 
-        // Always run the same lock/read/purge/write cycle on the shared
-        // token file whether or not the email matches an account — a real
-        // match must not be distinguishable from "no such account" by how
-        // much work this request does (same rationale as auth.php's
-        // timing-safe login: the file I/O below is the expensive step, so
-        // it always runs, and only the mail() call stays conditional).
         $_lockFp = @fopen($tokenFile, 'c+');
         $tokens      = [];
         $alreadySent = false;
@@ -56,10 +38,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_raw     = stream_get_contents($_lockFp);
             $_decoded = ($_raw !== false && $_raw !== '') ? json_decode($_raw, true) : null;
             if (is_array($_decoded)) {
-                // Keep every still-valid entry (expired ones are dropped
-                // regardless of owner). One active token per user: if
-                // this user already has a valid one, rate-limit —
-                // don't generate/send another.
                 foreach ($_decoded as $_entry) {
                     if (!is_array($_entry) || ($_entry['expires_at'] ?? 0) <= time()) continue;
                     $tokens[] = $_entry;
@@ -69,10 +47,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($matchedUser === null || $alreadySent) {
-            // No such account, or a valid token already exists for this
-            // user — nothing new to persist, but still write the purged
-            // list back so this request's file cost matches the
-            // token-generating branch below.
             if ($_lockFp) {
                 ftruncate($_lockFp, 0);
                 rewind($_lockFp);
@@ -80,14 +54,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 flock($_lockFp, LOCK_UN);
                 fclose($_lockFp);
             }
-            // Note: the token-generating branch below calls mail(), an SMTP
-            // round-trip whose cost varies by relay and can't be reliably
-            // padded to match with a fixed delay (tried 200ms here — it
-            // overshot local sendmail's ~15-40ms and just flipped which
-            // side is slower). What's fixed above is the deterministic
-            // signal — file I/O now happens identically either way — the
-            // residual mail()-timing gap is a known, accepted limitation of
-            // sending reset emails synchronously with no queue.
             $sent = true;
         } else {
             $token     = bin2hex(random_bytes(32));
@@ -109,14 +75,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if (!$writeOk) {
-                // Can't write the token file — abort entirely
                 $error = 'Could not write reset token. Check write permissions on <code>/private/</code>.';
             } else {
-                // Build reset URL from configured site_url to prevent Host header poisoning.
                 $settings = admin_load_config();
                 $siteUrl  = rtrim($settings['site_url'] ?? '', '/');
                 if (empty($siteUrl)) {
-                    // Fallback for unconfigured installs only.
                     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
                     $docRoot  = rtrim($_SERVER['DOCUMENT_ROOT'], '/');
                     $cmsPath  = str_replace($docRoot, '', rtrim(dirname(__DIR__), '/'));
@@ -124,7 +87,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 $resetUrl = $siteUrl . '/?reset_token=' . urlencode($token);
 
-                // Try to send the email
                 $siteName   = $settings['site_title'] ?? 'SynaptikCMS';
                 $mailDomain = parse_url($siteUrl, PHP_URL_HOST) ?? 'localhost';
                 $subject    = '[' . $siteName . '] Password Reset';
@@ -139,7 +101,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             . "Content-Type: text/plain; charset=UTF-8";
 
                 mail(str_replace(["\r", "\n"], '', $matchedUser['email']), $subject, $body, $headers);
-                // Never expose the result of mail() or the token in the response.
                 $sent = true;
             }
         }

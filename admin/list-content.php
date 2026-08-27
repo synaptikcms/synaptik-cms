@@ -1,18 +1,4 @@
 <?php
-/**
- * AJAX endpoint for content list — search, filter, sort, paginate server-side.
- *
- * GET params:
- *   type      – article | page | project (required)
- *   q         – search term (optional)
- *   category  – category name filter (optional)
- *   sort      – date-desc | date-asc | title-asc | title-desc (default: date-desc)
- *   page      – 1-based page number (default: 1)
- *   per_page  – items per page, 0 = all (default: 25)
- *
- * Returns JSON: { total, page, per_page, items[] }
- */
-
 if (!defined('INCLUDED')) define('INCLUDED', true);
 require_once __DIR__ . '/includes/session-config.php';
 session_start();
@@ -90,7 +76,6 @@ $perPage = ($perPage === 0) ? $total : $perPage;
 $offset  = ($page - 1) * max(1, $perPage);
 $slice   = array_slice($filtered, $offset, $perPage ?: null);
 
-// Author name shown per item only on multi-user sites — see content-list.php.
 $authors = [];
 foreach (admin_load_users() as $u) {
     $authors[$u['id']] = $u['display_name'] ?: $u['username'];

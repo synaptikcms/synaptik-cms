@@ -1,0 +1,10 @@
+{
+    "synaptik_theme": true,
+    "name": "Starter",
+    "folder": "starter",
+    "version": "1.0.0",
+    "author": "SynaptikCMS",
+    "author_url": "https://synaptikcms.com",
+    "description": "Minimal reference theme. Copy this folder, rename it, edit css/style.css. Everything else already works.",
+    "demo_url": ""
+}

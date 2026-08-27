@@ -5,23 +5,15 @@ if (!defined('INCLUDED')) {
 	exit('Direct access to this file is not allowed');
 }
 
-// Check if we're restoring a draft
 $restoredDraftId        = '';
 $restoredDraftTimestamp = 0;
 if (isset($_GET['restore']) && $_GET['restore'] == 1 && isset($_SESSION['draft_data'])) {
 	$draftData = $_SESSION['draft_data'];
 
 	if ($draftData['type'] === $contentType || $draftData['type'] === $selectedType) {
-		// Kept as its own variable rather than only relying on $editItem['id']
-		// below — a custom field could theoretically be keyed "id" and shadow
-		// it after the merge.
 		$restoredDraftId        = $draftData['id'] ?? '';
 		$restoredDraftTimestamp = $draftData['timestamp'] ?? 0;
-		// Unlike content-add.php, this template reads fields from $editItem,
-		// never from $_SESSION['form_data'] — so it's not set here. It used to
-		// be, but nothing in this file consumed it, which meant it lingered in
-		// the session and could leak into a later, unrelated content-add.php
-		// visit (wrong title/content/draft_id pre-filled on a brand-new item).
+
 		if (isset($editItem)) {
 			$editItem = array_merge($editItem, $draftData);
 		}
@@ -48,10 +40,6 @@ if (!$editItem) {
 						<input type="hidden" name="remove_featured_image" id="remove-featured-image-flag" value="0">
 
 						<?php if ($restoredDraftId !== ''): ?>
-						<!-- Landed here via the "unsaved changes" badge — this is a pending
-						     autosave snapshot, not what's currently published. Say so, since
-						     otherwise there's no visible sign the content differs from what's
-						     live (see the "pending_diff" view for a full comparison). -->
 						<div class="pending-autosave-banner">
 							<p><?php echo hsc(sprintf(__t('pending_banner_text', 'You\'re viewing an unsaved autosaved version from %s — it differs from what\'s currently published.'), $restoredDraftTimestamp ? date('Y-m-d H:i', $restoredDraftTimestamp) : '?')); ?></p>
 							<div class="banner-actions">
@@ -59,23 +47,16 @@ if (!$editItem) {
 							</div>
 						</div>
 						<?php endif; ?>
-
-						<!-- Title Field -->
 						<div class="title-container">
 							<input type="text" id="title" name="title" class="title-input" placeholder="<?php _e('add_title'); ?>" value="<?php echo hsc($editItem['title'] ?? ''); ?>" required>
 						</div>
-			
-						<!-- Format state synced to topbar switcher via JS (see _initFormatTabs below) -->
 						<?php $currentFormat = $editItem['content_format'] ?? 'html'; ?>
 						<input type="hidden" id="content-format" name="content_format" form="content-form" value="<?php echo hsc($currentFormat); ?>">
-			
-						<!-- Content Editor -->
 						<div class="content-container">
 							<textarea id="content" name="content" rows="20" required><?php echo hsc($editItem['content'] ?? ''); ?></textarea>
 						</div>
 			
 						<?php if ($contentType === 'article'): ?>
-						<!-- Article Summary -->
 						<div class="editor-section">
 								<label for="summary" style="margin: 0 0 7px;"><?php _e('article_summary_label', 'Short summary'); ?></label>
 								<textarea id="summary" name="summary" rows="3" placeholder="<?php echo hsc(__t('article_summary_placeholder', 'Summary shown in article cards — leave empty to use a content excerpt…')); ?>"><?php echo hsc($editItem['summary'] ?? ''); ?></textarea>
@@ -83,18 +64,14 @@ if (!$editItem) {
 						<?php endif; ?>
 			
 						<?php if ($contentType === 'project'): ?>
-						<!-- Project Description -->
 						<div class="editor-section">
-							<!-- <h3><?php _e('project_description'); ?></h3> -->
 							<div class="form-group">
 								<label for="summary"><?php _e('project_description'); ?></label>
 								<textarea id="description" name="description" rows="3" placeholder="<?php _e('project_summary_placeholder'); ?>"><?php echo $editItem['description'] ?? ''; ?></textarea>
-								<!-- <p class="help-text"><?php _e('project_description_help'); ?></p> -->
 							</div>
 						</div>
 						<?php endif; ?>
 			
-						<!-- Named Galleries Section -->
 						<div class="editor-section" id="galleries-section">
 							<div class="galleries-section-header" style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
 								<h3 style="margin:0;"><?php echo admin_icon('images', 'style="vertical-align:-4px"', 20); ?> <?php _e('galleries'); ?></h3>
