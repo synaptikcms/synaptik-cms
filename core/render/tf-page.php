@@ -3,9 +3,29 @@ function render_site_logo(array $settings, string $class = '', string $alt = '')
 {
     $path = trim($settings['site_logo'] ?? '');
     if ($path === '') return '';
+    $a = htmlspecialchars($alt !== '' ? $alt : ($settings['site_title'] ?? ''));
+
+    // Light/dark variants: a sibling "-light" / "-dark" file next to the configured logo
+    // (e.g. logo.png -> logo-light.png + logo-dark.png) enables a flash-free theme switch
+    // via CSS, keyed off the [data-theme] attribute set by catalogue themes.
+    $relDir = ltrim(dirname($path), '.');
+    $relDir = $relDir === '' || $relDir === '/' ? '' : trim($relDir, '/') . '/';
+    $ext    = pathinfo($path, PATHINFO_EXTENSION);
+    $root   = preg_replace('/-(light|dark)$/i', '', pathinfo($path, PATHINFO_FILENAME));
+
+    $lightRel = $relDir . $root . '-light.' . $ext;
+    $darkRel  = $relDir . $root . '-dark.' . $ext;
+
+    if (is_file(CMS_ROOT . '/' . $lightRel) && is_file(CMS_ROOT . '/' . $darkRel)) {
+        $base     = getBaseUrl();
+        $lightCls = htmlspecialchars(trim('sl-logo-light ' . $class));
+        $darkCls  = htmlspecialchars(trim('sl-logo-dark ' . $class));
+        return '<img src="' . htmlspecialchars($base . $lightRel) . '" alt="' . $a . '" class="' . $lightCls . '">'
+             . '<img src="' . htmlspecialchars($base . $darkRel) . '" alt="' . $a . '" class="' . $darkCls . '">';
+    }
+
     $url = getBaseUrl() . ltrim($path, '/');
     $cls = $class !== '' ? ' class="' . htmlspecialchars($class) . '"' : '';
-    $a   = htmlspecialchars($alt !== '' ? $alt : ($settings['site_title'] ?? ''));
     return '<img src="' . htmlspecialchars($url) . '" alt="' . $a . '"' . $cls . '>';
 }
 

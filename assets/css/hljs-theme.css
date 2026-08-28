@@ -1,8 +1,3 @@
-/* Syntax colors for highlight.js — same palette the old hand-rolled
- * highlighter used, mapped onto highlight.js's own .hljs-* class names.
- * Loaded conditionally (see render_hljs_scripts() in core/render/tf-page.php)
- * only for themes that don't already ship their own .hljs styling.
- */
 .hljs-keyword,
 .hljs-selector-tag,
 .hljs-literal,

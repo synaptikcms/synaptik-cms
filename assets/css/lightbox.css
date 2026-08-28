@@ -33,12 +33,6 @@ pre { background: #1e1d1d17; border-radius: 6px; padding: 16px; overflow-x: auto
 code { font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 14px; }
 /* Inline code */
 :not(pre)>code { background: #f4f4f4; padding: 3px 5px; border-radius: 3px; color: #000000; font-size: 0.9em; margin: 2px 4px; }
-/* Syntax colors for highlighted code blocks live in assets/css/hljs-theme.css
-   (loaded conditionally, only on pages with a code block — see
-   render_hljs_scripts() in core/render/tf-page.php) since highlight.js uses
-   its own .hljs-* class names, not the language-scoped ones this file used
-   to define for the old hand-rolled highlighter. */
-/* Light theme alternative - add .light-theme class to <pre> if needed */
 pre.light-theme { background: #f8f8f8; color: #2c3e50; }
 /* Optional: Add line numbers */
 pre.line-numbers { counter-reset: linenumber; padding-left: 50px; position: relative; }

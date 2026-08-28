@@ -35,7 +35,6 @@ All notable changes to SynaptikCMS are documented here.
 
 - **Backup downloads check for admin role** — an Editor or Author with a guessed or discovered backup filename could download a full site backup, including `config.json` and its secrets. Now restricted to Admins, matching the page that links to it.
 - **Removing or demoting a user ends their existing session** — a deleted or downgraded account kept its old access for up to two hours instead of losing it immediately. Role and access are now re-checked on every request.
-
 - **Rich content could carry a disguised full-screen overlay via inline styles** — content sanitization now strips a `style` attribute if it contains anything capable of that (fixed/absolute positioning, `url(...)`, `expression(...)`), while still allowing normal styling like colors and alignment.
 - **A theme ZIP could disguise an executable file with a trailing space in its name** (e.g. `shell.php .jpg`) to slip past the forbidden-extension check. Closed.
 - **`llms-full.txt` was unreachable on nginx** — only Apache had been updated to serve it; the nginx example configuration now matches.

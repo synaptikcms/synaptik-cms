@@ -32,3 +32,11 @@ foreach ($files as $f) {
         echo file_get_contents($f) . "\n";
     }
 }
+
+// Light/dark logo variants — pairs with render_site_logo() in core/render/tf-page.php.
+// Keyed off the [data-theme] attribute set synchronously by catalogue themes, so there
+// is no flash: the wrong logo is simply never painted.
+?>
+.sl-logo-dark { display: none; }
+[data-theme="dark"] .sl-logo-light { display: none; }
+[data-theme="dark"] .sl-logo-dark { display: inline-block; }
