@@ -6,7 +6,7 @@ $files = [
 ];
 
 // ── ETag / 304 handling ───────────────────────────────────────
-$lastModified = 0;
+$lastModified = filemtime(__FILE__);
 foreach ($files as $f) {
     if (file_exists($f)) {
         $lastModified = max($lastModified, filemtime($f));
@@ -32,11 +32,15 @@ foreach ($files as $f) {
         echo file_get_contents($f) . "\n";
     }
 }
-
-// Light/dark logo variants — pairs with render_site_logo() in core/render/tf-page.php.
-// Keyed off the [data-theme] attribute set synchronously by catalogue themes, so there
-// is no flash: the wrong logo is simply never painted.
 ?>
 .sl-logo-dark { display: none; }
 [data-theme="dark"] .sl-logo-light { display: none; }
 [data-theme="dark"] .sl-logo-dark { display: inline-block; }
+/* Themes with no JS toggle (e.g. sudo, shebang) never set [data-theme] and
+   switch purely off the OS preference — mirror that here. Guarded on
+   :not([data-theme="light"]) so an explicit toggle choice on themes that do
+   set the attribute always wins over the OS preference. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .sl-logo-light { display: none; }
+  :root:not([data-theme="light"]) .sl-logo-dark { display: inline-block; }
+}

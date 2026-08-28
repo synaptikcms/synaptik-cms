@@ -4,10 +4,6 @@ function render_site_logo(array $settings, string $class = '', string $alt = '')
     $path = trim($settings['site_logo'] ?? '');
     if ($path === '') return '';
     $a = htmlspecialchars($alt !== '' ? $alt : ($settings['site_title'] ?? ''));
-
-    // Light/dark variants: a sibling "-light" / "-dark" file next to the configured logo
-    // (e.g. logo.png -> logo-light.png + logo-dark.png) enables a flash-free theme switch
-    // via CSS, keyed off the [data-theme] attribute set by catalogue themes.
     $relDir = ltrim(dirname($path), '.');
     $relDir = $relDir === '' || $relDir === '/' ? '' : trim($relDir, '/') . '/';
     $ext    = pathinfo($path, PATHINFO_EXTENSION);
@@ -224,7 +220,7 @@ function render_header_scripts($headerScripts)
     $root     = CMS_ROOT;
 
     $sysCssV = 0;
-    foreach (['search.css', 'shortcodes.css', 'gallery-layout.css'] as $_f) {
+    foreach (['synaptikCSS.php', 'search.css', 'shortcodes.css', 'gallery-layout.css'] as $_f) {
         $_p = $root . '/assets/css/' . $_f;
         if (file_exists($_p)) $sysCssV = max($sysCssV, filemtime($_p));
     }
