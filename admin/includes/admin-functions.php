@@ -34,17 +34,11 @@ if (!function_exists('sl_type_label')) {
 
 if (!function_exists('sanitizeFileName')) {
 	function sanitizeFileName($filename) {
-		// Remove any non-alphanumeric characters except dots, hyphens, and underscores
 		$filename = preg_replace("/[^a-zA-Z0-9._-]/", "", $filename);
-
-		// Limit filename length
 		$filename = substr($filename, 0, 255);
-
-		// Ensure filename is not empty
 		if (empty($filename)) {
 			$filename = 'unnamed_file_' . time();
 		}
-
 		return $filename;
 	}
 }
@@ -73,24 +67,14 @@ if (!function_exists('sanitizeSlug')) {
 		];
 		$string = strtr($string, $accents);
 		$string = strtolower($string);
-		// Replace spaces with hyphens FIRST
 		$string = preg_replace('/\s+/', '-', $string);
-		// Only allow alphanumeric, hyphens, underscores
 		$string = preg_replace('/[^a-z0-9\-_]/', '', $string);
-		// Remove multiple consecutive hyphens
 		$string = preg_replace('/-+/', '-', $string);
-		// Trim hyphens and underscores from start/end
 		$string = trim($string, '-_');
-		
 		return $string;
 	}
 }
 
-/**
- * Load configuration from config.json, merged with hardcoded defaults.
- * Unique source of truth for every application parameter.
- * Used across the admin panel via admin_load_config().
- */
 function admin_load_config(): array {
 	$settings = loadDefaultConfig();
 
@@ -105,7 +89,6 @@ function admin_load_config(): array {
 		}
 	}
 
-	// Always refresh the theme list from the filesystem
 	$settings['available_themes'] = function_exists('getAvailableThemes') ? getAvailableThemes() : ['default'];
 
 	return $settings;
@@ -150,20 +133,12 @@ function admin_add_custom_field(string $type, string $label, string $fieldType):
 	return $field;
 }
 
-/**
- * Slugs of plugins the admin has chosen to pin as a sidebar shortcut.
- * Site-wide preference (not per-user) — deliberately simple, matching how
- * every other admin preference in config.json already works.
- */
 function admin_get_pinned_plugins(): array {
 	$config = admin_load_config();
 	$pinned = $config['pinned_plugins'] ?? [];
 	return is_array($pinned) ? array_values(array_unique($pinned)) : [];
 }
 
-/**
- * Adds or removes a plugin slug from the pinned-sidebar list.
- */
 function admin_set_plugin_pinned(string $slug, bool $pinned): bool {
 	$config = admin_load_config();
 	$current = is_array($config['pinned_plugins'] ?? null) ? $config['pinned_plugins'] : [];
@@ -195,7 +170,6 @@ function admin_format_date($date) {
 function admin_format_time($date) {
 	if (empty($date)) return '';
 
-	// Only return a time when the stored value explicitly contains HH:MM
 	if (!preg_match('/\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/', $date)) return '';
 
 	$timestamp = strtotime($date);
@@ -256,16 +230,10 @@ function admin_require_core_functions() {
 }
 admin_require_core_functions();
 
-/**
- * Return the logged-in admin's username from session.
- */
 function admin_get_username(): string {
 	return $_SESSION['admin_username'] ?? 'admin';
 }
 
-/**
- * Return the logged-in admin's display name from session.
- */
 function admin_get_display_name(): string {
 	return $_SESSION['admin_display_name'] ?? admin_get_username();
 }
@@ -283,38 +251,7 @@ function admin_write_json_atomic(string $path, $data): bool {
 }
 
 function admin_load_users(): array {
-	$path = admin_users_path();
-
-	if (!file_exists($path)) {
-		$credFile = __DIR__ . '/../admin-credentials.php';
-		$admin_username     = 'admin';
-		$admin_display_name = '';
-		$admin_password     = '';
-		$admin_email        = '';
-		if (file_exists($credFile)) {
-			include $credFile;
-		}
-
-		$users = [[
-			'id'            => bin2hex(random_bytes(8)),
-			'username'      => $admin_username,
-			'display_name'  => $admin_display_name !== '' ? $admin_display_name : $admin_username,
-			'email'         => $admin_email,
-			'password_hash' => $admin_password,
-			'role'          => 'admin',
-			'created_at'    => time(),
-		]];
-
-		if (!admin_write_json_atomic($path, $users)) {
-			return $users;
-		}
-
-		@unlink($credFile);
-
-		return $users;
-	}
-
-	$json  = @file_get_contents($path);
+	$json  = @file_get_contents(admin_users_path());
 	$users = $json !== false ? json_decode($json, true) : null;
 	return is_array($users) ? $users : [];
 }
@@ -527,7 +464,6 @@ function admin_build_content_item_from_post(
 		'slug'                 => $slug,
 		'custom_slug'          => $customSlug,
 		'content'              => $content,
-		// SEO fields: store raw — htmlspecialchars() is applied at output time only
 		'meta_title'           => trim($post['meta_title'] ?? ''),
 		'meta_description'     => trim($post['meta_description'] ?? ''),
 		'meta_keywords'        => trim($post['meta_keywords'] ?? ''),
@@ -684,9 +620,8 @@ function admin_is_logged_in() {
 		return false;
 	}
 
-	$timeout = 2 * 60 * 60; // 2 heures en secondes
+	$timeout = 2 * 60 * 60; 
 	if (isset($_SESSION['admin_last_activity']) && (time() - $_SESSION['admin_last_activity']) > $timeout) {
-		// Session expirée — on purge proprement
 		session_unset();
 		session_destroy();
 		return false;
@@ -724,10 +659,10 @@ function admin_load_data() {
  }
 
 function admin_site_url() {
-	$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-	$host = $_SERVER['HTTP_HOST'];
+	$protocol = _sl_request_is_https() ? 'https' : 'http';
+	$host = _sl_request_host();
 	$basePath = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');
-	
+
 	return $protocol . '://' . $host . $basePath . '/';
 }
 
@@ -796,7 +731,7 @@ function admin_front_url_slug(string $type): string {
 	}
 
 	$key = 'url_slug_' . $type;
-	$raw = $strings[$key] ?? $type; // fallback: raw type name (English)
+	$raw = $strings[$key] ?? $type;
 	return sanitizeSlug($raw);
 }
 
@@ -816,7 +751,6 @@ function admin_content_url($contentType, $slug, $customSlug = '', $category = ''
 		if (!empty($catPath)) {
 			return $baseUrl . $catPath . '/' . $finalSlug . '/';
 		}
-		// Pages without category live at root — no type prefix
 		return $baseUrl . $finalSlug . '/';
 	}
 
@@ -865,28 +799,21 @@ function admin_get_themes() {
 	return $themes;
 }
 
-/**
- * Get the dynamic page title for the admin header
- */
 function admin_get_page_title() {
 	$currentFile = basename($_SERVER['PHP_SELF']);
 	$action      = $_GET['action'] ?? '';
 	$type        = $_GET['type']   ?? '';
-
 	if ($currentFile === 'index.php') {
-
 		if ($action === 'add') {
 			$contentType = in_array($type, ['article', 'page', 'project']) ? $type : 'article';
 			return sprintf(__t('add_new_type'), sl_type_label($contentType));
 		}
-
 		if ($action === 'edit') {
 			$label = in_array($type, ['article', 'page', 'project'], true)
 				? sl_type_label($type)
 				: __t('content', 'Content');
 			return sprintf(__t('edit_type'), $label);
 		}
-
 		if ($action === 'manage_categories') return __t('manage_categories');
 		if ($action === 'manage_tags')       return __t('manage_tags');
 		if ($action === 'settings')          return __t('settings');
@@ -898,26 +825,19 @@ function admin_get_page_title() {
 		if ($action === 'account')           return __t('account');
 		if ($action === 'users')             return __t('users_title');
 		if ($action === 'plugins')           return __t('extensions_title', 'Extensions');
-
 		if (empty($action) && in_array($type, ['article', 'page', 'project'], true)) {
 			return sl_type_label($type, true);
 		}
-
 		return __t('dashboard');
 	}
-
 	return __t('admin');
 }
 
-/**
- * Admin helper function to decode HTML entities
- */
 function admin_decode_html($html) {
 	if (!$html) return '';
 	return html_entity_decode($html);
 }
 
-// Progress tracking for batch operations
 function initializeProgress($jobName) {
 	$_SESSION['batch_job'] = [
 		'name' => $jobName,
@@ -963,14 +883,12 @@ function syncMenuUrlsForCategory($data, $oldCategorySlug, $newCategoryName) {
 
 			if ($itemSlug !== $contentSlug) continue;
 
-			// Only process items that now belong to the renamed category
 			$currentCategorySlug = !empty($contentItem['category'])
 				? sanitizeSlug($contentItem['category'])
 				: '';
 
 			if ($currentCategorySlug !== $newCategorySlug) break;
 
-			// Rebuild URL using full hierarchical category path
 			$catPath = getCategoryPath($newCategorySlug, $data);
 			if ($contentType === 'article' && !empty($catPath)) {
 				$newUrl = $catPath . '/' . $contentSlug . '/';
@@ -1015,9 +933,7 @@ function syncMenuUrlsForTag($oldTagSlug, $newTagName) {
 		if (empty($menuItem['tag_slug'])) continue;
 		if ($menuItem['tag_slug'] !== $oldTagSlug) continue;
 
-		if ($newTagName === null) {
-			// Tag deleted: clear the URL so it's obviously broken and visible
-			$menuItem['url'] = '#tag-deleted';
+		if ($newTagName === null) {			$menuItem['url'] = '#tag-deleted';
 			$menuItem['content_slug'] = '';
 		} else {
 			$newTagSlug = sanitizeSlug($newTagName);
@@ -1046,18 +962,13 @@ function getPageTemplates(): array {
 	if (!is_dir($dir)) {
 		return $templates;
 	}
-
 	foreach (glob($dir . '*.php') as $filePath) {
-		// Read only the first 512 bytes — enough to find the header comment
 		$head = file_get_contents($filePath, false, null, 0, 512);
 		if ($head !== false && preg_match('/Template Name:\s*(.+)/i', $head, $m)) {
 			$key             = basename($filePath, '.php');
-			// Strip trailing block-comment closer (* /) so single-line comments
-			// like /* Template Name: Foo */ don't include " */" in the label.
 			$templates[$key] = trim(preg_replace('/\s*\*\/.*$/', '', $m[1]));
 		}
 	}
-
 	return $templates;
 }
 
@@ -1082,21 +993,19 @@ function theme_editor_scan_files(string $themeDir): array {
 		if ($fileInfo->isDir()) continue;
 
 		$filename = $fileInfo->getFilename();
-		if ($filename[0] === '.') continue; // skip hidden files (.DS_Store, etc.)
+		if ($filename[0] === '.') continue;
 
 		$ext = strtolower($fileInfo->getExtension());
 		if (!in_array($ext, $allowed, true)) continue;
 
 		$relativePath = substr($fileInfo->getPathname(), strlen($themeDir) + 1);
-		$relativePath = str_replace('\\', '/', $relativePath); // normalize on Windows dev setups
+		$relativePath = str_replace('\\', '/', $relativePath);
 
 		$folder = dirname($relativePath);
 		$group  = ($folder === '.') ? '' : $folder . '/';
 
 		$groups[$group][$relativePath] = $relativePath;
 	}
-
-	// Root files first, then subfolders alphabetically. Files sorted within each group.
 	$rootGroup = $groups[''] ?? [];
 	unset($groups['']);
 	ksort($groups, SORT_NATURAL);
@@ -1119,30 +1028,21 @@ function theme_editor_resolve_path(string $themeDir, string $requestedFile): ?st
 	if ($themeReal === false) return null;
 
 	$candidate = $themeDir . '/' . $requestedFile;
-
-	// The target may not exist yet only in the "file not found" case we want to
-	// reject anyway — realpath() returning false there is the correct outcome.
 	$candidateReal = realpath($candidate);
 	if ($candidateReal === false) return null;
-
-	// Enforce that the resolved path is strictly inside the theme directory.
 	if (strpos($candidateReal, $themeReal . DIRECTORY_SEPARATOR) !== 0) return null;
-
 	return $candidateReal;
 }
 
 function admin_check_for_update(): ?array {
-	// Read local version from version.json at the CMS root
 	 $_vFile = dirname(dirname(__DIR__)) . '/version.json';
 	 $_vData = file_exists($_vFile) ? json_decode(file_get_contents($_vFile), true) : null;
 	 $localVersion = (is_array($_vData) && !empty($_vData['version'])) ? $_vData['version'] : '1.0';
 	 $remoteUrl    = 'https://raw.githubusercontent.com/synaptikcms/synaptik-cms-updates/main/version.json';
 	 $cacheDir     = __DIR__ . '/../cache';
 	 $cacheFile    = $cacheDir . '/update-check.json';
-	 $cacheTtl     = 86400; // 24 hours
- 
-	 // Serve from cache if still fresh
-	 if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $cacheTtl) {
+	 $cacheTtl     = 86400; 
+ 	 if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $cacheTtl) {
 		 $cached = json_decode(file_get_contents($cacheFile), true);
 		 if (is_array($cached)) {
 			 return version_compare($cached['version'], $localVersion, '>') ? $cached : null;
@@ -1170,7 +1070,6 @@ function admin_check_for_update(): ?array {
 	 $remote = json_decode($json, true);
 	 if (!is_array($remote) || empty($remote['version'])) return null;
  
-	 // Persist cache
 	 if (!is_dir($cacheDir)) {
 		 @mkdir($cacheDir, 0755, true);
 	 }

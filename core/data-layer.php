@@ -140,9 +140,54 @@ function _sl_page_cache_dir(): string
     return $dir;
 }
 
+function _sl_request_is_https(): bool
+{
+    return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+        || (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on')
+        || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443);
+}
+
+function _sl_configured_canonical_host(): string
+{
+    if (function_exists('loadConfig')) {
+        $configured = trim((string)(loadConfig()['canonical_host'] ?? ''));
+    } elseif (function_exists('admin_load_config')) {
+        $configured = trim((string)(admin_load_config()['canonical_host'] ?? ''));
+    } else {
+        $configured = '';
+    }
+    return $configured !== '' ? strtolower($configured) : '';
+}
+
+function _sl_raw_request_host(): string
+{
+    $host = (string)($_SERVER['HTTP_HOST'] ?? '');
+    if (!preg_match('/^(\[[0-9a-fA-F:]+\]|[a-zA-Z0-9.-]+)(:\d{1,5})?$/', $host)) return '';
+    return strtolower($host);
+}
+
+function _sl_request_host(): string
+{
+    $configured = _sl_configured_canonical_host();
+    if ($configured !== '') return $configured;
+
+    return _sl_raw_request_host();
+}
+
+function _sl_page_cache_host_allowed(): bool
+{
+    $canonical = _sl_configured_canonical_host();
+    if ($canonical === '') return true;
+
+    return _sl_raw_request_host() === $canonical;
+}
+
 function _sl_page_cache_file(string $urlPath, string $lang): string
 {
-    return _sl_page_cache_dir() . '/' . sha1($lang . '|' . $urlPath) . '.page.php';
+    $scheme = _sl_request_is_https() ? 'https' : 'http';
+    $host   = _sl_request_host();
+    return _sl_page_cache_dir() . '/' . sha1($lang . '|' . $scheme . '://' . $host . '|' . $urlPath) . '.page.php';
 }
 
 function _sl_content_signature_path(): string
@@ -551,9 +596,9 @@ function output_canonical_url(?array $pageData = null): string
     if (!empty($pageData['canonical_url'])) {
         return '<link rel="canonical" href="' . htmlspecialchars($pageData['canonical_url']) . '">';
     }
-    $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
+    $protocol = _sl_request_is_https() ? 'https' : 'http';
     $uri      = strtok($_SERVER['REQUEST_URI'] ?? '/', '?');
-    return '<link rel="canonical" href="' . htmlspecialchars($protocol . '://' . $_SERVER['HTTP_HOST'] . $uri) . '">';
+    return '<link rel="canonical" href="' . htmlspecialchars($protocol . '://' . _sl_request_host() . $uri) . '">';
 }
 }
 
@@ -599,5 +644,6 @@ function loadDefaultConfig(): array
         'type_labels'                => [],
         'schema_author_name'         => '',
         'schema_publisher_type'      => 'Person',
+        'canonical_host'             => '',
     ];
 }

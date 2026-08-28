@@ -6,7 +6,6 @@ if (empty($_SESSION['csrf_token'])) {
 }
 require_once 'includes/admin-functions.php';
 
-// Check authentication
 if (!admin_is_logged_in()) {
 	header('Location: auth.php');
 	exit;
@@ -81,21 +80,18 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_content_items' &&
 	exit;
 }
 
-// Handle batch deletion — CSRF check required
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['batch_action']) && $_POST['batch_action'] === 'delete') {
 	admin_csrf_check();
 	include_once 'content.php';
 	exit;
 }
 
-// Handle batch trash actions (restore / permanent delete) — CSRF check required
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['trash_action']) && in_array($_POST['trash_action'], ['batch_restore', 'batch_purge'], true)) {
 	admin_csrf_check();
 	include_once 'content.php';
 	exit;
 }
 
-// Destructive GET actions that carry a CSRF token (delete, purge, category/tag delete)
 $_currentAction = $_GET['action'] ?? '';
 $_currentDraftAction = $_GET['draft_action'] ?? '';
 $_currentTrashAction = $_GET['trash_action'] ?? '';
@@ -118,7 +114,6 @@ if ($_isDestructiveGet) {
 	admin_csrf_check();
 }
 
-// AJAX: alt-text save — must run before header.php outputs HTML
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_alt_save']) && ($_GET['action'] ?? '') === 'tools') {
 	header('Content-Type: application/json');
 	$_alt_data      = loadData();
@@ -147,7 +142,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_alt_save']) && (
 	exit;
 }
 
-// AJAX: quick-add a custom field from the content editor sidebar
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cf_quick_add'])) {
 	header('Content-Type: application/json');
 	$_cfToken = $_POST['csrf_token'] ?? '';
@@ -170,7 +164,6 @@ $action = $_GET['action'] ?? '';
 $type   = $_GET['type']   ?? '';
 
 if ($type !== '' && in_array($type, ['article', 'page', 'project'], true) && $action === '') {
-	// Content list: load index only for the requested type
 	$contentType = $type;
 	$data = [
 		'article'    => [],

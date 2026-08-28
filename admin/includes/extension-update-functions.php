@@ -265,6 +265,7 @@ function _ext_upd_detect_prefix(ZipArchive $zip): string {
 
 function _ext_upd_backup_dir(string $srcDir, string $zipPath): bool {
 	if (!class_exists('ZipArchive') || !is_dir($srcDir)) return false;
+	if (count(array_diff(scandir($srcDir), ['.', '..'])) === 0) return true;
 	$zip = new ZipArchive();
 	if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) return false;
 

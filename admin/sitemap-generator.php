@@ -30,12 +30,8 @@ $contentCounts = [
 ];
 
 // Get the protocol and domain
-$isHttps  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-           || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
-           || (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on')
-           || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443);
-$protocol = $isHttps ? 'https' : 'http';
-$domain   = $_SERVER['HTTP_HOST'];
+$protocol = _sl_request_is_https() ? 'https' : 'http';
+$domain   = _sl_request_host();
 $baseDir  = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');
 $baseUrl  = $protocol . '://' . $domain . $baseDir;
 

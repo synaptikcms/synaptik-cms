@@ -35,12 +35,6 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     Deny from all
 </Files>
 
-# Block direct access to sensitive PHP files
-<Files ~ "admin-credentials\.php$">
-    Order allow,deny
-    Deny from all
-</Files>
-
 # Protect .htaccess files
 <Files ~ "^\.ht">
     Order allow,deny

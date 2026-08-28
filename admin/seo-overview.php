@@ -50,12 +50,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_seo_save'])) {
 	exit;
 }
 
-$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-$baseUrl  = $protocol . '://' . $_SERVER['HTTP_HOST'] . rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');
+$protocol = _sl_request_is_https() ? 'https' : 'http';
+$baseUrl  = $protocol . '://' . _sl_request_host() . rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');
 
 $contentTypes = ['article', 'page', 'project'];
 
-// Regrouper tous les items avec leur type et index pour affichage
 $allItems = [];
 foreach ($contentTypes as $type) {
 	if (!empty($data[$type])) {
@@ -77,7 +76,6 @@ foreach ($contentTypes as $type) {
 	}
 }
 
-// Stats globales
 $total        = count($allItems);
 $missing_title = 0;
 $missing_desc  = 0;
@@ -90,7 +88,6 @@ foreach ($allItems as $item) {
 	if ($no_title && $no_desc) $missing_both++;
 }
 
-// Filtre actif (URL param)
 $filter = $_GET['filter'] ?? 'all';
 
 $filtered = array_filter($allItems, function($item) use ($filter) {
@@ -101,7 +98,6 @@ $filtered = array_filter($allItems, function($item) use ($filter) {
 	return true; // 'all'
 });
 
-// Sidebar
 $draftsDir  = sl_admin_drafts_dir();
 $draftCount = 0;
 if (file_exists($draftsDir)) {
@@ -115,13 +111,11 @@ unset($_SESSION['message'], $_SESSION['error']);
 $pageTitle = __t('seo_overview');
 $extraHead = '<link rel="stylesheet" href="assets/css/admin-content.css">';
 
-// Pre-compute counts for each tab (matches the missing_any / complete semantics used by the filter)
 $missing_any_count = count(array_filter($allItems, fn($i) => empty($i['meta_title']) || empty($i['meta_description'])));
 $complete_count    = $total - $missing_both;
 
 ob_start();
 ?>
-			<!-- ── Stats bar (tabs, matches Alt-Text Assistant) ─────────── -->
 			<div class="tabs">
 				<?php
 				$seoTabs = [
@@ -140,7 +134,6 @@ ob_start();
 				</a>
 				<?php endforeach; ?>
 			</div>
-			<!-- ── Table ─────────────────────────────────────────────── -->
 			<?php if (empty($filtered)): ?>
 				<div class="empty-state">
 					<p><?php _e('seo_no_items_filter'); ?></p>
@@ -168,8 +161,6 @@ ob_start();
 								<span class="type-badge type-<?php echo hsc($item['type']); ?>"><?php echo hsc(sl_type_label($item['type'])); ?></span>
 								<div class="slug-cell" style="margin-top: 5px;">/<?php echo hsc($item['slug']); ?></div>
 							</td>
-
-							<!-- Meta title éditable -->
 							<td>
 								<input type="text"
 									class="seo-field <?php echo empty($item['meta_title']) ? 'empty' : ''; ?>"
@@ -181,7 +172,6 @@ ob_start();
 								<span class="char-counter"><?php echo mb_strlen($item['meta_title']); ?>/60</span>
 								<span class="save-indicator"></span>
 							</td>
-							<!-- Meta description éditable -->
 							<td>
 								<textarea
 									class="seo-field <?php echo empty($item['meta_description']) ? 'empty' : ''; ?>"
@@ -193,7 +183,6 @@ ob_start();
 								<span class="char-counter"><?php echo mb_strlen($item['meta_description']); ?>/160</span>
 								<span class="save-indicator"></span>
 							</td>
-							<!-- Meta keywords éditable -->
 							<td>
 								<input type="text"
 									class="seo-field <?php echo empty($item['meta_keywords']) ? 'empty' : ''; ?>"
@@ -204,7 +193,6 @@ ob_start();
 									maxlength="255">
 								<span class="save-indicator"></span>
 							</td>
-							<!-- Lien édition -->
 							<td style="text-align: center; vertical-align: middle;">
 								<a href="<?php echo $item['edit_url']; ?>" class="table-btn edit-btn small"><?php echo admin_icon('writing', '', 13); ?><?php _e('edit'); ?></a>
 							</td>

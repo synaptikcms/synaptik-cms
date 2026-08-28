@@ -4,11 +4,6 @@ if (!defined('INCLUDED')) {
 	exit('Direct access to this file is not allowed');
 }
 
-// ── .htaccess protection check ─────────────────────────────────────────────────
-// Verify that sensitive directories are actually blocked by the web server.
-// On nginx without manual location blocks, .htaccess has no effect and these
-// directories would be publicly readable. We probe once per hour and cache
-// the result so it doesn't add latency on every dashboard load.
 $_sb_htaccessWarn = false;
 $_sb_htaccessCache = dirname(__DIR__) . '/cache/htaccess-check.json';
 $_sb_htaccessTtl   = 3600;
@@ -124,17 +119,12 @@ if (!isset($appSettings)) {
 $_sb_update = admin_check_for_update();
 $_sb_news = admin_fetch_news();
 
-// Theme/plugin updates — same 24h-cached registry check used by the Theme
-// Manager and Extensions pages, so surfacing it here costs nothing extra on
-// a normal page load (cache hit) and never requires visiting those pages
-// first for the admin to find out an update exists.
 require_once __DIR__ . '/includes/extension-update-functions.php';
 $_sb_theme_updates  = admin_check_theme_updates();
 $_sb_plugin_updates = admin_check_plugin_updates();
 $_sb_ext_update_count = count($_sb_theme_updates) + count($_sb_plugin_updates);
 
 // ── Recent content items ─────────────────────────────────────────────────────
-// Author shown per item only on multi-user sites — see content-list.php.
 $_sb_authors = [];
 foreach (admin_load_users() as $_sb_u) {
 	$_sb_authors[$_sb_u['id']] = $_sb_u['display_name'] ?: $_sb_u['username'];
@@ -218,10 +208,7 @@ $recentItems = array_slice($recentItems, 0, 6);
 		<?php endforeach; ?>
 	</div>
 	<?php endif; ?>
-	<?php /* ── Dashboard widgets (plugins hook in here, e.g. Analytics traffic) ──
-	     Widgets share this grid: a plain .dashboard-panel spans the full width
-	     (e.g. Analytics), while .dashboard-panel--sm sits in a single auto-fit
-	     column so several small widgets (Booking, Comments) pack 2-3 per row. */ ?>
+
 	<div class="dashboard-widgets">
 	<?php pl_do_hook('admin_dashboard'); ?>
 	</div>

@@ -167,8 +167,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_alt_save'])) {
 	exit;
 }
 
-$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-$baseUrl  = $protocol . '://' . $_SERVER['HTTP_HOST'] . rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');
+$protocol = _sl_request_is_https() ? 'https' : 'http';
+$baseUrl  = $protocol . '://' . _sl_request_host() . rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');
 
 $contentTypes = ['article', 'page', 'project'];
 

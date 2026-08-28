@@ -393,7 +393,8 @@ if (!is_dir($srcDir)) {
     ext_upload_error(sprintf(__t('theme_upload_src_missing', 'Expected source directory not found: %s.'), htmlspecialchars($srcDir)));
 }
 
-if (!is_dir($destDir) && !@mkdir($destDir, 0755, true)) {
+$destExisted = is_dir($destDir);
+if (!$destExisted && !@mkdir($destDir, 0755, true)) {
     ext_upload_error(sprintf(__t('theme_upload_dest_failed', 'Cannot create destination directory: %s.'), htmlspecialchars($dirName)));
 }
 
@@ -425,7 +426,7 @@ function _ext_rmdir_r(string $dir): void
     rmdir($dir);
 }
 
-if ($isTheme && is_dir($destDir)) {
+if ($isTheme && $destExisted) {
     $bckpsDir = dirname(__DIR__) . '/bckps';
     if (!is_dir($bckpsDir)) mkdir($bckpsDir, 0755, true);
     $safetyZip = $bckpsDir . '/pre-theme-upload-' . $dirName . '-' . date('Y-m-d-His') . '.zip';

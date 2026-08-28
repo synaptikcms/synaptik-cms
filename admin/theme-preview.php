@@ -37,12 +37,8 @@ $payload   = $requestedTheme . '|' . $timestamp;
 $hmac      = hash_hmac('sha256', $payload, $secret);
 
 $token = strtr(base64_encode($payload . '|' . $hmac), '+/', '-_');
-$isHttps  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-           || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
-           || (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on');
-$host     = $_SERVER['HTTP_HOST'];
 $baseDir  = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');
-$siteRoot = ($isHttps ? 'https' : 'http') . '://' . $host . $baseDir . '/';
+$siteRoot = (_sl_request_is_https() ? 'https' : 'http') . '://' . _sl_request_host() . $baseDir . '/';
 
 header('Location: ' . $siteRoot . '?_tp=' . urlencode($token));
 exit;

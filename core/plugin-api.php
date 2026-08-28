@@ -193,7 +193,6 @@ function pl_delete_plugin(string $slug): bool
 }
 
 // ─── Loading ──────────────────────────────────────────────────────────────────
-
 function pl_load_plugin(string $slug, array $manifest): void
 {
     $entry = $manifest['entry'] ?? null;
@@ -286,7 +285,6 @@ function pl_delete_option(string $slug, string $key): bool
 }
 
 // ─── Admin menu registration ───────────────────────────────────────────────────
-
 $GLOBALS['_pl_admin_menu_items'] = [];
 
 function pl_register_admin_menu(string $slug, string $label, string $url, string $icon = ''): void

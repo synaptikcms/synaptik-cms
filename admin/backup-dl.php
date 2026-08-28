@@ -1,20 +1,4 @@
 <?php
-/**
- * Secure backup download proxy.
- *
- * Streams a file from /bckps/ after verifying the admin session.
- * /bckps/ is blocked from direct browser access by .htaccess, so all
- * downloads must go through this endpoint.
- *
- * Usage: backup-dl.php?file=synaptik-full-backup-2026-01-15-120000.zip
- *
- * Security:
- *   - Session auth check
- *   - basename() strips directory traversal from the filename parameter
- *   - realpath() confinement ensures the file is inside /bckps/
- *   - Extension whitelist: only .zip and .json files are served
- */
-
 require_once __DIR__ . '/includes/session-config.php';
 session_start();
 require_once __DIR__ . '/includes/admin-functions.php';

@@ -78,13 +78,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'Could not write reset token. Check write permissions on <code>/private/</code>.';
             } else {
                 $settings = admin_load_config();
-                $siteUrl  = rtrim($settings['site_url'] ?? '', '/');
-                if (empty($siteUrl)) {
-                    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-                    $docRoot  = rtrim($_SERVER['DOCUMENT_ROOT'], '/');
-                    $cmsPath  = str_replace($docRoot, '', rtrim(dirname(__DIR__), '/'));
-                    $siteUrl  = $protocol . '://' . $_SERVER['HTTP_HOST'] . $cmsPath;
-                }
+                $protocol = _sl_request_is_https() ? 'https' : 'http';
+                $docRoot  = rtrim($_SERVER['DOCUMENT_ROOT'], '/');
+                $cmsPath  = str_replace($docRoot, '', rtrim(dirname(__DIR__), '/'));
+                $siteUrl  = $protocol . '://' . _sl_request_host() . $cmsPath;
                 $resetUrl = $siteUrl . '/?reset_token=' . urlencode($token);
 
                 $siteName   = $settings['site_title'] ?? 'SynaptikCMS';

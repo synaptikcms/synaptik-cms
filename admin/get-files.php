@@ -79,9 +79,6 @@ echo json_encode([
 	'current_path' => $path
 ]);
 
-/**
- * Helper function to format file size
- */
 function formatFileSize($bytes) {
 	$units = ['B', 'KB', 'MB', 'GB', 'TB'];
 	$bytes = max($bytes, 0);

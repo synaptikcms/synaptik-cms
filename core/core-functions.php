@@ -136,9 +136,7 @@ function processContent($type, $slug, $data, $settings, $category = '', $tag = '
         if (in_array($type, $contentTypes)) {
             $contentFound = false;
             foreach ($data[$type] as $item) {
-                // Check for custom slug or default slug
                 $itemSlug = !empty($item['custom_slug']) ? $item['custom_slug'] : $item['slug'];
-                // Check if category matches when specified
                 if (!empty($category) && (!isset($item['category']) || sanitizeSlug($item['category']) !== $category)) {
                     continue;
                 }
@@ -146,11 +144,7 @@ function processContent($type, $slug, $data, $settings, $category = '', $tag = '
                 if ($itemSlug === $slug) {
                     $contentFound = true;
                     $pageTitle = decodeHtmlEntities($item['title']);
-
-                    // Use template files for content rendering
                     ob_start();
-                    // Pass the item to the appropriate template file
-                    // Load custom page template if assigned, else default content-{type}s
                     if ($type === 'page' && !empty($item['page_template'])) {
                         loadThemeTemplate('page-templates/' . $item['page_template'], ['item' => $item]);
                     } else {
@@ -176,17 +170,14 @@ function processContent($type, $slug, $data, $settings, $category = '', $tag = '
     // 2. ================  Content type list (articles/ or pages/ or projects/) ====================
     elseif (!empty($type) && empty($slug)) {
         if (in_array($type, $contentTypes) || $type === 'articles' || $type === 'pages' || $type === 'projects') {
-            // Handle plural forms too (articles, pages, projects)
             $actualType = $type;
             if (in_array($type, ['articles', 'pages', 'projects'])) {
                 $actualType = rtrim($type, 's');
             }
 
-            // Only proceed if the type is valid
             if (in_array($actualType, $contentTypes)) {
                 $pageTitle = ucfirst($type);
 
-                // Sort items by date descending
                 $items = [];
                 if (isset($data[$actualType]) && !empty($data[$actualType])) {
                     $items = $data[$actualType];
@@ -198,12 +189,9 @@ function processContent($type, $slug, $data, $settings, $category = '', $tag = '
                     });
                 }
 
-                // Pre-compute typed subsets for the content-list.php template
                 $articles = ($actualType !== 'project') ? $items : [];
                 $projects = ($actualType === 'project') ? $items : [];
 
-                // Use the theme's content-list.php template when available.
-                // Falls back to hardcoded rendering so existing themes keep working.
                 $contentListTpl = CMS_ROOT . '/theme/child_theme/' . ($settings['active_theme'] ?? 'default') . '/content-list.php';
                 if (!file_exists($contentListTpl)) {
                     $contentListTpl = CMS_ROOT . '/theme/' . ($settings['active_theme'] ?? 'default') . '/content-list.php';
@@ -215,8 +203,6 @@ function processContent($type, $slug, $data, $settings, $category = '', $tag = '
                     $filter_value = '';
                     include $contentListTpl;
                 } else {
-                    // Legacy hardcoded fallback — delegates to render_article_card() / render_project_card()
-                    // so partial overrides still apply even without content-list.php
                     echo '<section class="content-list">';
                     if (!empty($items)) {
                         if ($actualType === 'project') {
@@ -262,9 +248,7 @@ function processContent($type, $slug, $data, $settings, $category = '', $tag = '
     }
     // 3. ================ Homepage ================================
     elseif (empty($type) && empty($slug)) {
-        // Check if a specific page is set as homepage
         if ($settings['homepage_type'] === 'page' && !empty($settings['homepage_page_id'])) {
-            // Find the selected page
             $homePageFound = false;
             foreach ($data['page'] as $page) {
                 $pageSlug = !empty($page['custom_slug']) ? $page['custom_slug'] : $page['slug'];
@@ -309,15 +293,13 @@ function processContent($type, $slug, $data, $settings, $category = '', $tag = '
                     break;
                 }
             }
-            // If the selected homepage page wasn't found, fall back to default
             if (!$homePageFound) {
-                ob_start(); // Capture the formatted HTML
+                ob_start();
                 loadThemeTemplate('home', ['data' => $data, 'settings' => $settings]);
                 $pageContent = ob_get_clean();
             }
         } else {
-            // No specific page set as homepage, show default
-            ob_start(); // Capture the formatted HTML
+            ob_start();
             loadThemeTemplate('home', ['data' => $data, 'settings' => $settings]);
             $pageContent = ob_get_clean();
         }
@@ -354,7 +336,6 @@ function getGalleryScripts($galleryLayout)
             break;
 
         case 'carousel':
-            // Custom carousel implementation scripts if needed
             break;
     }
 
@@ -519,16 +500,12 @@ function renderCarouselGallery($galleryItems, $galleryId)
                 <div class="carousel-inner">';
 
     foreach ($galleryItems as $index => $galleryImage) {
-        // Construct full image URL
         $imageSrc = $galleryImage['src'];
         if (strpos($imageSrc, 'files/') !== 0) {
             $imageSrc = 'files/' . $imageSrc;
         }
         $imageUrl = getBaseUrl() . htmlspecialchars($imageSrc);
-
-        // First slide is active by default
         $activeClass = ($index === 0) ? ' active' : '';
-
         $altCarousel = !empty($galleryImage['alt_text'])
             ? htmlspecialchars(decodeHtmlEntities($galleryImage['alt_text']))
             : (!empty($galleryImage['caption']) ? htmlspecialchars(decodeHtmlEntities($galleryImage['caption'])) : '');

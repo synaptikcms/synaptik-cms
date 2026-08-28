@@ -416,6 +416,13 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 						<textarea id="default_meta_description" name="default_meta_description" rows="2"><?php echo hsc($appSettings['default_meta_description']); ?></textarea>
 						<p class="help-text"><?php _e('meta_description_vars'); ?></p>
 					</div>
+					<div class="form-group">
+						<label for="canonical_host"><?php _e('canonical_host_label'); ?></label>
+						<input type="text" id="canonical_host" name="canonical_host"
+							value="<?php echo hsc($appSettings['canonical_host'] ?? ''); ?>"
+							placeholder="<?php echo hsc(__t('canonical_host_placeholder')); ?>">
+						<p class="help-text"><?php _e('canonical_host_help'); ?></p>
+					</div>
 					<h3>Schema.org JSON-LD</h3>
 					<div class="form-group">
 						<label for="schema_author_name"><?php _e('schema_author_name_label'); ?></label>
@@ -733,10 +740,7 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 	'adminCacheClearConfirm' => __t('admin_cache_clear_confirm', 'Clear the admin cache? This will force a fresh check for CMS and extension updates.'),
 	'adminCacheClearBtn'     => __t('admin_cache_clear_btn', 'Clear admin cache'),
 ], JSON_HEX_TAG); ?></script>
-<!-- defer: this page's own HTML (with this tag) renders before the core
-     admin footer scripts, but settings-view.js needs window.SynaptikImagePicker
-     from common.js, which loads later in that footer — defer runs this
-     only after the whole document (including common.js) has parsed. -->
+
 <script src="assets/js/settings-view.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/settings-view.js'); ?>" defer></script>
 
 	<style>

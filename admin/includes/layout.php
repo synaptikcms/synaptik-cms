@@ -4,7 +4,6 @@ if (!defined('INCLUDED')) {
 	define('INCLUDED', true);
 }
 
-// ── Bootstrap (idempotent — standalone pages may have loaded this already) ──
 if (!isset($data)) {
 	$data = admin_load_data();
 }
@@ -17,7 +16,6 @@ if (!isset($contentCounts)) {
 	];
 }
 
-// ── Flash messages (session → local vars, consumed once) ──────────────────────
 global $admin_message, $admin_message_type;
 
 if (!isset($message)) {
@@ -32,12 +30,9 @@ if (!isset($notice)) {
 	if (isset($_SESSION['notice']))        { $notice = $_SESSION['notice']; unset($_SESSION['notice']); }
 }
 
-// ── Context ──────────────────────────────────────────────────────────────────
 $_currentAction = $_GET['action'] ?? '';
 $_currentType   = $_GET['type']   ?? '';
 $_isEditor      = $isEditor ?? in_array($_currentAction, ['add', 'edit']);
-
-// Resolve page title
 $_layoutTitle = $pageTitle
 	?? (function_exists('admin_get_page_title') ? admin_get_page_title() : 'Admin');
 
@@ -50,7 +45,6 @@ if ($_isEditor && $_currentAction === 'edit'
 	}
 }
 
-// ── Footer JS: detect which scripts are needed ────────────────────────────────
 $_currentScript  = basename($_SERVER['PHP_SELF']);
 $_needsPanel     = $_isEditor
 	|| in_array($_currentAction, ['settings', 'menu_builder', 'manage_categories',
@@ -61,7 +55,6 @@ $_needsPanel     = $_isEditor
 $_needsMenuJS    = in_array($_currentAction, ['settings', 'menu_builder'], true);
 $_needsEditorJS  = $_isEditor;
 
-// ── Footer: current CMS version (read from version.json at the CMS root) ──────
 $_sb_versionFile = dirname(dirname(__DIR__)) . '/version.json';
 $_sb_versionData = file_exists($_sb_versionFile) ? json_decode(file_get_contents($_sb_versionFile), true) : null;
 $_sb_version     = (is_array($_sb_versionData) && !empty($_sb_versionData['version'])) ? $_sb_versionData['version'] : '';

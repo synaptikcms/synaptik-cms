@@ -15,7 +15,6 @@ function zip_validate_entries(ZipArchive $zip, array $allowedExt, array $allowed
 			return ['ok' => false, 'error' => $_t('zip_val_traversal', 'Unsafe path in archive.')];
 		}
 
-		// Null byte injection
 		if (strpos($entry, "\x00") !== false) {
 			return ['ok' => false, 'error' => sprintf(
 				$_t('zip_val_traversal', 'Unsafe path in archive: "%s".'),
@@ -50,7 +49,6 @@ function zip_validate_entries(ZipArchive $zip, array $allowedExt, array $allowed
 
 		$baseName = basename($entry);
 
-		// .htaccess / .user.ini — allowed only under permitted path prefixes
 		if (in_array($baseName, ['.htaccess', '.user.ini'], true)) {
 			$allowed = false;
 			foreach ($allowedHtaccessPrefixes as $prefix) {
@@ -84,7 +82,6 @@ function zip_validate_entries(ZipArchive $zip, array $allowedExt, array $allowed
 				$_hsc($entry)
 			)];
 		}
-		// Intermediate segments (e.g. ".min" in jquery.min.js) — deny-list only
 		foreach ($parts as $seg) {
 			if (in_array($seg, $dangerous, true)) {
 				return ['ok' => false, 'error' => sprintf(

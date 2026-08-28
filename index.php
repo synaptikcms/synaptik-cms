@@ -96,7 +96,8 @@ if (isset($_GET['_tp']) && isset($_SESSION['admin']) && $_SESSION['admin'] === t
 
 $__pageCacheEligible = ($_SERVER['REQUEST_METHOD'] === 'GET')
     && empty($_SERVER['QUERY_STRING'])
-    && !(isset($_SESSION['admin']) && $_SESSION['admin'] === true);
+    && !(isset($_SESSION['admin']) && $_SESSION['admin'] === true)
+    && _sl_page_cache_host_allowed();
 $__pageCacheKey = null;
 
 if ($__pageCacheEligible) {

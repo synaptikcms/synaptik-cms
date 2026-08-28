@@ -1,17 +1,4 @@
 <?php
-/**
- * install.php — SynaptikCMS First-Run Installer
- *
- * Place this file at the root of your SynaptikCMS installation.
- * Access it in your browser to configure the CMS for the first time.
- * The installer locks itself permanently after successful setup.
- *
- * ⚠  DELETE this file from your server after installation.
- */
-
-// ─── Built-in translations (never written to locale files) ────────────────────
-// These strings exist only inside this file and disappear when it is deleted.
-
 $i18n = [
     'en' => [
         'lang_label'            => 'EN',
@@ -39,6 +26,8 @@ $i18n = [
         'optional'              => '(optional)',
         'help_site_desc'        => 'Displayed in meta descriptions and the site header.',
         'help_contact_email'    => 'Used for contact form submissions and admin password reset.',
+        'lbl_canonical_host'    => 'Canonical Site Host',
+        'help_canonical_host'   => 'Recommended. Pre-filled with the domain you\'re installing from — correct it if this isn\'t where the site will be reached publicly (e.g. you\'re setting up on a local or staging address first). Leave blank to auto-detect the domain from each request instead; you can change this anytime in Settings → SEO.',
         'help_admin_dir'        => 'Letters, numbers, hyphens and underscores only. Min. 3 characters. Cannot be: %s.',
         'dir_preview'           => 'URL: yoursite.com/',
         'btn_install'           => 'Install SynaptikCMS →',
@@ -113,6 +102,8 @@ $i18n = [
         'optional'              => '(optionnel)',
         'help_site_desc'        => 'Affiché dans les méta descriptions et l\'en-tête du site.',
         'help_contact_email'    => 'Utilisé pour le formulaire de contact et la réinitialisation du mot de passe admin.',
+        'lbl_canonical_host'    => 'Domaine canonique du site',
+        'help_canonical_host'   => 'Recommandé. Pré-rempli avec le domaine depuis lequel vous installez — corrigez-le si ce n\'est pas là où le site sera accessible publiquement (par ex. vous configurez d\'abord en local ou sur un environnement de test). Laissez vide pour une détection automatique du domaine à chaque requête ; modifiable à tout moment dans Réglages → SEO.',
         'help_admin_dir'        => 'Lettres, chiffres, tirets et underscores uniquement. Min. 3 caractères. Interdit : %s.',
         'dir_preview'           => 'URL : votresite.com/',
         'btn_install'           => 'Installer SynaptikCMS →',
@@ -187,6 +178,8 @@ $i18n = [
         'optional'              => '(opcional)',
         'help_site_desc'        => 'Aparece en las meta descripciones y en el encabezado del sitio.',
         'help_contact_email'    => 'Usado para el formulario de contacto y el restablecimiento de contraseña.',
+        'lbl_canonical_host'    => 'Dominio canónico del sitio',
+        'help_canonical_host'   => 'Recomendado. Prerrellenado con el dominio desde el que está instalando — corríjalo si no es donde el sitio será accesible públicamente (por ejemplo, si está configurando primero en local o en un entorno de pruebas). Déjelo vacío para la detección automática del dominio en cada solicitud; se puede cambiar en cualquier momento en Ajustes → SEO.',
         'help_admin_dir'        => 'Solo letras, números, guiones y guiones bajos. Mín. 3 caracteres. No puede ser: %s.',
         'dir_preview'           => 'URL: tusitio.com/',
         'btn_install'           => 'Instalar SynaptikCMS →',
@@ -237,14 +230,8 @@ $i18n = [
     ],
 ];
 
-// ─── Language detection ───────────────────────────────────────────────────────
-
 $availableLangs = array_keys($i18n);
 
-/**
- * Resolves the installer UI language.
- * Priority: POST hidden field > GET param > browser Accept-Language > first available.
- */
 function installer_detect_lang(array $available): string
 {
     $fromRequest = $_GET['lang'] ?? $_POST['lang'] ?? null;
@@ -259,14 +246,8 @@ function installer_detect_lang(array $available): string
 }
 
 $currentLang = installer_detect_lang($availableLangs);
-
-// Merge with 'en' as fallback so missing keys in partial translations never cause notices.
 $t = array_merge($i18n['en'], $i18n[$currentLang] ?? []);
 
-/**
- * Returns a translated installer string.
- * Accepts optional sprintf arguments for strings containing %s / %d placeholders.
- */
 function __i(string $key, ...$args): string
 {
     global $t;
@@ -274,15 +255,12 @@ function __i(string $key, ...$args): string
     return $args ? vsprintf($str, $args) : $str;
 }
 
-/** Builds a URL pointing to this installer with the given lang code applied. */
 function lang_url(string $lang): string
 {
     $params = $_GET;
     $params['lang'] = $lang;
     return '?' . http_build_query($params);
 }
-
-// ─── Already-installed guard ──────────────────────────────────────────────────
 
 if (file_exists(__DIR__ . '/install.lock')) {
     $adminDir = 'admin';
@@ -301,12 +279,6 @@ if (file_exists(__DIR__ . '/install.lock')) {
 </div></body></html>');
 }
 
-// ─── Detect admin folder ───────────────────────────────────────────────────────
-
-/**
- * Scans the root for a folder that looks like the CMS admin panel.
- * Checks known names first, then falls back to a full directory scan.
- */
 function installer_detect_admin(): ?string
 {
     $root = __DIR__;
@@ -332,12 +304,20 @@ function installer_detect_admin(): ?string
     return null;
 }
 
-// ─── Requirements check ───────────────────────────────────────────────────────
+function installer_detected_host(): string
+{
+    $host = (string)($_SERVER['HTTP_HOST'] ?? '');
+    return preg_match('/^(\[[0-9a-fA-F:]+\]|[a-zA-Z0-9.-]+)(:\d{1,5})?$/', $host) ? strtolower($host) : '';
+}
 
-/**
- * Runs pre-installation requirement checks.
- * Returns an array of ['label', 'status' (ok|warning|error), 'detail'] entries.
- */
+function installer_validate_canonical_host(string $input): string
+{
+    $host = trim($input);
+    $host = preg_replace('#^https?://#i', '', $host);
+    $host = rtrim(strtok($host, '/'), '/');
+    return preg_match('/^(\[[0-9a-fA-F:]+\]|[a-zA-Z0-9.-]+)(:\d{1,5})?$/', $host) ? strtolower($host) : '';
+}
+
 function installer_check_requirements(string $root, ?string $adminName): array
 {
     $checks = [];
@@ -369,8 +349,6 @@ function installer_check_requirements(string $root, ?string $adminName): array
     return $checks;
 }
 
-// ─── Detect available CMS languages ──────────────────────────────────────────
-
 $cmsLanguages = [];
 $langDir = __DIR__ . '/lang/front';
 if (is_dir($langDir)) {
@@ -384,8 +362,6 @@ if (is_dir($langDir)) {
     }
 }
 if (empty($cmsLanguages)) $cmsLanguages = ['en' => 'English'];
-
-// ─── Timezone list ─────────────────────────────────────────────────────────────
 
 $timezones = [
     'UTC'     => ['UTC' => 'UTC'],
@@ -418,14 +394,10 @@ $timezones = [
     ],
 ];
 
-// ─── Run checks ───────────────────────────────────────────────────────────────
-
 $currentAdminName  = installer_detect_admin();
 $requirementChecks = installer_check_requirements(__DIR__, $currentAdminName);
 $requirementsOk    = !array_filter($requirementChecks, fn($c) => $c['status'] === 'error');
 $reservedNames     = ['data', 'files', 'lang', 'theme', 'bckps', 'css', 'js', 'install'];
-
-// ─── Process form submission ───────────────────────────────────────────────────
 
 $errors      = [];
 $success     = false;
@@ -435,6 +407,7 @@ $pv = [
     'language' => array_key_first($cmsLanguages) ?? 'en', 'site_title' => '',
     'site_description' => '', 'admin_dir' => 'admin',
     'timezone' => 'Europe/Paris', 'contact_email' => '',
+    'canonical_host' => installer_detected_host(),
 ];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -449,12 +422,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $adminDisplayName = trim($_POST['admin_display_name'] ?? '');
     $password     = $_POST['password']              ?? '';
     $passwordConf = $_POST['password_confirm']      ?? '';
+    $canonicalHost = installer_validate_canonical_host($_POST['canonical_host'] ?? '');
 
     $pv = ['language' => $language, 'site_title' => $siteTitle, 'site_description' => $siteDesc,
            'admin_dir' => $adminDir, 'timezone' => $timezone, 'contact_email' => $contactEmail,
-           'admin_username' => $adminUsername, 'admin_display_name' => $adminDisplayName];
-
-    // ── Validation ────────────────────────────────────────────────────────────
+           'admin_username' => $adminUsername, 'admin_display_name' => $adminDisplayName,
+           'canonical_host' => $canonicalHost];
 
     if (!array_key_exists($language, $cmsLanguages))   $errors[] = __i('err_invalid_lang');
     if ($siteTitle === '')                              $errors[] = __i('err_site_title');
@@ -467,8 +440,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = __i('err_email');
     }
 
-    // Password — 4 criteria matching change-password.php exactly:
-    //   mb_strlen >= 8  |  /[A-Z]/  |  /[0-9]/  |  /[\W_]/ (special chars incl. underscore)
     if (mb_strlen($password) < 8) {
         $errors[] = __i('err_pw_length');
     } elseif (!preg_match('/[A-Z]/', $password)) {
@@ -480,8 +451,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($password !== $passwordConf) $errors[] = __i('err_pw_match');
 
-    // ── Execute installation ──────────────────────────────────────────────────
-
     if (empty($errors)) {
         if (!$currentAdminName) {
             $errors[] = __i('err_no_admin_folder');
@@ -492,14 +461,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors)) {
-        // Step 1 — Create the initial admin account in private/users.json first.
-        // The rename (Step 2, right after) is the one irreversible move in
-        // this sequence — writing the account before it means a failed
-        // rename still leaves a fully configured, re-runnable installer,
-        // instead of a renamed-but-empty folder with no account and no way
-        // back in. private/ lives outside the admin folder (unaffected by
-        // the rename), so it's created here rather than waiting for Step 4
-        // below, which only re-writes its .htaccess if it already exists.
         $privateDir = __DIR__ . '/private';
         if (!is_dir($privateDir)) @mkdir($privateDir, 0755, true);
         if (is_dir($privateDir)) {
@@ -525,7 +486,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors) && $currentAdminName !== $adminDir) {
-        // Step 2 — Rename the admin folder now that it holds valid credentials.
         if (!rename(__DIR__ . '/' . $currentAdminName, __DIR__ . '/' . $adminDir)) {
             $errors[] = __i('err_rename_failed');
         }
@@ -533,13 +493,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($errors)) {
         $dstAdminPath = __DIR__ . '/' . $adminDir;
-
-        // Step 3 — Write a complete config.json with all defaults + user-supplied values.
-        // This ensures the file is explicit and complete from day one; nothing relies
-        // on runtime-only defaults after first install.
         $configFile = __DIR__ . '/config.json';
-
-        // Scan installed themes from the filesystem (same logic as getAvailableThemes())
         $_themes  = [];
         $_themeDir = __DIR__ . '/theme';
         if (is_dir($_themeDir)) {
@@ -553,21 +507,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($_themes)) $_themes = ['default'];
 
         $settings = [
-            // Content display
             'articles_per_page'          => 6,
             'projects_per_page'          => 3,
             'show_articles_on_homepage'  => true,
             'show_projects_on_homepage'  => true,
             'show_breadcrumbs'           => false,
-
-            // Menu
             'main_menu'                  => [],
             'use_custom_menu'            => false,
             'show_search_icon'           => false,
             'default_menu_style'         => 'grouped',
             'default_menu_order'         => 'date_desc',
-
-            // Site metadata
             'site_title'                 => $siteTitle,
             'site_description'           => $siteDesc,
             'default_meta_title'         => '{page_title} | {site_title}',
@@ -575,18 +524,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'enable_seo'                 => true,
             'show_site_title_in_header'  => true,
             'date_format'                => 'Y-m-d',
-
-            // Homepage
             'homepage_type'              => 'default',
             'homepage_page_id'           => '',
-
-            // Theme & language
             'active_theme'               => 'default',
             'available_themes'           => $_themes,
             'active_language'            => $language,
             'admin_language'             => $language,
-
-            // Image optimization
             'image_optimization_enabled' => true,
             'max_width'                  => 1920,
             'max_height'                 => 1080,
@@ -595,57 +538,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'thumb_width'                => 350,
             'thumb_height'               => 350,
             'convert_to_webp'            => true,
-
-            // Footer
             'footer_text'                => 'Powered by <a href="https://synaptikcms.com">SynaptikCMS</a> • &copy; {year}',
             'footer_show_login'          => false,
             'footer_show_social'         => false,
             'footer_social_links'        => [],
-
-            // Editor autosave
             'autosave_enabled'           => true,
             'autosave_interval'          => 10,
-
-            // Contact form
             'contact_email'              => $contactEmail,
             'contact_subject'            => 'New message from {name}',
             'contact_success_message'    => '',
             'contact_error_message'      => '',
             'hcaptcha_site_key'          => '',
             'hcaptcha_secret_key'        => '',
-
-            // Custom fields schema
             'custom_fields_schema'       => ['article' => [], 'page' => [], 'project' => []],
-
-            // System
             'admin_dir'                  => $adminDir,
             'site_url'                   => rtrim((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . str_replace($_SERVER['DOCUMENT_ROOT'], '', rtrim(__DIR__, '/')), '/'),
+            'canonical_host'             => $canonicalHost,
             'timezone'                   => $timezone,
-
-            // Branding
             'site_logo'                  => '',
             'site_favicon'               => '',
         ];
 
         file_put_contents($configFile, json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-
-        // Step 4 — .htaccess on sensitive directories + ensure required dirs exist
-        //
-        // Deny-all block: dual-syntax covers Apache 2.2 (Deny from all)
-        // and Apache 2.4 (Require all denied).
         $denyAll = "<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n"
                  . "<IfModule !mod_authz_core.c>\n    Deny from all\n</IfModule>\n";
 
-        // Deny-all on all directories that must never be served over HTTP.
-        // Always (re)write so a reinstall or upgrade gets the correct content
-        // even if the directory already existed without a .htaccess.
         foreach (['data', 'bckps', 'private', 'cache', 'lang'] as $d) {
             $dp = __DIR__ . '/' . $d;
             if (!is_dir($dp)) @mkdir($dp, 0755, true);
             if (is_dir($dp)) file_put_contents($dp . '/.htaccess', $denyAll);
         }
 
-        // /core/: deny all PHP files except the three public endpoints.
         $coreDir = __DIR__ . '/core';
         if (!is_dir($coreDir)) @mkdir($coreDir, 0755, true);
         $coreHtaccess = "<FilesMatch \"^(search|feed|contact-process|llms)\\.php$\">\n"
@@ -658,16 +581,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             . "</FilesMatch>\n";
         file_put_contents($coreDir . '/.htaccess', $coreHtaccess);
 
-        // Admin sub-directories: includes and templates are PHP includes only;
-        // cache holds internal JSON — none should be reachable directly.
         foreach (['includes', 'templates', 'cache'] as $sub) {
             $sp = $dstAdminPath . '/' . $sub;
             if (is_dir($sp)) file_put_contents($sp . '/.htaccess', $denyAll);
         }
 
-        // /plugins/ root: deny-all is NOT appropriate (plugin PHP endpoints must
-        // remain publicly reachable). Only plugins.json is blocked via FilesMatch.
-        // Always rewrite so the rule survives manual deletions.
         $pluginsDir = __DIR__ . '/plugins';
         if (!is_dir($pluginsDir)) @mkdir($pluginsDir, 0755, true);
         file_put_contents($pluginsDir . '/.htaccess',
@@ -678,7 +596,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             "</FilesMatch>\n"
         );
 
-        // /files/: block PHP execution, media files served normally.
         $filesDir = __DIR__ . '/files';
         if (!is_dir($filesDir)) @mkdir($filesDir, 0755, true);
         file_put_contents($filesDir . '/.htaccess',
@@ -689,26 +606,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             . "</FilesMatch>\n"
         );
 
-        // Step 5 — Lock the installer
         file_put_contents(__DIR__ . '/install.lock', json_encode(
             ['installed_at' => date('Y-m-d H:i:s'), 'admin_dir' => $adminDir],
             JSON_PRETTY_PRINT
         ));
-
-        // Step 6 — Self-delete. install.lock is the real safeguard (checked above
-        // on every request), but removing this file closes the window entirely —
-        // no lock file to lose, no way to re-run the installer even if install.lock
-        // is ever deleted by accident. Best-effort: silently ignored if the
-        // filesystem permissions don't allow it (installer stays lock-protected).
         @unlink(__FILE__);
-
-        // Step 7 — Remove migrate.php if it shipped with this release ZIP.
-        // migrate.php is a one-time upgrade script for sites coming from an
-        // older version; a fresh install has nothing to migrate. It already
-        // refuses to run without migrate.lock (only written by the in-admin
-        // updater), but there's no reason to leave a dead script on disk.
         @unlink(__DIR__ . '/migrate.php');
-
         $success     = true;
         $redirectUrl = $adminDir . '/auth.php';
     }
@@ -892,8 +795,13 @@ select option { background: var(--secondary); }
                     <p class="help-text"><?= __i('help_contact_email') ?></p>
                 </div>
             </div>
+            <div class="form-group">
+                <label for="canonical_host"><?= __i('lbl_canonical_host') ?> <span class="opt"><?= __i('optional') ?></span></label>
+                <input type="text" id="canonical_host" name="canonical_host"
+                       value="<?= htmlspecialchars($pv['canonical_host']) ?>" placeholder="www.example.com">
+                <p class="help-text"><?= __i('help_canonical_host') ?></p>
+            </div>
         </div>
-
         <div class="card">
             <div class="card-title"><span>🔐</span> <?= __i('sec_admin') ?></div>
             <div class="form-group">
@@ -941,7 +849,6 @@ select option { background: var(--secondary); }
                 </div>
             </div>
         </div>
-
         <div class="card" style="border-color:rgba(79,167,92,.25);">
             <div class="card-title"><span>📋</span> <?= __i('sec_summary') ?></div>
             <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;font-size:.875rem;color:var(--text-muted);">
@@ -953,17 +860,13 @@ select option { background: var(--secondary); }
                 <li>✅ <?= __i('summary_lock') ?></li>
             </ul>
         </div>
-
         <button type="submit" class="btn-install" data-requirements-ok="<?= $requirementsOk ? '1' : '0' ?>" <?= $requirementsOk ? '' : 'disabled' ?>>
             <?= __i('btn_install') ?>
         </button>
     </form>
-
     <div class="installer-footer"><strong><?= __i('footer_note_label') ?></strong> <?= __i('footer_note') ?></div>
-
     <?php endif; ?>
 </div>
-
 <script src="assets/js/install.js?v=<?php echo @filemtime(__DIR__ . "/assets/js/install.js"); ?>"></script>
 </body>
 </html>

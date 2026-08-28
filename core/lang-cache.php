@@ -22,7 +22,6 @@ function _lang_cms_root(): string {
 		$dir = dirname($dir);
 	}
 
-	// Fallback: assume this file is at the CMS root
 	$root = rtrim(__DIR__, '/\\');
 	return $root;
 }

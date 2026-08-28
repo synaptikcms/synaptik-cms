@@ -127,6 +127,11 @@ if (isset($_POST['save_settings'])) {
 	$appSettings['schema_author_name']    = trim($_POST['schema_author_name'] ?? '');
 	$appSettings['schema_publisher_type'] = in_array($_POST['schema_publisher_type'] ?? '', ['Person', 'Organization'], true)
 		? $_POST['schema_publisher_type'] : 'Person';
+	$canonicalHost = trim($_POST['canonical_host'] ?? '');
+	$canonicalHost = preg_replace('#^https?://#i', '', $canonicalHost);
+	$canonicalHost = rtrim(strtok($canonicalHost, '/'), '/');
+	$appSettings['canonical_host'] = preg_match('/^(\[[0-9a-fA-F:]+\]|[a-zA-Z0-9.-]+)(:\d{1,5})?$/', $canonicalHost)
+		? $canonicalHost : '';
 	$appSettings['show_site_title_in_header'] = isset($_POST['show_site_title_in_header']);
 	$appSettings['homepage_type'] = $_POST['homepage_type'];
 	$appSettings['homepage_page_id'] = $_POST['homepage_page_id'];
@@ -260,14 +265,7 @@ if (isset($_POST['save_settings'])) {
 			'plural'   => trim($_POST['type_label_' . $_tlType . '_plural'] ?? ''),
 		];
 	}
-	// Keyed by slug => the type that claimed it, not a plain seen-set — a
-	// type's own singular and plural are allowed to share a slug (many
-	// languages have no distinct plural form, e.g. "Info"/"Info" or
-	// Japanese generally). The router maps both to the same internal type
-	// either way (see parseRequestUri()'s $typeFromSlug build), so that's
-	// never ambiguous. Only a slug shared across two *different* types (or
-	// colliding with the reserved "category"/"tag" segments) is a real
-	// routing conflict worth blocking.
+
 	$_tlSlugsSeen  = [];
 	$_tlCollision  = false;
 	foreach ($_tlSubmitted as $_tlType => $_tlPair) {

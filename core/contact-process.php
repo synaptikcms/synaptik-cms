@@ -24,11 +24,15 @@ if ($formTime === 0 || (time() - $formTime) < 5) {
     _contact_silent_success($settings); // silent — don't tip off bots
 }
 // ── 4. Referrer validation ────────────────────────────────────────────────────
-$siteHost = parse_url(
-    (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')
-    . '://' . $_SERVER['HTTP_HOST'],
-    PHP_URL_HOST
-);
+$siteHost = trim((string)($settings['canonical_host'] ?? ''));
+$siteHost = parse_url((strpos($siteHost, '://') !== false ? $siteHost : '//' . $siteHost), PHP_URL_HOST) ?: '';
+if ($siteHost === '') {
+    $siteHost = parse_url(
+        (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')
+        . '://' . $_SERVER['HTTP_HOST'],
+        PHP_URL_HOST
+    );
+}
 $refererHost = parse_url($_SERVER['HTTP_REFERER'] ?? '', PHP_URL_HOST);
 if (empty($refererHost) || strtolower($refererHost) !== strtolower($siteHost)) {
     _contact_fail('referrer');

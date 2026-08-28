@@ -2,6 +2,25 @@
 
 All notable changes to SynaptikCMS are documented here.  
 
+## [1.4.2] — 2026-08-28
+
+### Fixed
+
+- **Theme upload failed on a fresh install** — installing any theme through Appearance → Theme Manager was cancelled with a "could not back up the existing theme" error, even though there was no existing theme to back up. The destination folder was created and left empty. Fixed.
+- **Full-page cache served the wrong site's HTML on multi-hostname setups** — if your site answered on more than one hostname (e.g. with and without "www."), whichever hostname was cached first determined the styles, images, and scripts served to *every* hostname afterward, breaking the page for the others. The cache now keeps a separate entry per hostname, so this can no longer happen.
+
+### Security
+
+- **A forged Host header could get cached and served to every visitor** — the page cache didn't account for the hostname a request claimed to be for, so a single crafted request could plant content (including the page's canonical link) that later anonymous visitors would then receive. Closed by the same fix as above.
+- **New optional "Canonical Site Host" setting** (Settings → SEO) — lets you pin the exact domain used for generated links, the canonical tag, and the page cache, instead of trusting the hostname each visitor's browser happens to send. If your site answers under more than one hostname, or you're not sure, setting this is recommended even beyond the multi-hostname case: without it, a request under any hostname still earns its own page-cache entry, so it also caps how many cache entries an anonymous visitor can cause to be written.
+- **Installer now asks for the Canonical Site Host up front** — pre-filled, editable, optional.
+
+### Removed
+
+- Leftover legacy code from the pre-multi-user login system.
+
+---
+
 ## [1.4.1] — 2026-08-27
 
 ### Added

@@ -67,7 +67,6 @@ if (!$tokenValid && $_SERVER['REQUEST_METHOD'] !== 'POST') {
     $error = __t('reset_link_invalid', 'This reset link is invalid or has expired.');
 }
 
-// ── Handle POST ───────────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
@@ -121,7 +120,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// ── Translated JS strings (passed from PHP so the page works without CMS_LANG) ─
 $jsStrings = [
     'r_len'   => __t('reset_rule_length',  '8+ characters'),
     'r_up'    => __t('reset_rule_upper',   '1 uppercase'),
@@ -137,8 +135,8 @@ $jsStrings = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo hsc(__t('reset_new_pwd_heading', 'Set New Password')); ?> — SynaptikCMS</title>
     <?php
-    $_scheme      = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $_adminCssUrl = $_scheme . '://' . $_SERVER['HTTP_HOST']
+    $_scheme      = _sl_request_is_https() ? 'https' : 'http';
+    $_adminCssUrl = $_scheme . '://' . _sl_request_host()
                   . str_replace(rtrim($_SERVER['DOCUMENT_ROOT'], '/'), '', rtrim(__DIR__, '/'));
     ?>
     <script src="<?php echo hsc($_adminCssUrl); ?>/assets/js/theme-boot.js?v=<?php echo @filemtime(__DIR__ . '/assets/js/theme-boot.js'); ?>"></script>

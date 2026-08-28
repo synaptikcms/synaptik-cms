@@ -376,9 +376,6 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 			$sourceSlug = $_POST['source_slug'];
 			$targetSlug = $_POST['target_slug'];
 
-			// Resolve target name: check the dedicated tags store first,
-			// then fall back to scanning content items for inline-only tags
-			// (tags that were never explicitly added/edited via the admin).
 			$targetName = $data['tags'][$targetSlug]['name'] ?? null;
 			if ($targetName === null) {
 				foreach (['article', 'project'] as $ct) {
@@ -924,9 +921,6 @@ function handleContentEdit() {
 	exit;
 }
 
-/**
- * Sync menu item URLs in config.json when a post's slug or category changes
- */
 function syncMenuUrls($contentType, $oldSlug, $newSlug, $newCategory) {
 	$settingsFile = '../config.json';
 	if (!file_exists($settingsFile)) return;

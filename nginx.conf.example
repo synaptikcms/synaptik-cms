@@ -41,7 +41,7 @@ server {
     }
 
     # ── Block direct access to sensitive files ────────────────────────────────
-    location ~ /(config\.json|admin-credentials\.php|plugins\.json|install\.lock)$ {
+    location ~ /(config\.json|plugins\.json|install\.lock)$ {
         deny all;
         return 403;
     }

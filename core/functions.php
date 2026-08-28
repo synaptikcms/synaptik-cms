@@ -60,10 +60,7 @@ function _image_dimensions_attr(string $relativePath): string {
 }
 
 function getBaseUrl() {
-	$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-	          || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
-	          || (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on');
-	$origin = ($isHttps ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'];
+	$origin = (_sl_request_is_https() ? 'https' : 'http') . '://' . _sl_request_host();
 
 	$docRoot = realpath($_SERVER['DOCUMENT_ROOT'] ?? '') ?: '';
 	$cmsRoot = defined('CMS_ROOT') ? realpath(CMS_ROOT) ?: '' : '';
@@ -84,11 +81,6 @@ function sl_type_label(string $type, bool $plural = false): string {
 	return __t($plural ? $type . 's' : $type, ucfirst($type));
 }
 
-// Content-type labels for front-end JS (search result badges/headings, or any
-// theme/plugin script that needs the current — possibly renamed — type name).
-// Emitted once by render_header_scripts() as a data-window-var JSON island;
-// front-boot.js's generic island reader assigns it to window.CMS_TYPE_LABELS,
-// no per-theme wiring needed. See docs/theme-contract.md.
 function sl_type_labels_json(): string {
 	$labels = [];
 	foreach (['article', 'page', 'project'] as $type) {
@@ -138,7 +130,6 @@ function cleanUrl($type, $slug = null, $page = null, $category = null) {
 
 	if (in_array($type, ["article", "project", "page"])) {
 		if ($slug === null && $page === null) {
-			// Content type list: use localized plural prefix (e.g. 'articles', 'projets')
 			return $baseUrl . url_slug($type . 's') . "/";
 		} elseif ($slug !== null && $page === null) {
 			if ($type === "page") {
@@ -172,10 +163,7 @@ function cleanUrl($type, $slug = null, $page = null, $category = null) {
 }
 
 function adminCleanUrl($contentType, $slug, $customSlug = '', $category = '') {
-	$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-	          || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
-	          || (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on');
-	$baseUrl = ($isHttps ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'];
+	$baseUrl = (_sl_request_is_https() ? 'https' : 'http') . '://' . _sl_request_host();
 	$baseDir = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');
 
 	$finalSlug    = !empty($customSlug) ? $customSlug : $slug;

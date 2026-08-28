@@ -18,21 +18,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 require_once('image-optimization.php');
 $allowedTypes = [
-	// Images
 	'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'bmp', 'tiff', 'tif',
-	// Documents
 	'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf', 'odt', 'ods', 'odp'
 ];
 
-// List of image types that should be optimized
 $imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-
 $maxFileSize = 10 * 1024 * 1024; // 10MB max for Editor uploads
-
-// Set target directory
 $targetDir = '../files/';
 
-// Create directory if it doesn't exist
 if (!file_exists($targetDir)) {
 	if (!mkdir($targetDir, 0755, true)) {
 		header('HTTP/1.1 500 Internal Server Error');
@@ -41,10 +34,8 @@ if (!file_exists($targetDir)) {
 	}
 }
 
-// Thumbnails directory
 $thumbsDir = ensureThumbnailsDir($targetDir);
 
-// Load settings directly from settings file to ensure latest values
 $settingsFile = dirname(__DIR__) . '/config.json';
 $appSettings = [];
 if (file_exists($settingsFile)) {
@@ -54,7 +45,6 @@ if (file_exists($settingsFile)) {
 	}
 }
 
-// Image optimization settings - use consistent variable names
 $imageOptimizationEnabled = $appSettings['image_optimization_enabled'] ?? true;
 $maxWidth = $appSettings['max_width'] ?? 1920;
 $maxHeight = $appSettings['max_height'] ?? 1080;
@@ -65,28 +55,20 @@ $thumbHeight = $appSettings['thumb_height'] ?? 300;
 $convertToWebP      = $appSettings['convert_to_webp']          ?? false;
 $keepOriginalFormat = $appSettings['keep_original_format'] ?? false;
 
-// Check if WebP is supported
 $webpSupported = function_exists('imagewebp');
 
-// If WebP is not supported, disable conversion
 if (!$webpSupported) {
 	$convertToWebP = false;
 }
 
-// CKEditor 4 sends the file with the parameter name "upload"
 if (isset($_FILES['upload']) && $_FILES['upload']['error'] === 0) {
-	// Check file size
 	if ($_FILES['upload']['size'] > $maxFileSize) {
 		header('HTTP/1.1 400 Bad Request');
 		echo json_encode(['error' => 'File too large. Maximum file size is 10MB.']);
 		exit;
 	}
-	
-	// Sanitize filename
 	$originalName = basename($_FILES['upload']['name']);
 	$fileName = sanitizeFileName($originalName);
-	
-	// Check file type
 	$fileExtension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
 	if (!in_array($fileExtension, $allowedTypes)) {
 		header('HTTP/1.1 400 Bad Request');
@@ -96,20 +78,14 @@ if (isset($_FILES['upload']) && $_FILES['upload']['error'] === 0) {
 		exit;
 	}
 	
-	// Generate unique filename to prevent overwriting
 	$uniqueFileName = time() . '_' . $fileName;
 	$targetFile = $targetDir . $uniqueFileName;
-	
-	// Check if it's an image that should be optimized
 	$isImage = in_array($fileExtension, $imageTypes);
 	$shouldOptimize = $isImage && $imageOptimizationEnabled;
 	
-	// MIME type validation — strict for images, ban-list for everything else
 	if (extension_loaded('fileinfo')) {
 		$finfo    = new finfo(FILEINFO_MIME_TYPE);
 		$mimeType = $finfo->file($_FILES['upload']['tmp_name']);
-
-		// Strict allowed MIME types for image and PDF extensions
 		$strictMimes = [
 			'jpg'  => ['image/jpeg'],
 			'jpeg' => ['image/jpeg'],
@@ -125,7 +101,6 @@ if (isset($_FILES['upload']) && $_FILES['upload']['error'] === 0) {
 			'txt'  => ['text/plain'],
 		];
 
-		// MIME types that are never acceptable regardless of extension
 		$bannedMimes = [
 			'text/html', 'application/x-php', 'application/php',
 			'text/x-php', 'application/x-httpd-php', 'application/x-httpd-php3',
@@ -142,45 +117,28 @@ if (isset($_FILES['upload']) && $_FILES['upload']['error'] === 0) {
 			echo json_encode(['error' => 'File content does not match declared extension.']);
 			exit;
 		}
-		// Office/ODF formats (docx, xlsx, odt…) are ZIP-based and return application/zip
-		// via finfo — extension whitelist above is sufficient for those.
 	}
 
-	// Determine if WebP conversion should be applied
 	$doWebPConversion = $isImage && $convertToWebP && $webpSupported && $fileExtension !== 'webp';
-	
-	// For WebP conversion, prepare both filenames
 	$originalFormatFile = $targetFile;
 	$webpFile = $targetDir . pathinfo($uniqueFileName, PATHINFO_FILENAME) . '.webp';
 	
-	// Check if a specific page is set as homepage
 	if ($shouldOptimize) {
-	  // Create thumbnail path
 	  $thumbnailPath = $thumbsDir . '/thumb_' . $uniqueFileName;
-	  
-	  // First move the uploaded file to a temporary location
 	  $tempFile = $targetDir . 'temp_' . $uniqueFileName;
 	  if (move_uploaded_file($_FILES['upload']['tmp_name'], $tempFile)) {
-		// Log original file size for debugging
 		$originalSize = filesize($tempFile);
-		
 		try {
-		  // Define WebP file path for later (if needed)
 		  $webpFilePath = '';
 		  if ($doWebPConversion) {
 			$webpFilePath = $targetDir . pathinfo($uniqueFileName, PATHINFO_FILENAME) . '.webp';
 		  }
-		  
-		  // Define the primary destination path - this will either be the original format or webp
 		  $primaryDestination = $doWebPConversion && !$keepOriginalFormat ? $webpFilePath : $targetFile;
-		  
-		  // Define the thumbnail path
 		  $thumbnailPath = $thumbsDir . '/thumb_' . $uniqueFileName;
 		  if ($doWebPConversion && !$keepOriginalFormat) {
 			$thumbnailPath = $thumbsDir . '/thumb_' . pathinfo($uniqueFileName, PATHINFO_FILENAME) . '.webp';
 		  }
 		  
-		  // Optimize the image
 		  $optimizeResult = optimizeImage(
 			$tempFile,                       // Source file
 			$primaryDestination,             // Destination file
@@ -196,12 +154,10 @@ if (isset($_FILES['upload']) && $_FILES['upload']['error'] === 0) {
 			$keepOriginalFormat              // Keep original format
 		  );
 		  
-	  // Result file defaults to the optimized destination
 		  $resultFile     = $primaryDestination;
 		  $resultFilename = basename($resultFile);
 
 		  if (!$optimizeResult) {
-			// Optimization failed — fall back to a direct copy of the temp file
 			if (!copy($tempFile, $targetFile)) {
 				header('HTTP/1.1 500 Internal Server Error');
 				echo json_encode(['error' => 'Failed to process uploaded image']);
@@ -211,7 +167,6 @@ if (isset($_FILES['upload']) && $_FILES['upload']['error'] === 0) {
 			$resultFilename = $uniqueFileName;
 		  }
 		} catch (Exception $e) {
-		  // If there's an exception, fall back to direct copy
 		  if (!copy($tempFile, $targetFile)) {
 			header('HTTP/1.1 500 Internal Server Error');
 			echo json_encode(['error' => 'Failed to process uploaded image']);
@@ -221,15 +176,13 @@ if (isset($_FILES['upload']) && $_FILES['upload']['error'] === 0) {
 		  $resultFilename = $uniqueFileName;
 		}
 		
-		// Clean up temporary file if it still exists
 		if (file_exists($tempFile)) {
 		  @unlink($tempFile);
 		}
 	  }
 	}
 
-	// Calculate the URL relative to the site root
-	$baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]";
+	$baseUrl = (_sl_request_is_https() ? "https" : "http") . "://" . _sl_request_host();
 	$baseDir = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');
 	$fileUrl = $baseUrl . $baseDir . '/files/editor/' . basename($resultFile);
 	
@@ -249,7 +202,6 @@ if (isset($_FILES['upload']) && $_FILES['upload']['error'] === 0) {
 else {
 	$errorCode = isset($_FILES['upload']) ? $_FILES['upload']['error'] : 'No file submitted';
 	
-	// Return error if no file was submitted or there was an upload error
 	header('HTTP/1.1 400 Bad Request');
 	echo json_encode([
 		'error' => 'File upload failed. Error code: ' . $errorCode,
