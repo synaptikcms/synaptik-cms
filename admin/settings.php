@@ -157,6 +157,9 @@ if (isset($_POST['save_settings'])) {
 	$appSettings['autosave_interval'] = in_array((int)($_POST['autosave_interval'] ?? 5), [1, 3, 5, 10], true)
 		? (int)$_POST['autosave_interval']
 		: 5;
+	$appSettings['default_editor'] = in_array($_POST['default_editor'] ?? 'html', ['html', 'markdown'], true)
+		? $_POST['default_editor']
+		: 'html';
 	$socialLinks = [];
 	if (isset($_POST['settings']['footer_social_links']) && is_array($_POST['settings']['footer_social_links'])) {
 		foreach ($_POST['settings']['footer_social_links'] as $link) {

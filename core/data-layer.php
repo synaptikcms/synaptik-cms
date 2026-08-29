@@ -157,7 +157,18 @@ function _sl_configured_canonical_host(): string
     } else {
         $configured = '';
     }
-    return $configured !== '' ? strtolower($configured) : '';
+    if ($configured === '') return '';
+
+    static $normalized = [];
+    if (isset($normalized[$configured])) return $normalized[$configured];
+
+    $host = preg_replace('#^[a-zA-Z][a-zA-Z0-9+\-.]*://#', '', $configured);
+    $host = rtrim((string)strtok($host, '/'), '/');
+    $host = preg_match('/^(\[[0-9a-fA-F:]+\]|[a-zA-Z0-9.-]+)(:\d{1,5})?$/', $host)
+        ? strtolower($host)
+        : '';
+
+    return $normalized[$configured] = $host;
 }
 
 function _sl_raw_request_host(): string
@@ -181,6 +192,19 @@ function _sl_page_cache_host_allowed(): bool
     if ($canonical === '') return true;
 
     return _sl_raw_request_host() === $canonical;
+}
+
+function _sl_canonical_host_redirect_target(): ?string
+{
+    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET') return null;
+    if (isset($_SESSION['admin']) && $_SESSION['admin'] === true) return null;
+
+    $canonical = _sl_configured_canonical_host();
+    $raw = _sl_raw_request_host();
+    if ($canonical === '' || $raw === '' || $raw === $canonical) return null;
+
+    $scheme = _sl_request_is_https() ? 'https' : 'http';
+    return $scheme . '://' . $canonical . ($_SERVER['REQUEST_URI'] ?? '/');
 }
 
 function _sl_page_cache_file(string $urlPath, string $lang): string
@@ -641,6 +665,7 @@ function loadDefaultConfig(): array
         'footer_social_links'        => [],
         'autosave_enabled'           => true,
         'autosave_interval'          => 10,
+        'default_editor'             => 'html',
         'type_labels'                => [],
         'schema_author_name'         => '',
         'schema_publisher_type'      => 'Person',

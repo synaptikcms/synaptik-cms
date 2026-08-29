@@ -72,9 +72,7 @@ function sb_icon(string $name): string {
 			</li>
 		</ul>
 	</div>
-
 	<div class="sidebar-divider" style="margin-bottom: 15px;"></div>
-
 	<?php /* ── Content (flyout parent) ───────────────────────── */ ?>
 	<div class="sidebar-section sidebar-has-flyout <?php echo $_sb_content_active ? 'is-open' : ''; ?>" data-flyout="articles">
 		<ul>
@@ -101,9 +99,7 @@ function sb_icon(string $name): string {
 			<?php endif; ?>
 		</ul>
 	</div>
-
 	<div class="sidebar-divider"></div>
-
 	<?php /* ── Media ─────────────────────────────────────────── */ ?>
 	<div class="sidebar-section">
 		<ul>
@@ -114,7 +110,6 @@ function sb_icon(string $name): string {
 			</li>
 		</ul>
 	</div>
-
 	<?php /* ── Appearance (flyout) — hidden for authors, who have no items in it ── */ ?>
 	<?php if (admin_can_manage_all_content()): ?>
 	<div class="sidebar-divider"></div>
@@ -141,9 +136,7 @@ function sb_icon(string $name): string {
 		</ul>
 	</div>
 	<?php endif; ?>
-
 	<div class="sidebar-divider"></div>
-
 	<?php /* ── Tools (flyout parent) ────────────────────────── */ ?>
 	<div class="sidebar-section sidebar-has-flyout <?php echo $_sb_tools_active ? 'is-open' : ''; ?>" data-flyout="tools" data-flyout-label="1">
 		<ul>
@@ -171,9 +164,7 @@ function sb_icon(string $name): string {
 			<?php endif; ?>
 		</ul>
 	</div>
-
 	<div class="sidebar-divider"></div>
-
 	<?php
 	if (!function_exists('pl_get_admin_menu_items')) {
 		require_once dirname(dirname(__DIR__)) . '/core/plugin-api.php';
@@ -239,7 +230,6 @@ function sb_icon(string $name): string {
 	</div>
 	<?php endif; ?>
 	<div class="sidebar-divider"></div>
-
 	<?php /* ── Theme toggle ─────────────────────────────────── */ ?>
 	<div class="sidebar-section sidebar-theme-section">
 		<button type="button" id="theme-toggle" class="sidebar-theme-toggle" aria-label="Basculer le thème clair/sombre">
@@ -249,7 +239,6 @@ function sb_icon(string $name): string {
 			<span class="sb-parent-label theme-label-light"><?php _e('light_mode'); ?></span>
 		</button>
 	</div>
-
 	<?php /* ── User footer: display name (→ account) + icon-only logout ── */ ?>
 	<div class="sidebar-footer">
 		<a href="index.php?action=account" class="sidebar-footer-user <?php echo $_sb_account_active ? 'active' : ''; ?>">

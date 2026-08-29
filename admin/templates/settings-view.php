@@ -277,6 +277,15 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 				<div class="site-settings-section">
 					<h3><?php _e('settings_tab_writing'); ?></h3>
 					<div class="form-group">
+						<label for="default_editor"><?php echo admin_icon('writing'); ?> <?php _e('default_editor_label'); ?>:</label>
+						<?php $currentEditor = ($appSettings['default_editor'] ?? 'html') === 'markdown' ? 'markdown' : 'html'; ?>
+						<select id="default_editor" name="default_editor">
+							<option value="html" <?php echo $currentEditor === 'html' ? 'selected' : ''; ?>>WYSIWYG</option>
+							<option value="markdown" <?php echo $currentEditor === 'markdown' ? 'selected' : ''; ?>>Markdown</option>
+						</select>
+						<p class="help-text"><?php _e('default_editor_help'); ?></p>
+					</div>
+					<div class="form-group">
 						<label for="date_format"><?php echo admin_icon('calendar'); ?> <?php _e('date_format_label'); ?>:</label>
 						<select id="date_format" name="date_format">
 							<?php

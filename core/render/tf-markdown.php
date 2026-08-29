@@ -27,6 +27,24 @@ function _md_to_html(string $md): string
         $md
     );
 
+    $linkRefs = [];
+    $md = preg_replace_callback(
+        '/^[ \t]{0,3}\[([^\^\]][^\]]*)\]:[ \t]*<?([^\s>]+)>?(?:[ \t]+(?:"([^"]*)"|\'([^\']*)\'|\(([^)]*)\)))?[ \t]*$/m',
+        function ($m) use (&$linkRefs) {
+            $label = strtolower(trim($m[1]));
+            if ($label === '') return $m[0];
+            $linkRefs[$label] = [
+                'url'   => $m[2],
+                'title' => ($m[3] ?? '') !== '' ? $m[3] : ((($m[4] ?? '') !== '') ? $m[4] : ($m[5] ?? '')),
+            ];
+            return '';
+        },
+        $md
+    );
+
+    $prevRefs = _md_ref_registry();
+    _md_ref_registry(array_replace($prevRefs, $linkRefs), true);
+
     // Step 3 — restore the raw fenced blocks so the main parsing pass can handle them normally (syntax-highlight, bracket encoding, etc.).
     $md = strtr($md, $earlyCodeBlocks);
     $md = trim($md);
@@ -217,7 +235,18 @@ function _md_to_html(string $md): string
         $output .= '</ol>' . "\n";
     }
 
+    _md_ref_registry($prevRefs, true);
+
     return $output;
+}
+
+function _md_ref_registry(?array $set = null, bool $replace = false): array
+{
+    static $refs = [];
+    if ($replace) {
+        $refs = $set ?? [];
+    }
+    return $refs;
 }
 
 function _md_render_list(array $lines, int &$i, int $n, int $indent, string $tag): string
@@ -290,14 +319,31 @@ function _md_sanitize_url(string $url): string
 }
 
 function _md_inline(string $text): string {
+    $refs = _md_ref_registry();
+    if ($refs && strpos($text, '][') !== false) {
+        $text = preg_replace_callback(
+            '/(!?)\[([^\]]*)\]\[([^\]]*)\]/',
+            function ($m) use ($refs) {
+                $label = strtolower(trim($m[3] !== '' ? $m[3] : $m[2]));
+                if (!isset($refs[$label])) return $m[0];
+                $ref   = $refs[$label];
+                $safeTitle = str_replace(['"', ')'], '', $ref['title']);
+                $title     = $safeTitle !== '' ? ' "' . $safeTitle . '"' : '';
+                return $m[1] . '[' . $m[2] . '](' . $ref['url'] . $title . ')';
+            },
+            $text
+        );
+    }
+
     $text = preg_replace_callback(
-        '/!\[([^\]]*)\]\(\s*([^)\s]+?)(?:\s+=(\d+%?)?x(\d+%?)?)?\s*\)/',
+        '/!\[([^\]]*)\]\(\s*([^)\s]+?)(?:\s+=(\d+%?)?x(\d+%?)?)?(?:\s+(?:"([^"]*)"|\'([^\']*)\'))?\s*\)/',
         function ($m) {
             $alt   = htmlspecialchars($m[1], ENT_QUOTES);
             $src   = htmlspecialchars(trim($m[2]), ENT_QUOTES);
             $w     = $m[3] ?? '';
             $h     = $m[4] ?? '';
-            $attrs = '';
+            $title = ($m[5] ?? '') !== '' ? $m[5] : ($m[6] ?? '');
+            $attrs = $title !== '' ? ' title="' . htmlspecialchars($title, ENT_QUOTES) . '"' : '';
             $style = 'max-width:100%';
             if ($w !== '') {
                 $attrs .= ' width="' . $w . '"';
@@ -316,9 +362,15 @@ function _md_inline(string $text): string {
         function ($m) {
             $target = preg_match('/\{:target="_blank"\}/', $m[2]) ? ' target="_blank" rel="noopener"' : '';
             $url    = trim(preg_replace('/\{[^}]+\}/', '', $m[2]));
+            $title  = '';
+            if (preg_match('/^(\S+)\s+(?:"([^"]*)"|\'([^\']*)\')$/', $url, $tm)) {
+                $url   = $tm[1];
+                $title = ($tm[2] ?? '') !== '' ? $tm[2] : ($tm[3] ?? '');
+            }
             $url    = _md_sanitize_url($url);
             $label  = htmlspecialchars($m[1], ENT_QUOTES, 'UTF-8');
-            return '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '"' . $target . '>' . $label . '</a>';
+            $titleAttr = $title !== '' ? ' title="' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '"' : '';
+            return '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '"' . $titleAttr . $target . '>' . $label . '</a>';
         },
         $text
     );

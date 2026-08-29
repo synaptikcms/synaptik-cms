@@ -7,6 +7,7 @@ if (!defined('INCLUDED')) {
 
 // Set default content type or use the one from URL
 $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ? $_GET['type'] : 'article';
+$defaultEditor = ($appSettings['default_editor'] ?? 'html') === 'markdown' ? 'markdown' : 'html';
 ?>
 
 			<div class="editor-layout" id="editor-layout">
@@ -25,7 +26,7 @@ $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ?
 						</div>
 
 						<!-- Format state synced to topbar switcher via JS (see _initFormatTabs below) -->
-						<input type="hidden" id="content-format" name="content_format" form="content-form" value="html">
+						<input type="hidden" id="content-format" name="content_format" form="content-form" value="<?php echo hsc($defaultEditor); ?>">
 
 				<!-- Content Editor -->
 				<div class="content-container">

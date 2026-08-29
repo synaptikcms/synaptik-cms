@@ -2,6 +2,21 @@
 
 All notable changes to SynaptikCMS are documented here.  
 
+## [1.4.3] — 2026-08-29
+
+### Fixed
+
+- **Pages loaded without any styling under a secondary domain** — the other variant of your address (with or without "www") now redirects to your main one.
+- **A mistyped "Canonical Site Host" could make the whole site unreachable.** Bad values are now corrected or ignored instead of breaking the site.
+- **Markdown images with a caption in quotes didn't display.** They now work, on images and links alike.
+
+### Added
+
+- **Reference-style Markdown links and images** — write `[text][label]` and put the address once at the bottom of the page as `[label]: address`.
+- **Default editor preference** (Settings → Writing) — new content can now open in Markdown instead of always starting in WYSIWYG.
+
+---
+
 ## [1.4.2] — 2026-08-28
 
 ### Fixed

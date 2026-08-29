@@ -38,6 +38,13 @@ pl_do_hook('early_request');
 
 $settings = loadConfig();
 
+$__canonicalRedirect = _sl_canonical_host_redirect_target();
+if ($__canonicalRedirect !== null) {
+    header('Location: ' . $__canonicalRedirect, true, 301);
+    exit;
+}
+unset($__canonicalRedirect);
+
 if (isset($_GET['reset_token']) && $_GET['reset_token'] !== '') {
     $_GET['token'] = $_GET['reset_token'];
 
