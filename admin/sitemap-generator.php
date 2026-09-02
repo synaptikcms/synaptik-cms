@@ -87,6 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_sitemap'])) 
     // ── Category listing pages ───────
     $seenCatUrls = [];
     $catPrefix   = admin_front_url_slug('category');
+    $categories  = $data['categories'] ?? [];
 
     foreach (['article', 'project', 'page'] as $ct) {
         foreach ($data[$ct] ?? [] as $item) {
@@ -101,10 +102,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_sitemap'])) 
             foreach ($segments as $seg) {
                 $accumulated = $accumulated !== '' ? $accumulated . '/' . $seg : $seg;
                 $catUrl = $baseUrl . '/' . $catPrefix . '/' . $accumulated . '/';
-                if (!isset($seenCatUrls[$catUrl])) {
-                    $seenCatUrls[$catUrl] = true;
-                    $addUrl($catUrl, date('Y-m-d'), '0.6');
-                }
+                if (isset($seenCatUrls[$catUrl])) continue;
+                $seenCatUrls[$catUrl] = true;
+                if (empty($categories[$seg]['description'])) continue;
+                $addUrl($catUrl, date('Y-m-d'), '0.6');
+            }
+        }
+    }
+
+    // ── Tag listing pages ───────
+    $seenTagUrls = [];
+    $tagPrefix   = admin_front_url_slug('tag');
+    $tags        = $data['tags'] ?? [];
+
+    foreach (['article', 'project', 'page'] as $ct) {
+        foreach ($data[$ct] ?? [] as $item) {
+            if (($item['status'] ?? 'published') !== 'published') continue;
+            if (empty($item['tags']) || !is_array($item['tags'])) continue;
+
+            foreach ($item['tags'] as $itemTag) {
+                $tagSlug = sanitizeSlug($itemTag);
+                if ($tagSlug === '' || empty($tags[$tagSlug]['description'])) continue;
+
+                $tagUrl = $baseUrl . '/' . $tagPrefix . '/' . $tagSlug . '/';
+                if (isset($seenTagUrls[$tagUrl])) continue;
+                $seenTagUrls[$tagUrl] = true;
+                $addUrl($tagUrl, date('Y-m-d'), '0.6');
             }
         }
     }

@@ -1,6 +1,42 @@
 # Changelog
 
-All notable changes to SynaptikCMS are documented here.  
+All notable changes to Synaptik CMS are documented here.  
+
+## [1.4.4] — 2026-09-02
+
+### Added
+
+- **Custom .htaccess rules** (Settings → SEO) — add your own redirects or server rules from the admin instead of by FTP. They're re-applied automatically after every update, and if a rule would take your site down it's undone on the spot.
+- **Site backups now also include your .htaccess file and any child-theme customizations** — both are restored automatically too, so a full backup/restore no longer leaves your custom server rules or theme overrides behind.
+- **Category and tag pages now have their own meta description and title** — add an optional description to any category or tag (Categories/Tags management screens) to use it for search engines; without one, a distinct description is generated automatically instead of every archive sharing the site's default one.
+- **Media Library warns before deleting an image still used in your content** - it also lists where.
+- **Search your own publications right from the "Insert Link" dialog** (WYSIWYG and Markdown editors) — type a title and pick a result to link internally without leaving the editor or copy-pasting a URL.
+
+### Changed
+
+- **Category and tag pages are indexed only once they have a description** — otherwise excluded from the sitemap and marked `noindex`.
+
+### Fixed
+
+- **"Add New" button in the admin top bar shows renamed content types** -- Settings → Rename Content Types: didn't update if you only filled in one of the two name fields (e.g. just the plural). It now uses whichever name you set.
+- **Clickable image in Markdown.** Wrapping an image in a link (to make it clickable) now displays correctly.
+- **Images hosted on another site never loaded.** Embedding an image by its full web address now works, in the editor and on the published page.
+- **Featured image alt text could be lost on save**, including autosave, even without touching the image. Now preserved.
+- **Renaming, moving, or WebP-converting an image could break its link to the posts using it** — the file changed, but posts kept the old path. These actions now update every post, gallery, and inline reference automatically.
+- **WebP conversion could occasionally produce a corrupted, blank image** if the process was interrupted mid-write. Every converted image is now verified before replacing the original.
+- **A post save could silently drop any field not present on the edit form** (relevant to plugin developers using `item_before_save`). These fields are now preserved.
+- **Autosave flagged a published post as having unsaved changes**, due to comparing category slug to its display name. Editing an unrelated field no longer shows a false "unsaved changes" badge in the content list.
+- **Default theme styling** - modified links.
+
+### Security
+
+- **Missing CSRF checks in the Media Library** (upload, folder creation, rename, move, batch optimizer) — could be triggered by another site while you were logged in. Deleting was already protected.
+- **Stored XSS via code blocks** — content inside a fenced code block wasn't sanitized like the rest of the editor, so a `<script>` tag placed there would run in an admin's browser. Code blocks are now always escaped as plain text.
+- **Stored XSS via WordPress import** — imported content skipped sanitization. Now cleaned like any other content; WordPress video embeds and image captions need to be re-added manually as a result.
+- **Missing CSRF check on the Settings form**, including the Robots.txt editor.
+- **Plugin files could be executed directly by URL** on Nginx (Apache was already protected via `.htaccess`), including the WordPress Importer's. Blocked on both now.
+
+---
 
 ## [1.4.3] — 2026-08-29
 
@@ -438,7 +474,7 @@ Thanks to [@treeandcoffee](https://github.com/treeandcoffee) for the continued s
 
 ### Fixed
 
-- Fixed admin sessions being shared between separate SynaptikCMS installs living under the same domain (e.g. a demo site in a sub-folder) — each install's admin login now uses its own uniquely-named session cookie, so logging into one no longer silently logs you into another with the wrong account name displayed.
+- Fixed admin sessions being shared between separate Synaptik CMS installs living under the same domain (e.g. a demo site in a sub-folder) — each install's admin login now uses its own uniquely-named session cookie, so logging into one no longer silently logs you into another with the wrong account name displayed.
 - Fixed active plugins' own admin pages incorrectly highlighting the "Tools" sidebar section instead of the plugin's own top-level sidebar entry.
 - Fixed active plugins' sidebar links reordering themselves depending on which plugin's admin page was currently open, instead of keeping a stable order.
 - **Redirects plugin**: fixed the admin sidebar link and post-save redirects pointing to a broken URL (e.g. `/plugins/admin/index.php?...` or a doubled `/admin/admin/...`) on any install not living at the domain root — admin-side URL building now resolves the CMS root from the plugin's filesystem path instead of the request-dependent `getBaseUrl()`.
@@ -450,7 +486,7 @@ Thanks to [@treeandcoffee](https://github.com/treeandcoffee) for the continued s
 
 ### Added
 
-- **Plugin system** — SynaptikCMS now supports standalone plugins: self-contained folders in `/plugins` (each with a `plugin.json` manifest) that extend the site without modifying core files. Plugins hook into the existing theme API (`add_theme_action`, `apply_theme_filters`) for front-end behaviour, and into a new lightweight hook system for admin integration.
+- **Plugin system** — Synaptik CMS now supports standalone plugins: self-contained folders in `/plugins` (each with a `plugin.json` manifest) that extend the site without modifying core files. Plugins hook into the existing theme API (`add_theme_action`, `apply_theme_filters`) for front-end behaviour, and into a new lightweight hook system for admin integration.
 - **Extensions page** (Tools → Extensions) — lists every plugin detected at the CMS root, with one-click activate/deactivate. Activation state is stored in `plugins.json`.
 - Active plugins can register their own entry in the admin sidebar, and render a full page inside the standard admin layout (sidebar, top bar, footer) via a new generic plugin page router — no plugin needs to reimplement the admin chrome.
 - First plugin built on this system: **Booking**, a standalone appointment-booking module (separate download, not bundled with core) — public calendar with weekly recurring availability and date exceptions, per-type appointment durations, admin approval workflow (pending/confirmed/refused/cancelled), and automatic email notifications with `.ics` calendar attachments for both the client and the site admin, including optional phone-callback reminders.

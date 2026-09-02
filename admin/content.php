@@ -98,7 +98,7 @@ if ($action === 'get_content_items') {
 		foreach ($data[$contentType] as $item) {
 			// Use custom slug if available, otherwise use default slug
 			$slug = !empty($item['custom_slug']) ? $item['custom_slug'] : $item['slug'];
-			
+
 			$items[] = [
 				'title' => $item['title'],
 				'slug' => $slug,
@@ -218,12 +218,16 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 		if ($categoryAction === 'add' && isset($_POST['category_name']) && !empty($_POST['category_name'])) {
 			$categoryName = trim($_POST['category_name']);
 			$categoryParent = isset($_POST['category_parent']) ? trim($_POST['category_parent']) : '';
+			$categoryDescription = trim($_POST['category_description'] ?? '');
 			if (!isset($data['categories'])) $data['categories'] = [];
 			$newSlug = sanitizeSlug($categoryName);
 			$entry = ['name' => $categoryName];
 			// Only store parent if it references an existing category slug
 			if (!empty($categoryParent) && isset($data['categories'][$categoryParent])) {
 				$entry['parent'] = $categoryParent;
+			}
+			if ($categoryDescription !== '') {
+				$entry['description'] = $categoryDescription;
 			}
 			$data['categories'][$newSlug] = $entry;
 			saveData($data);
@@ -294,6 +298,7 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 			$newName   = trim($_POST['category_name']);
 			$newSlug   = sanitizeSlug($newName);
 			$newParent = isset($_POST['category_parent']) ? trim($_POST['category_parent']) : '';
+			$newDescription = trim($_POST['category_description'] ?? '');
 			$anyChanges = false;
 
 			// Update the display name and/or slug in the categories store
@@ -305,12 +310,18 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 				} else {
 					unset($existingData['parent']);
 				}
+				if ($newDescription !== '') {
+					$existingData['description'] = $newDescription;
+				} else {
+					unset($existingData['description']);
+				}
 				unset($data['categories'][$oldSlug]);
 				$data['categories'][$newSlug] = $existingData;
 				$anyChanges = true;
 			} else {
 				$entry = ['name' => $newName];
 				if (!empty($newParent)) $entry['parent'] = $newParent;
+				if ($newDescription !== '') $entry['description'] = $newDescription;
 				$data['categories'][$newSlug] = $entry;
 				$anyChanges = true;
 			}
@@ -341,8 +352,11 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 
 		if ($tagAction === 'add' && isset($_POST['tag_name']) && !empty($_POST['tag_name'])) {
 			$tagName = trim($_POST['tag_name']);
+			$tagDescription = trim($_POST['tag_description'] ?? '');
 			if (!isset($data['tags'])) $data['tags'] = [];
-			$data['tags'][sanitizeSlug($tagName)] = ['name' => $tagName];
+			$tagEntry = ['name' => $tagName];
+			if ($tagDescription !== '') $tagEntry['description'] = $tagDescription;
+			$data['tags'][sanitizeSlug($tagName)] = $tagEntry;
 			saveData($data);
 			$_SESSION['message'] = sprintf(__t('tag_added'), $tagName);
 			header('Location: index.php?action=manage_tags'); exit;
@@ -425,18 +439,26 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 			$oldSlug = $_POST['tag_slug'];
 			$newName = trim($_POST['tag_name']);
 			$newSlug = sanitizeSlug($newName);
+			$newDescription = trim($_POST['tag_description'] ?? '');
 			$anyChanges = false;
 
 			// Update the display name and/or slug in the tags store
 			if (isset($data['tags'][$oldSlug])) {
 				$existingData         = $data['tags'][$oldSlug];
 				$existingData['name'] = $newName;
+				if ($newDescription !== '') {
+					$existingData['description'] = $newDescription;
+				} else {
+					unset($existingData['description']);
+				}
 				unset($data['tags'][$oldSlug]);
 				$data['tags'][$newSlug] = $existingData;
 				$anyChanges = true;
-			} elseif ($oldSlug !== $newSlug) {
-				// Orphan tag (not in store) with slug change — create store entry
-				$data['tags'][$newSlug] = ['name' => $newName];
+			} elseif ($oldSlug !== $newSlug || $newDescription !== '') {
+				// Orphan tag (not in store) with slug or description change — create store entry
+				$tagEntry = ['name' => $newName];
+				if ($newDescription !== '') $tagEntry['description'] = $newDescription;
+				$data['tags'][$newSlug] = $tagEntry;
 				$anyChanges = true;
 			}
 

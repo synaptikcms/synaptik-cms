@@ -78,9 +78,11 @@ if ($existingItem !== null && !in_array($currentStatus, ['draft', 'unpublished']
 		? admin_purify_markdown($_POST['content'] ?? '')
 		: admin_purify_html($_POST['content'] ?? '');
 
+	$pendingCategorySlug = trim($_POST['category'] ?? '') !== '' ? sanitizeSlug(trim($_POST['category'])) : '';
+
 	$pendingIsUnchanged =
 		(string)($existingItem['title']    ?? '') === (string)($_POST['title']    ?? '') &&
-		(string)($existingItem['category'] ?? '') === (string)($_POST['category'] ?? '') &&
+		(string)($existingItem['category'] ?? '') === $pendingCategorySlug &&
 		(string)($existingItem['summary']  ?? '') === (string)($_POST['summary']  ?? '') &&
 		(string)($existingItem['content']  ?? '') === $pendingContent;
 

@@ -659,7 +659,7 @@ function loadDefaultConfig(): array
         'thumb_width'                => 350,
         'thumb_height'               => 350,
         'convert_to_webp'            => true,
-        'footer_text'                => 'Powered by <a href="https://synaptikcms.com">SynaptikCMS</a> • &copy; {year}',
+        'footer_text'                => 'Powered by <a href="https://synaptikcms.com">Synaptik CMS</a> • &copy; {year}',
         'footer_show_login'          => false,
         'footer_show_social'         => false,
         'footer_social_links'        => [],

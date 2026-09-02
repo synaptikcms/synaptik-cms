@@ -26,8 +26,11 @@ if (!function_exists('themePreviewSecret')) {
 if (!function_exists('sl_type_label')) {
     function sl_type_label(string $type, bool $plural = false): string {
         $settings = admin_load_config();
-        $override = $settings['type_labels'][$type][$plural ? 'plural' : 'singular'] ?? '';
+        $labels   = $settings['type_labels'][$type] ?? [];
+        $override = $labels[$plural ? 'plural' : 'singular'] ?? '';
         if ($override !== '') return $override;
+        $fallback = $labels[$plural ? 'singular' : 'plural'] ?? '';
+        if ($fallback !== '') return $fallback;
         return __t($plural ? $type . 's' : $type, ucfirst($type));
     }
 }
@@ -490,11 +493,15 @@ function admin_build_content_item_from_post(
 			$selectedImagePath = 'files/' . ltrim($selectedImagePath, '/');
 		}
 		$item['image'] = $selectedImagePath;
+		if ($selectedImagePath === ($existingItem['image'] ?? null)) {
+			$item['image_alt'] = $existingItem['image_alt'] ?? '';
+		}
 	} elseif (isset($files['image']) && ($files['image']['error'] ?? 1) === 0) {
 		$uploadedImagePath = handleImageUpload($files['image'], $type);
 		if ($uploadedImagePath) $item['image'] = $uploadedImagePath;
 	} elseif (!empty($existingItem['image'])) {
 		$item['image'] = $existingItem['image'];
+		$item['image_alt'] = $existingItem['image_alt'] ?? '';
 	}
 
 	$dtRaw = trim($post['publish_datetime'] ?? '');
@@ -599,6 +606,21 @@ function admin_build_content_item_from_post(
 
 	if ($existingItem !== null) {
 		$item['last_modified'] = date('Y-m-d H:i');
+		$managedFields = [
+			'title', 'author_id', 'slug', 'custom_slug', 'content',
+			'meta_title', 'meta_description', 'meta_keywords', 'canonical_url', 'schema_type',
+			'og_title', 'og_description', 'og_image',
+			'show_featured_image', 'show_date', 'show_title', 'show_related_items',
+			'gallery_layout', 'category', 'tags', 'show_tags_at_bottom', 'content_format',
+			'image', 'image_alt', 'date', 'description', 'page_template', 'summary',
+			'show_on_homepage', 'show_in_menu', 'menu_order',
+			'custom_fields', 'related_items', 'gallery', 'galleries', 'last_modified',
+		];
+		foreach ($existingItem as $key => $value) {
+			if (!array_key_exists($key, $item) && !in_array($key, $managedFields, true)) {
+				$item[$key] = $value;
+			}
+		}
 	}
 
 	return [

@@ -93,7 +93,7 @@ function _lang_build_cache(string $locale, string $jsonPath, string $cachePath, 
 
 		_lang_opcache_invalidate($cachePath);
 	} else {
-		error_log("SynaptikCMS lang-cache: cannot write {$cachePath}");
+		error_log("Synaptik CMS lang-cache: cannot write {$cachePath}");
 	}
 
 	return $strings;

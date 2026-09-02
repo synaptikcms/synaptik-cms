@@ -27,6 +27,8 @@
     "no_type_found": "No %s found.",
     "no_content_in_category": "No content found in this category.",
     "no_content_with_tag": "No content found with this tag.",
+    "seo_category_desc_default": "Browse all content in the \"%s\" category on %s.",
+    "seo_tag_desc_default": "Browse all content tagged \"%s\" on %s.",
     "breadcrumb_category": "Category",
     "breadcrumb_tag": "Tag",
     "search_placeholder": "Enter your search term...",

@@ -222,6 +222,14 @@ if (isset($_POST['apply_update'])) {
 	if (function_exists('sl_clear_all_cache')) sl_clear_all_cache();
 
 	if ($ok) {
+		require_once dirname(__DIR__) . '/includes/htaccess-manager.php';
+		$_customRules = sl_htaccess_load_custom();
+		if ($_customRules !== '') {
+			$_reapply = sl_htaccess_apply($_customRules);
+			if (empty($_reapply['ok'])) {
+				$_SESSION['error'] = __t('htaccess_reapply_failed');
+			}
+		}
 		$_SESSION['message'] = __t('update_success');
 		header('Location: index.php');
 	} else {

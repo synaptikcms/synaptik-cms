@@ -368,7 +368,9 @@ function _md_inline(string $text): string {
                 $title = ($tm[2] ?? '') !== '' ? $tm[2] : ($tm[3] ?? '');
             }
             $url    = _md_sanitize_url($url);
-            $label  = htmlspecialchars($m[1], ENT_QUOTES, 'UTF-8');
+            $label  = preg_match('/^<img\b[^>]*>$/', $m[1])
+                ? $m[1]
+                : htmlspecialchars($m[1], ENT_QUOTES, 'UTF-8');
             $titleAttr = $title !== '' ? ' title="' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '"' : '';
             return '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '"' . $titleAttr . $target . '>' . $label . '</a>';
         },

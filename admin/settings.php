@@ -6,6 +6,7 @@ if (!defined('INCLUDED')) {
 }
 
 require_once 'includes/admin-functions.php';
+require_once 'includes/htaccess-manager.php';
 
 $_settings_isMenuRequest = (($_GET['action'] ?? '') === 'menu_builder') || isset($_POST['save_menu']);
 if ($_settings_isMenuRequest ? !admin_can_manage_all_content() : !admin_is_admin()) {
@@ -42,6 +43,33 @@ if (isset($_POST['clear_admin_cache'])) {
 	}
 	$_SESSION['message'] = __t('admin_cache_cleared');
 	header('Location: index.php?action=settings&tab=general');
+	exit;
+}
+
+if (isset($_POST['htaccess_rules_save'])) {
+	admin_csrf_check();
+	$_htaccessResult = sl_htaccess_apply(str_replace("\r\n", "\n", (string) ($_POST['htaccess_rules'] ?? '')));
+	if ($_htaccessResult['ok']) {
+		$_SESSION['message'] = __t('htaccess_saved');
+		if (!empty($_htaccessResult['unverified'])) {
+			$_SESSION['error'] = __t('htaccess_unverified');
+		}
+	} else {
+		$_SESSION['error'] = $_htaccessResult['error'];
+	}
+	header('Location: index.php?action=settings&tab=seo');
+	exit;
+}
+
+if (isset($_POST['htaccess_restore'])) {
+	admin_csrf_check();
+	$_htaccessResult = sl_htaccess_restore_latest();
+	if ($_htaccessResult['ok']) {
+		$_SESSION['message'] = __t('htaccess_restored');
+	} else {
+		$_SESSION['error'] = $_htaccessResult['error'];
+	}
+	header('Location: index.php?action=settings&tab=seo');
 	exit;
 }
 
@@ -99,6 +127,7 @@ if (isset($_POST['save_menu'])) {
 }
 
 if (isset($_POST['save_settings'])) {
+	admin_csrf_check();
 	$autoDetectedThemes = getAvailableThemes();
 	$frontLangs   = lang_available_for_scope('front');
 	$selectedLang = $_POST['active_language'] ?? 'en';

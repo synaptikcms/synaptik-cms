@@ -2,7 +2,7 @@
 /**
  * Mono Theme — functions.php
  *
- * Theme-specific helpers loaded automatically by SynaptikCMS after all core
+ * Theme-specific helpers loaded automatically by Synaptik CMS after all core
  * libraries are ready. Define helper functions for use in theme templates here.
  *
  * NOTE: You cannot redefine core CMS functions here (they are already loaded).

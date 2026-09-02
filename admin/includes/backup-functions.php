@@ -12,6 +12,7 @@ if (!function_exists('_backup_build_zip')) {
 		if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) return false;
 		if (file_exists($root . '/config.json')) $zip->addFile($root . '/config.json', 'config.json');
 		if (file_exists($root . '/version.json'))  $zip->addFile($root . '/version.json',  'version.json');
+		if (file_exists($root . '/.htaccess'))     $zip->addFile($root . '/.htaccess',     '.htaccess');
 		$addDir = function(string $absDir, string $prefix) use ($zip): void {
 			if (!is_dir($absDir)) return;
 			$it = new RecursiveIteratorIterator(
@@ -25,6 +26,7 @@ if (!function_exists('_backup_build_zip')) {
 		};
 		$addDir($root . '/data',  'data');
 		$addDir($root . '/files', 'files');
+		$addDir($root . '/theme/child_theme', 'theme/child_theme');
 		$zip->close();
 		return file_exists($zipPath) && filesize($zipPath) > 0;
 	}

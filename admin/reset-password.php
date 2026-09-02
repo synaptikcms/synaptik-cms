@@ -133,7 +133,7 @@ $jsStrings = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo hsc(__t('reset_new_pwd_heading', 'Set New Password')); ?> — SynaptikCMS</title>
+    <title><?php echo hsc(__t('reset_new_pwd_heading', 'Set New Password')); ?> — Synaptik CMS</title>
     <?php
     $_scheme      = _sl_request_is_https() ? 'https' : 'http';
     $_adminCssUrl = $_scheme . '://' . _sl_request_host()

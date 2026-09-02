@@ -113,7 +113,13 @@ if (isset($_POST['restore_zip_backup']) && isset($_FILES['backup_zip_file'])) {
 	}
 
 	$bckpAllowedExt = ['json','jpg','jpeg','png','gif','webp','svg','ico','mp4','webm','pdf','txt','md','csv'];
-	$valResult = zip_validate_entries($zip, $bckpAllowedExt, ['data/', 'files/', 'private/']);
+	$bckpChildThemeExt = ['php', 'css', 'js', 'woff', 'woff2', 'ttf', 'otf', 'eot'];
+	$valResult = zip_validate_entries(
+		$zip,
+		$bckpAllowedExt,
+		['data/', 'files/', 'private/', '.htaccess'],
+		['theme/child_theme/' => $bckpChildThemeExt]
+	);
 	if (!$valResult['ok']) {
 		$zip->close();
 		$_SESSION['error'] = $valResult['error'];
@@ -175,6 +181,15 @@ if (isset($_POST['restore_zip_backup']) && isset($_FILES['backup_zip_file'])) {
 	if (is_dir($tmpDir . '/files')) {
 		_backup_clear_dir($root . '/files');
 		$ok = $ok && _backup_copy_dir($tmpDir . '/files', $root . '/files');
+	}
+
+	if (is_dir($tmpDir . '/theme/child_theme')) {
+		_backup_clear_dir($root . '/theme/child_theme');
+		$ok = $ok && _backup_copy_dir($tmpDir . '/theme/child_theme', $root . '/theme/child_theme');
+	}
+
+	if (file_exists($tmpDir . '/.htaccess')) {
+		$ok = $ok && (copy($tmpDir . '/.htaccess', $root . '/.htaccess') !== false);
 	}
 
 	// ── Cleanup temp ──────────────────────────────────────────────────────────

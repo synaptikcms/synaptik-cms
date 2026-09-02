@@ -64,7 +64,7 @@ $_sb_version     = (is_array($_sb_versionData) && !empty($_sb_versionData['versi
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title><?php echo htmlspecialchars($_layoutTitle); ?> | SynaptikCMS Admin</title>
+	<title><?php echo htmlspecialchars($_layoutTitle); ?> | Synaptik CMS Admin</title>
 	<link rel="icon" href="assets/img/favicon.ico" type="image/x-icon">
 	<script src="assets/js/theme-boot.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/theme-boot.js'); ?>"></script>
 	<link rel="preconnect" href="https://fonts.bunny.net">
@@ -153,7 +153,7 @@ $_sb_version     = (is_array($_sb_versionData) && !empty($_sb_versionData['versi
 				<?php echo $pageContent ?? ''; ?>
 			</main>
 			<footer class="admin-footer">
-				<span>Powered by <a target="_blank" href="https://synaptikcms.com/">SynaptikCMS</a> — v<?php echo htmlspecialchars($_sb_version ?? ''); ?></span>
+				<span>Powered by <a target="_blank" href="https://synaptikcms.com/">Synaptik CMS</a> — v<?php echo htmlspecialchars($_sb_version ?? ''); ?></span>
 			</footer>
 		</div><!-- /.admin-main -->
 	</div><!-- /.admin-container -->

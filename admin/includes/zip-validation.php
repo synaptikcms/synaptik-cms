@@ -4,7 +4,7 @@ if (!defined('INCLUDED')) {
 	exit('Direct access to this file is not allowed');
 }
 
-function zip_validate_entries(ZipArchive $zip, array $allowedExt, array $allowedHtaccessPrefixes = []): array
+function zip_validate_entries(ZipArchive $zip, array $allowedExt, array $allowedHtaccessPrefixes = [], array $extraAllowedExtByPrefix = []): array
 {
 	$_t  = function_exists('__t')  ? '__t'  : fn($k, $fb = '') => $fb;
 	$_hsc = function_exists('hsc') ? 'hsc' : fn($s) => htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -75,7 +75,16 @@ function zip_validate_entries(ZipArchive $zip, array $allowedExt, array $allowed
 		if ($parts === []) continue; // genuinely extensionless file
 
 		$last = array_pop($parts); // final extension — checked against allow-list
-		if (!in_array($last, $allowedExt, true)) {
+		$extAllowed = in_array($last, $allowedExt, true);
+		if (!$extAllowed) {
+			foreach ($extraAllowedExtByPrefix as $prefix => $exts) {
+				if ($prefix !== '' && strpos($clean, $prefix) === 0 && in_array($last, $exts, true)) {
+					$extAllowed = true;
+					break;
+				}
+			}
+		}
+		if (!$extAllowed) {
 			return ['ok' => false, 'error' => sprintf(
 				$_t('zip_val_ext_forbidden', 'Forbidden extension ".%s" in archive (file: "%s").'),
 				$_hsc($last),

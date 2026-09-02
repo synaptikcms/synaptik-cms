@@ -2,7 +2,7 @@
 
 # If you like Synaptik CMS, please give it a Star! ⭐
 
-# SynaptikCMS
+# Synaptik CMS
 
 **A full-featured flat-file PHP CMS built for speed and simplicity. JSON storage, no database, no dependencies — just upload to any server and start creating!**
 <br><br>
@@ -29,20 +29,20 @@
 
 ---
 
-## What is SynaptikCMS?
+## What is Synaptik CMS?
 
-SynaptikCMS is a flat-file CMS: content lives in JSON files, not a database. No MySQL to configure, no ORM, no build step — extract the ZIP, run the installer, and you have a full admin panel.
+Synaptik CMS is a flat-file CMS: content lives in JSON files, not a database. No MySQL to configure, no ORM, no build step — extract the ZIP, run the installer, and you have a full admin panel.
 
-Built for developers, designers, artists, writers or anyone who want a CMS that's fast by default, trivial to deploy on any shared host, and simple enough to theme from scratch.
+Built for developers, designers, artists, writers or anyone who wants a CMS that's fast by default, trivial to deploy on any shared host, and simple enough to theme from scratch.
 
 - **No database** — content stored as individual JSON files, zero setup
 - **2MB installed footprint**, zero runtime dependencies, no Composer/npm
 - **Full admin panel** — WYSIWYG + Markdown editors, media manager, menu builder, live template editor and much more
 - **Themes & plugins** — one-click ZIP install, one-click core/theme/plugin updates, hook/filter API
-- **Built-in i18n** — English, French, Spanish out of the box, front-end and admin
+- **Built-in i18n** — English, French, Spanish out of the box, front-end and admin can be run in different languages.
 - **Externally security-audited**
 
-Whether you run portfolio sites, documentation sites, business sites, personal blogs, SynaptikCMS is ideal for any project where simplicity and load speed matter. It is designed to run perfectly on any shared hosting environment.
+Whether you run portfolio sites, documentation sites, business sites, personal blogs, Synaptik CMS is ideal for any project where simplicity and load speed matter. It is designed to run perfectly on any shared hosting environment.
 
 ---
 
@@ -64,24 +64,53 @@ No Composer. No npm. No database setup.
 
 ## Highlights
 
-**Content** — 3 content types (Articles, Pages, Projects, can all be renamed) · WYSIWYG & Markdown editors · Drafts with autosave · Scheduled publication · Revisions history · Hierarchical categories · Tags · Custom fields · Image galleries (grid/masonry/justified/carousel) · Shortcodes (`[toc]`, `[gallery]`, `[callout]`, `[contact_form]`, ...)
+**Content** 
+- 3 content types (Articles, Pages, Projects, can all be renamed) 
+- WYSIWYG & Markdown editors 
+- Drafts with autosave 
+- Scheduled publication 
+- Revisions history 
+- Hierarchical categories
+- Tags 
+- Custom fields 
+- Image galleries (grid/masonry/justified/carousel) 
+- Shortcodes (`[toc]`, `[gallery]`, `[callout]`, `[contact_form]`, ...)
 
-**Admin panel** — Drag-and-drop media manager with auto-compression · Batch image optimizer · Menu builder · Live template editor with auto-backup · SEO overview · Sitemap generator · One-click ZIP backup/restore · One-click updates for core, themes and plugins
+**Admin panel** 
+- Drag-and-drop media manager with auto-compression 
+- Batch image optimizer 
+- Menu builder 
+- Live template editor with auto-backup 
+- SEO overview 
+- Sitemap generator 
+- One-click ZIP backup/restore 
+- One-click updates for core, themes and plugins
 
-**Developer** — Hook/filter theme API, partials for article & project cards · Child themes · Self-contained plugin system, zero core edits required · Meta tags, Open Graph, LLMS.txt, JSON-LD, RSS out of the box · Per-request cache, split-file item pages
+**Developer** 
+- Hook/filter theme API, partials for article & project cards 
+- Child themes 
+- Self-contained plugin system, zero core edits required 
+- Meta tags, Open Graph, LLMS.txt, JSON-LD, RSS out of the box 
+- Per-request cache, split-file item pages
 
-→ Full feature reference and screenshots at [https://docs.synaptikcms.com/](https://docs.synaptikcms.com/)
+→ Full feature reference at [https://docs.synaptikcms.com/](https://docs.synaptikcms.com/)
 
 ---
 
 ## Requirements
 
-- **PHP 8.0+**, Apache with `mod_rewrite` (or Nginx with a manual rewrite rule) — **no database**
-- Standard extensions: `json`, `mbstring`, `hash`, `session`, `pcre`, `filter`, `fileinfo`, `gd` (with JPEG/PNG)
-- `ZipArchive` recommended for theme/plugin uploads and automatic updates
-- Write access on `/`, `/data/`, `/files/`, `/bckps/`, `/admin/`, `/theme/`, `/plugins/`
+| Requirement | Details |
+|---|---|
+| **PHP** | 8.3+ |
+| **Server** | Apache with `mod_rewrite` (Nginx works, but is not officially supported) |
+| **Database** | None |
+| **Extensions** | `json`, `mbstring`, `hash`, `session`, `pcre`, `filter`, `fileinfo`, `gd` (with JPEG/PNG) |
+| **Recommended** | `ZipArchive` — for theme/plugin uploads and automatic updates |
+| **Write access** | `/`, `/data/`, `/files/`, `/bckps/`, `/admin/`, `/theme/`, `/plugins/` |
 
-Full requirements, the Nginx sample config, and the filesystem permissions checklist: see the [Installation Guide](https://docs.synaptikcms.com/getting-started/#toc-installation).
+Full requirements and the filesystem permissions checklist: see the [Installation Guide](https://docs.synaptikcms.com/getting-started/#toc-installation).
+
+An Nginx sample config ships as `nginx.conf.example`, but Nginx is **not officially supported** — it's provided as a starting point and isn't tested against releases. Note that `.htaccess` files have no effect on Nginx, so the directory protections they provide must be ported from the sample config yourself.
 
 ---
 
@@ -108,7 +137,7 @@ More themes at https://synaptikcms.com/themes/. Full [theming guides](https://sy
 
 ## Plugins
 
-Plugins live in `/plugins/{plugin-name}/`, self-contained with their own routing, data storage and admin screens — no core file edits required. Install by uploading a `.zip` from **Admin → Tools → Extensions**, activate and deactivate with one click. Official plugins at [synaptikcms.com/plugins](https://synaptikcms.com/plugins/). Full [Plugin developer documentation](https://docs.synaptikcms.com/category/plugins/).
+Plugins live in `/plugins/{plugin-name}/`, self-contained with their own routing, data storage and admin screens — no core file edits required. Install by uploading a `.zip` from **Admin → Plugins**, activate and deactivate with one click. Official plugins at [synaptikcms.com/plugins](https://synaptikcms.com/plugins/). Full [Plugin developer documentation](https://docs.synaptikcms.com/category/plugins/).
 
 ---
 

@@ -76,8 +76,11 @@ function getBaseUrl() {
 
 function sl_type_label(string $type, bool $plural = false): string {
 	$settings = loadConfig();
-	$override = $settings['type_labels'][$type][$plural ? 'plural' : 'singular'] ?? '';
+	$labels   = $settings['type_labels'][$type] ?? [];
+	$override = $labels[$plural ? 'plural' : 'singular'] ?? '';
 	if ($override !== '') return $override;
+	$fallback = $labels[$plural ? 'singular' : 'plural'] ?? '';
+	if ($fallback !== '') return $fallback;
 	return __t($plural ? $type . 's' : $type, ucfirst($type));
 }
 

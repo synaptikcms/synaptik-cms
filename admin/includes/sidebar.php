@@ -56,7 +56,7 @@ function sb_icon(string $name): string {
 ?>
 <div class="sidebar">
 	<div class="admin-logo">
-		<img src="assets/img/logo.webp" alt="SynaptikCMS">
+		<img src="assets/img/logo.webp" alt="Synaptik CMS">
 		<h2>Synaptik</h2>
 	</div>
 	

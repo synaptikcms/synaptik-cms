@@ -25,11 +25,20 @@ $_pdDiscardUrl = 'index.php?action=drafts&draft_action=delete&id=' . urlencode($
 		'summary'  => __t('article_summary_label', 'Summary'),
 		'category' => __t('category'),
 	];
+	$_pdCategoriesStore = sl_load_categories();
 	$_pdChangedRows = [];
 	foreach ($_pdFieldLabels as $_pdKey => $_pdLabel) {
 		$_pdOld = (string)($currentItem[$_pdKey] ?? '');
 		$_pdNew = (string)($pendingItem[$_pdKey] ?? '');
-		if ($_pdOld === $_pdNew) continue;
+		if ($_pdKey === 'category') {
+			$_pdOldSlug = $_pdOld !== '' ? sanitizeSlug($_pdOld) : '';
+			$_pdNewSlug = $_pdNew !== '' ? sanitizeSlug($_pdNew) : '';
+			if ($_pdOldSlug === $_pdNewSlug) continue;
+			$_pdOld = $_pdOld !== '' ? ($_pdCategoriesStore[$_pdOldSlug]['name'] ?? $_pdOld) : '';
+			$_pdNew = $_pdNew !== '' ? ($_pdCategoriesStore[$_pdNewSlug]['name'] ?? $_pdNew) : '';
+		} elseif ($_pdOld === $_pdNew) {
+			continue;
+		}
 		$_pdChangedRows[] = ['label' => $_pdLabel, 'old' => $_pdOld, 'new' => $_pdNew];
 	}
 	?>

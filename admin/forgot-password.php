@@ -84,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $siteUrl  = $protocol . '://' . _sl_request_host() . $cmsPath;
                 $resetUrl = $siteUrl . '/?reset_token=' . urlencode($token);
 
-                $siteName   = $settings['site_title'] ?? 'SynaptikCMS';
+                $siteName   = $settings['site_title'] ?? 'Synaptik CMS';
                 $mailDomain = parse_url($siteUrl, PHP_URL_HOST) ?? 'localhost';
                 $subject    = '[' . $siteName . '] Password Reset';
                 $body       = "Hello,\n\n"
@@ -111,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo hsc(__t('reset_page_title', 'Password Reset')); ?> — SynaptikCMS</title>
+    <title><?php echo hsc(__t('reset_page_title', 'Password Reset')); ?> — Synaptik CMS</title>
     <script src="assets/js/theme-boot.js?v=<?php echo @filemtime(__DIR__ . '/assets/js/theme-boot.js'); ?>"></script>
     <link rel="stylesheet" href="assets/css/admin-base.css?v=<?php echo @filemtime(__DIR__ . '/assets/css/admin-base.css'); ?>">
     <style>

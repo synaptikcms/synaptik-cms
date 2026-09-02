@@ -1,6 +1,9 @@
 RewriteEngine On
 
 
+# --- BEGIN CUSTOM HTACCESS (managed via Admin > Settings — edits here are overwritten on save) ---
+# --- END CUSTOM HTACCESS ---
+
 # Set your base directory if needed (uncomment and modify if your CMS is in a subdirectory)
 # RewriteBase /your-url-here/
 
@@ -84,15 +87,17 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     #               'unsafe-inline' kept — user-authored content (articles/pages)
     #               can carry inline style="" attributes from the rich-text editor.
     # font-src    : Google Fonts glyphs (if used) — remove if not needed
-    # img-src     : local images, base64 data URIs, blob (e.g. image previews)
+    # img-src     : local images, base64 data URIs, blob (e.g. image previews),
+    #               plus any https host — authors routinely embed remote images in
+    #               content. Tighten to a host allow-list if you never do.
     # connect-src : same-origin XHR/fetch + hCaptcha verification API
     Header always set Content-Security-Policy "\
 default-src 'self'; \
-script-src 'self' 'sha256-IkTdP30yHFaVfjZm1HcruKVpJKKwowAYPMKI+GVaAlY=' https://js.hcaptcha.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.googletagmanager.com; \
+script-src 'self' 'sha256-IKuAx5iLABAf9AVYuoYEKcDHFB1pntqdgWQf0L+elJM=' https://js.hcaptcha.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.googletagmanager.com; \
 frame-src https://newassets.hcaptcha.com; \
 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.bunny.net https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; \
 font-src 'self' https://fonts.gstatic.com https://fonts.bunny.net https://cdn.jsdelivr.net; \
-img-src 'self' data: blob: https://img.shields.io; \
+img-src 'self' data: blob: https:; \
 connect-src 'self' https://hcaptcha.com https://api.hcaptcha.com https://www.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net; \
 frame-ancestors 'self'"
 </IfModule>

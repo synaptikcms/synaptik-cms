@@ -16,6 +16,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	}
 }
 
+ignore_user_abort(true);
+
 require_once('image-optimization.php');
 $allowedTypes = [
 	'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'bmp', 'tiff', 'tif',

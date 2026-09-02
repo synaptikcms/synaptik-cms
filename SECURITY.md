@@ -12,7 +12,7 @@ Other bugs and issues can be reported at [https://github.com/synaptikcms/synapti
 
 ## Hall of Fame
 
-We are grateful to the following researchers who responsibly disclosed vulnerabilities and helped improve SynaptikCMS.
+We are grateful to the following researchers who responsibly disclosed vulnerabilities and helped improve Synaptik CMS.
 
 | Researcher | Version | Finding |
 |---|---|---|

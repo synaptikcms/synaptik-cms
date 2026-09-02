@@ -13,7 +13,7 @@ $pages    = array_filter($pages,    fn($p) => ($p['status'] ?? '') === 'publishe
 
 usort($articles, fn($a, $b) => strcmp($b['date'] ?? '', $a['date'] ?? ''));
 
-$siteTitle = $settings['site_title']       ?? 'SynaptikCMS';
+$siteTitle = $settings['site_title']       ?? 'Synaptik CMS';
 $siteDesc  = $settings['site_description'] ?? '';
 
 header('Content-Type: text/plain; charset=utf-8');

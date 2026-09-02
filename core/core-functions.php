@@ -126,7 +126,7 @@ function get404PageContent()
 
 function processContent($type, $slug, $data, $settings, $category = '', $tag = '')
 {
-    $pageTitle = $settings['site_title'] ?? 'SynaptikCMS';
+    $pageTitle = $settings['site_title'] ?? 'Synaptik CMS';
     $pageContent = "";
     $httpStatus = 200;
     $contentTypes = ["article", "page", "project"];

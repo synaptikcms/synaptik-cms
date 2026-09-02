@@ -17,7 +17,7 @@ foreach (['article', 'project', 'page'] as $_tagCt) {
 			$slug = sanitizeSlug($tagRaw);
 			if (!$slug) continue;
 			if (!isset($tags[$slug])) {
-				$tags[$slug] = ['name' => $_tagStore[$slug]['name'] ?? $tagRaw, 'count' => 0, 'items' => []];
+				$tags[$slug] = ['name' => $_tagStore[$slug]['name'] ?? $tagRaw, 'count' => 0, 'items' => [], 'description' => $_tagStore[$slug]['description'] ?? ''];
 			}
 			$tags[$slug]['count']++;
 			$tags[$slug]['items'][] = ['title' => $item['title'], 'type' => $_tagCt, 'index' => $idx];
@@ -28,7 +28,7 @@ foreach (['article', 'project', 'page'] as $_tagCt) {
 // Add tags from store that have no content (orphans)
 foreach ($_tagStore as $slug => $tagData) {
 	if (!isset($tags[$slug])) {
-		$tags[$slug] = ['name' => $tagData['name'], 'count' => 0, 'items' => []];
+		$tags[$slug] = ['name' => $tagData['name'], 'count' => 0, 'items' => [], 'description' => $tagData['description'] ?? ''];
 	}
 }
 
@@ -48,6 +48,11 @@ uasort($tagsAlpha, fn($a, $b) => strcasecmp($a['name'], $b['name']));
 		<div class="form-group">
 			<label for="tag_name"><?php _e('tag_new_name'); ?></label>
 			<input type="text" id="tag_name" name="tag_name" required>
+		</div>
+		<div class="form-group">
+			<label for="tag_description"><?php _e('tag_description'); ?></label>
+			<textarea id="tag_description" name="tag_description" rows="2"></textarea>
+			<p class="help-text"><?php _e('tag_description_help'); ?></p>
 			<button class="btn btn-primary" style="margin-top:20px;" type="submit"><?php _e('add_tag_btn'); ?></button>
 		</div>
 	</form>
@@ -57,7 +62,7 @@ uasort($tagsAlpha, fn($a, $b) => strcasecmp($a['name'], $b['name']));
 	<?php if (count($tags) >= 2): ?>
 		<h3 style="margin-top:0;"><?php _e('merge_tags'); ?></h3>
 		<p style="font-size:.85rem; opacity:.75; margin-top:0;"><?php _e('merge_tags_help'); ?></p>
-		<form id="merge-tags-submit-form" method="post" action="index.php?action=manage_tags">
+		<form id="merge-tags-submit-form" style="margin-bottom: 20px;" method="post" action="index.php?action=manage_tags">
 			<input type="hidden" name="tag_action" value="merge">
 			<div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
 				<div class="form-group" style="margin:0; padding: 0; flex:1; min-width:160px;">
@@ -150,7 +155,8 @@ uasort($tagsAlpha, fn($a, $b) => strcasecmp($a['name'], $b['name']));
 				<td>
 					<a href="#" style="margin:0;" class="table-btn edit-btn small edit-tag"
 						data-slug="<?php echo $slug; ?>"
-						data-name="<?php echo hsc($tag['name']); ?>"><?php echo admin_icon('writing', '', 13); ?><?php _e('edit'); ?></a>
+						data-name="<?php echo hsc($tag['name']); ?>"
+						data-description="<?php echo hsc($tag['description'] ?? ''); ?>"><?php echo admin_icon('writing', '', 13); ?><?php _e('edit'); ?></a>
 					<a href="#" style="margin:0;" class="table-btn delete-btn small danger delete-tag"
 						data-slug="<?php echo $slug; ?>"
 						data-name="<?php echo hsc($tag['name']); ?>"><?php echo admin_icon('trash', '', 14); ?></a>
@@ -165,6 +171,7 @@ uasort($tagsAlpha, fn($a, $b) => strcasecmp($a['name'], $b['name']));
 		<input type="hidden" name="tag_action" value="edit">
 		<input type="hidden" id="edit_tag_slug" name="tag_slug">
 		<input type="hidden" id="edit_tag_name" name="tag_name">
+		<input type="hidden" id="edit_tag_description" name="tag_description">
 	</form>
 <?php endif; ?>
 

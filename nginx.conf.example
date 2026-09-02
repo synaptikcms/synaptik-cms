@@ -1,4 +1,4 @@
-# SynaptikCMS — sample nginx configuration
+# Synaptik CMS — sample nginx configuration
 #
 # Copy and adapt this file to your server block. Replace:
 #   - /var/www/yoursite   with the absolute path to your CMS root
@@ -86,6 +86,21 @@ server {
         return 403;
     }
 
+    # ── Plugin internals at the plugin root — only the public entry points below
+    # are meant to be requested directly. Mirrors each plugin's own .htaccess,
+    # which nginx ignores. The files themselves also carry a direct-access guard,
+    # so this is defence in depth rather than the only barrier.
+    location ~ ^/plugins/[^/]+/(?!(booking|booking-submit|booking-cancel|comments-submit|formbuilder-submit|newsletter-submit|newsletter-confirm|newsletter-unsubscribe)\.php$)[^/]+\.php$ {
+        deny all;
+        return 403;
+    }
+
+    # ── Plugin manifests and docs — never served ──────────────────────────────
+    location ~ ^/plugins/[^/]+/.*\.(json|md)$ {
+        deny all;
+        return 403;
+    }
+
     # ── /plugins/ root slug — route to CMS router ────────────────────────────
     location ~ ^/plugins/?$ {
         rewrite ^ /index.php last;
@@ -108,7 +123,7 @@ server {
         add_header X-Content-Type-Options "nosniff" always;
         add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()" always;
-        add_header Content-Security-Policy "default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://code.jquery.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.bunny.net; img-src 'self' data: blob:; font-src 'self' https://cdnjs.cloudflare.com https://fonts.bunny.net; connect-src 'self'; frame-ancestors 'none';" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://code.jquery.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.bunny.net; img-src 'self' data: blob: https:; font-src 'self' https://cdnjs.cloudflare.com https://fonts.bunny.net; connect-src 'self'; frame-ancestors 'none';" always;
 
         try_files $uri =404;
         fastcgi_pass unix:/var/run/php/php8.3-fpm.sock; # adjust to your PHP version
@@ -137,7 +152,7 @@ server {
         add_header X-Content-Type-Options "nosniff" always;
         add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()" always;
-        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-IKuAx5iLABAf9AVYuoYEKcDHFB1pntqdgWQf0L+elJM=' https://js.hcaptcha.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.googletagmanager.com; frame-src https://newassets.hcaptcha.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.bunny.net https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://fonts.bunny.net https://cdn.jsdelivr.net; img-src 'self' data: blob: https://img.shields.io; connect-src 'self' https://hcaptcha.com https://api.hcaptcha.com https://www.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net; frame-ancestors 'self';" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-IKuAx5iLABAf9AVYuoYEKcDHFB1pntqdgWQf0L+elJM=' https://js.hcaptcha.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.googletagmanager.com; frame-src https://newassets.hcaptcha.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.bunny.net https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://fonts.bunny.net https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; connect-src 'self' https://hcaptcha.com https://api.hcaptcha.com https://www.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net; frame-ancestors 'self';" always;
         access_log off;
     }
 
@@ -158,5 +173,5 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-IKuAx5iLABAf9AVYuoYEKcDHFB1pntqdgWQf0L+elJM=' https://js.hcaptcha.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.googletagmanager.com; frame-src https://newassets.hcaptcha.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.bunny.net https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://fonts.bunny.net https://cdn.jsdelivr.net; img-src 'self' data: blob: https://img.shields.io; connect-src 'self' https://hcaptcha.com https://api.hcaptcha.com https://www.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net; frame-ancestors 'self';" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-IKuAx5iLABAf9AVYuoYEKcDHFB1pntqdgWQf0L+elJM=' https://js.hcaptcha.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.googletagmanager.com; frame-src https://newassets.hcaptcha.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.bunny.net https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://fonts.bunny.net https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; connect-src 'self' https://hcaptcha.com https://api.hcaptcha.com https://www.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net; frame-ancestors 'self';" always;
 }

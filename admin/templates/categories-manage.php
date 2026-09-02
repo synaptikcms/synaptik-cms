@@ -14,7 +14,7 @@ foreach (['article', 'project', 'page'] as $ct) {
 		if (!$slug) continue;
 		if (!isset($categories[$slug])) {
 			$name = isset($data['categories'][$slug]) ? $data['categories'][$slug]['name'] : $item['category'];
-			$categories[$slug] = ['name' => $name, 'count' => 0, 'items' => [], 'parent' => ''];
+			$categories[$slug] = ['name' => $name, 'count' => 0, 'items' => [], 'parent' => '', 'description' => ''];
 		}
 		$categories[$slug]['count']++;
 		$categories[$slug]['items'][] = ['title' => $item['title'], 'type' => $ct, 'index' => $idx];
@@ -25,10 +25,11 @@ foreach (['article', 'project', 'page'] as $ct) {
 if (isset($data['categories'])) {
 	foreach ($data['categories'] as $slug => $categoryData) {
 		if (!isset($categories[$slug])) {
-			$categories[$slug] = ['name' => $categoryData['name'], 'count' => 0, 'items' => [], 'parent' => ''];
+			$categories[$slug] = ['name' => $categoryData['name'], 'count' => 0, 'items' => [], 'parent' => '', 'description' => ''];
 		}
-		// Always carry the parent value from the authoritative categories store
+		// Always carry the parent and description values from the authoritative categories store
 		$categories[$slug]['parent'] = $categoryData['parent'] ?? '';
+		$categories[$slug]['description'] = $categoryData['description'] ?? '';
 	}
 }
 
@@ -80,6 +81,11 @@ $categoryTree = buildCategoryTree($categories);
 					<?php endforeach; ?>
 				</select>
 				<p class="help-text"><?php _e('cat_parent_help'); ?></p>
+			</div>
+			<div class="form-group">
+				<label for="category_description"><?php _e('cat_description'); ?></label>
+				<textarea id="category_description" name="category_description" rows="2"></textarea>
+				<p class="help-text"><?php _e('cat_description_help'); ?></p>
 				<button class="btn btn-primary" type="submit"><?php _e('add_category_btn'); ?></button>
 			</div>
 		</form>
@@ -89,7 +95,7 @@ $categoryTree = buildCategoryTree($categories);
 		<?php if (count($categories) >= 2): ?>
 			<h3 style="margin-top:0;"><?php _e('merge_categories'); ?></h3>
 			<p style="font-size:.85rem; opacity:.75; margin-top:0;"><?php _e('merge_cats_help'); ?></p>
-			<form id="merge-cats-submit-form" method="post" action="index.php?action=manage_categories">
+			<form id="merge-cats-submit-form" style="margin-bottom: 20px;" method="post" action="index.php?action=manage_categories">
 				<input type="hidden" name="category_action" value="merge">
 				<div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
 					<div class="form-group" style="margin:0; padding:0; flex:1; min-width:160px;">
@@ -216,6 +222,7 @@ $categoryTree = buildCategoryTree($categories);
 						data-slug="<?php echo $slug; ?>"
 						data-name="<?php echo hsc($cat['name']); ?>"
 						data-parent="<?php echo hsc($cat['parent'] ?? ''); ?>"
+						data-description="<?php echo hsc($cat['description'] ?? ''); ?>"
 						data-depth="<?php echo $depth; ?>"><?php echo admin_icon('writing', '', 13); ?><?php _e('edit'); ?></a>
 					<a href="#" style="margin:0;" class="table-btn delete-btn small danger delete-category"
 						data-slug="<?php echo $slug; ?>"
@@ -232,6 +239,7 @@ $categoryTree = buildCategoryTree($categories);
 		<input type="hidden" id="edit_category_slug" name="category_slug">
 		<input type="hidden" id="edit_category_name" name="category_name">
 		<input type="hidden" id="edit_category_parent" name="category_parent">
+		<input type="hidden" id="edit_category_description" name="category_description">
 	</form>
 
 	<!-- Parent options for JS modal — serialized from PHP -->

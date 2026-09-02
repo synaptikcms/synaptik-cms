@@ -45,7 +45,7 @@ function render_site_title($settings, $pageTitle)
     if ($settings['show_site_title_in_header']) {
         return htmlspecialchars($settings['site_title']);
     }
-    return $pageTitle === 'Welcome to SynaptikCMS' ? $pageTitle : $settings['site_title'];
+    return $pageTitle === 'Welcome to Synaptik CMS' ? $pageTitle : $settings['site_title'];
 }
 
 function render_content_title($item)
@@ -74,15 +74,17 @@ function render_meta_tags($settings, $metaTitle, $metaDescription, $pageData = n
     <?php if (!empty($ogImage)): ?><meta property="og:image" content="<?php echo htmlspecialchars($ogImage, $f, $c); ?>"><?php endif; ?>
 <?php if ($settings['enable_seo']): ?>
     <?php
-        global $type, $slug, $category, $tag;
+        global $type, $slug, $category, $tag, $data;
         $_type     = $type     ?? '';
         $_slug     = $slug     ?? '';
         $_category = $category ?? '';
         $_tag      = $tag      ?? '';
 
         $_isArchive = false;
-        if ($_type === 'tag' && !empty($_tag)) {
-            $_isArchive = true;
+        if ($_type === 'category' && !empty($_category)) {
+            $_isArchive = empty($data['categories'][$_category]['description']);
+        } elseif ($_type === 'tag' && !empty($_tag)) {
+            $_isArchive = empty($data['tags'][$_tag]['description']);
         } elseif (!empty($_type) && empty($_slug) && empty($_category) && empty($_tag)
                   && !in_array($_type, ['home', '404'], true)) {
             $_isArchive = true;
@@ -228,7 +230,7 @@ function render_header_scripts($headerScripts)
 
     $system = [
         '<base href="' . htmlspecialchars($base) . '">',
-        '    <meta name="generator" content="SynaptikCMS — https://synaptikcms.com">',
+        '    <meta name="generator" content="Synaptik CMS — https://synaptikcms.com">',
         '    <script type="application/json" id="cms-lang-json">' . lang_js_bridge() . '</script>',
         '    <script type="application/json" data-window-var="CMS_TYPE_LABELS">' . sl_type_labels_json() . '</script>',
         '    <script src="' . $base . 'assets/js/front-boot.js'
@@ -420,7 +422,7 @@ function render_footer_content()
         echo '</div>';
     }
 
-    echo '<p class="snk-credit">Powered by <a href="https://synaptikcms.com" target="_blank" rel="noopener">SynaptikCMS</a></p>';
+    echo '<p class="snk-credit">Powered by <a href="https://synaptikcms.com" target="_blank" rel="noopener">Synaptik CMS</a></p>';
 
     return ob_get_clean();
 }

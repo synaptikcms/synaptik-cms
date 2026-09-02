@@ -48,7 +48,7 @@
     #               'unsafe-inline' kept — admin templates still use inline style="" attributes.
     # font-src    : self + CodeMirror (cdnjs) + Bunny Fonts files (fonts.bunny.net — same host
     #               serves both the CSS and the font files, unlike Google's googleapis/gstatic split)
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://code.jquery.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.bunny.net; img-src 'self' data: blob:; font-src 'self' https://cdnjs.cloudflare.com https://fonts.bunny.net; connect-src 'self'; frame-ancestors 'none';"
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://code.jquery.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.bunny.net; img-src 'self' data: blob: https:; font-src 'self' https://cdnjs.cloudflare.com https://fonts.bunny.net; connect-src 'self'; frame-ancestors 'none';"
 </IfModule>
 
 # ── Browser caching ────────────────────────────────────────────

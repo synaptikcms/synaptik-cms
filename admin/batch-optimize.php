@@ -96,7 +96,14 @@ if (isset($_GET['scan'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['process_one'])) {
+	ignore_user_abort(true);
 	header('Content-Type: application/json');
+	$_csrfToken = $_POST['csrf_token'] ?? (getallheaders()['X-CSRF-Token'] ?? '');
+	if (!is_string($_csrfToken) || !hash_equals($_SESSION['csrf_token'], $_csrfToken)) {
+		http_response_code(403);
+		echo json_encode(['status' => 'error', 'message' => __t('auth_csrf_error')]);
+		exit;
+	}
 	echo json_encode(processOneFile($_POST['file_path'] ?? ''), JSON_UNESCAPED_UNICODE);
 	exit;
 }
@@ -167,6 +174,10 @@ function processOneFile($filePath) {
 			// Conversion WebP réussie : le fichier original (JPEG/PNG) peut être supprimé
 			$optimizedSize = filesize($webpFile);
 			if (file_exists($realFile)) @unlink($realFile);
+
+			$oldRelPath = 'files/' . ltrim(str_replace(DIRECTORY_SEPARATOR, '/', substr($realFile, strlen($baseDirAbs))), '/');
+			$newRelPath = 'files/' . ltrim(str_replace(DIRECTORY_SEPARATOR, '/', substr($webpFile, strlen($baseDirAbs))), '/');
+			sl_admin_relink_image_path($oldRelPath, $newRelPath);
 		} elseif (file_exists($realFile)) {
 			$optimizedSize = filesize($realFile);
 		}

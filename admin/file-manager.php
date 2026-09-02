@@ -75,6 +75,7 @@ $allowedTypes = [
 
 // SSE stream endpoint
 if (isset($_GET['stream_status']) && isset($_GET['file_id'])) {
+	ignore_user_abort(true);
 	ini_set('output_buffering', 'off');
 	ini_set('implicit_flush', true);
 	ob_implicit_flush(true);
@@ -200,6 +201,17 @@ if (isset($_FILES['upload_files'])) {
 
 	if ($isAjax) { header('Content-Type: application/json'); }
 
+	$uploadCsrf = $_POST['csrf_token'] ?? '';
+	if (!is_string($uploadCsrf) || !hash_equals($_SESSION['csrf_token'], $uploadCsrf)) {
+		if ($isAjax) {
+			echo json_encode(['status' => 'error', 'message' => __t('auth_csrf_error')]);
+		} else {
+			$_SESSION['error'] = __t('auth_csrf_error');
+			header('Location: file-manager.php?path=' . urlencode($currentPath));
+		}
+		exit;
+	}
+
 	if (!file_exists($fullPath)) { mkdir($fullPath, 0755, true); }
 
 	$thumbsDir = null;
@@ -286,6 +298,12 @@ if (isset($_FILES['upload_files'])) {
 
 // Folder creation
 if (isset($_POST['create_folder']) && !empty($_POST['folder_name'])) {
+	$folderCsrf = $_POST['csrf_token'] ?? '';
+	if (!is_string($folderCsrf) || !hash_equals($_SESSION['csrf_token'], $folderCsrf)) {
+		$_SESSION['error'] = __t('auth_csrf_error');
+		header('Location: file-manager.php?path=' . urlencode($currentPath));
+		exit;
+	}
 	$folderName = preg_replace('/[^a-zA-Z0-9_-]/', '_', $_POST['folder_name']);
 	$newFolder  = rtrim($fullPath, '/') . '/' . $folderName;
 	if (!file_exists($newFolder)) {
@@ -531,6 +549,16 @@ function handleRename() {
 		return ['success' => false, 'message' => __t('fm_rename_exists')];
 	}
 	$success = rename($originalItemPath, $newItemPath);
+	if ($success) {
+		$relBase = trim($currentPath, '/');
+		$oldRel  = 'files/' . trim($relBase . '/' . basename($originalName), '/');
+		$newRel  = 'files/' . trim($relBase . '/' . $newName, '/');
+		if ($itemType === 'file') {
+			sl_admin_relink_image_path($oldRel, $newRel);
+		} else {
+			sl_admin_relink_image_prefix($oldRel, $newRel);
+		}
+	}
 	return ['success' => $success, 'message' => $success ? __t('fm_rename_success') : __t('fm_rename_failed')];
 }
 
@@ -543,13 +571,17 @@ function handleMove() {
 		return ['success' => false, 'message' => __t('fm_move_missing_data')];
 	}
 	$currentDirPath = rtrim($baseUploadPath . $currentPath, '/');
+	$currentRelBase = trim($currentPath, '/');
 	if ($targetFolder === 'root') {
 		$targetFolderPath = $baseUploadPath;
+		$targetRelBase    = '';
 	} elseif (!empty($targetPath)) {
 		$targetFolderPath = $targetPath === '' ? $baseUploadPath
 			: str_replace('//', '/', $baseUploadPath . '/' . $targetPath);
+		$targetRelBase    = trim($targetPath, '/');
 	} else {
 		$targetFolderPath = $currentDirPath . '/' . $targetFolder;
+		$targetRelBase    = trim($currentRelBase . '/' . $targetFolder, '/');
 	}
 	if (!file_exists($targetFolderPath) || !is_dir($targetFolderPath)) {
 		return ['success' => false, 'message' => __t('fm_move_target_not_found')];
@@ -575,7 +607,19 @@ function handleMove() {
 				$failCount++; $errors[] = sprintf(__t('fm_move_item_failed'), $itemName); continue;
 			}
 		}
-		rename($sourcePath, $destinationPath) ? $successCount++ : ($failCount++ || $errors[] = sprintf(__t('fm_move_item_failed'), $itemName));
+		if (rename($sourcePath, $destinationPath)) {
+			$successCount++;
+			$oldRel = 'files/' . trim($currentRelBase . '/' . $itemName, '/');
+			$newRel = 'files/' . trim($targetRelBase . '/' . $itemName, '/');
+			if ($itemType === 'folder') {
+				sl_admin_relink_image_prefix($oldRel, $newRel);
+			} else {
+				sl_admin_relink_image_path($oldRel, $newRel);
+			}
+		} else {
+			$failCount++;
+			$errors[] = sprintf(__t('fm_move_item_failed'), $itemName);
+		}
 	}
 	if ($failCount === 0) {
 		return ['success' => true, 'message' => sprintf(__t('fm_move_success'), $successCount)];
@@ -583,12 +627,39 @@ function handleMove() {
 	return ['success' => $successCount > 0, 'message' => sprintf(__t('fm_move_partial'), $successCount, $failCount), 'errors' => $errors];
 }
 
-// AJAX rename / move
+function handleCheckUsage() {
+	global $currentPath;
+	$items = json_decode($_POST['items'] ?? '[]', true);
+	if (!is_array($items) || empty($items)) {
+		return ['success' => true, 'usage' => []];
+	}
+	$relBase    = trim($currentPath, '/');
+	$usageByKey = [];
+	foreach ($items as $entry) {
+		$itemType = $entry['type'] ?? '';
+		$itemName = $entry['name'] ?? '';
+		if (empty($itemType) || empty($itemName)) continue;
+		$relPath = 'files/' . trim($relBase . '/' . basename($itemName), '/');
+		foreach (sl_admin_find_image_usage($relPath, $itemType === 'folder') as $u) {
+			$usageByKey[$u['type'] . '::' . $u['file_slug']] = $u;
+		}
+	}
+	return ['success' => true, 'usage' => array_values($usageByKey)];
+}
+
+// AJAX rename / move / usage check
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 	header('Content-Type: application/json');
+	$actionCsrf = $_POST['csrf_token'] ?? '';
+	if (!is_string($actionCsrf) || !hash_equals($_SESSION['csrf_token'], $actionCsrf)) {
+		http_response_code(403);
+		echo json_encode(['success' => false, 'message' => __t('auth_csrf_error')]);
+		exit;
+	}
 	switch ($_POST['action']) {
-		case 'rename': echo json_encode(handleRename()); exit;
-		case 'move':   echo json_encode(handleMove());   exit;
+		case 'rename':      echo json_encode(handleRename());      exit;
+		case 'move':         echo json_encode(handleMove());        exit;
+		case 'check_usage':  echo json_encode(handleCheckUsage());  exit;
 	}
 }
 
@@ -617,6 +688,7 @@ ob_start();
 		<div class="upload-form">
 			<h3 class="form-title"><?php _e('file_upload'); ?></h3>
 			<form method="post" enctype="multipart/form-data" id="upload-form">
+				<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token']); ?>">
 				<input type="file" name="upload_files[]" id="file-input" multiple style="position:absolute;width:0;height:0;overflow:hidden;opacity:0;">
 				<div class="dropzone" id="dropzone" tabindex="0">
 					<p><?php _e('fm_dropzone_text'); ?></p>
@@ -634,6 +706,7 @@ ob_start();
 		<div class="folder-form">
 			<h3 class="form-title"><?php _e('new_folder'); ?></h3>
 			<form method="post">
+				<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token']); ?>">
 				<input type="text" name="folder_name" placeholder="<?php _e('fm_folder_name_placeholder'); ?>" required>
 				<button class="btn btn-primary" type="submit" name="create_folder"><?php _e('create'); ?></button>
 			</form>

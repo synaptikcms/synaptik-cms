@@ -27,6 +27,8 @@
   "no_type_found": "Ningún/a %s encontrado/a.",
   "no_content_in_category": "No se encontró contenido en esta categoría.",
   "no_content_with_tag": "No se encontró contenido con esta etiqueta.",
+  "seo_category_desc_default": "Explora todo el contenido de la categoría «%s» en %s.",
+  "seo_tag_desc_default": "Explora todo el contenido con la etiqueta «%s» en %s.",
   "breadcrumb_category": "Categoría",
   "breadcrumb_tag": "Etiqueta",
   "search_placeholder": "Introduzca su término de búsqueda...",

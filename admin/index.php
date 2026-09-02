@@ -64,13 +64,23 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_content_items' &&
 		}
 		echo json_encode($items);
 	} elseif (isset($data[$contentType])) {
+		$now = time();
 		$items = [];
 		foreach ($data[$contentType] as $item) {
+			$status = $item['status'] ?? 'published';
+			if ($status === 'draft' || $status === 'unpublished') continue;
+			if ($status === 'scheduled') {
+				$at = isset($item['publish_at']) ? strtotime($item['publish_at']) : false;
+				if ($at === false || $at > $now) continue;
+			}
+
 			$slug = !empty($item['custom_slug']) ? $item['custom_slug'] : $item['slug'];
 			$items[] = [
 				'title' => $item['title'],
 				'slug' => $slug,
-				'has_custom_slug' => !empty($item['custom_slug'])
+				'has_custom_slug' => !empty($item['custom_slug']),
+				'category' => $item['category'] ?? '',
+				'url' => admin_content_url($contentType, $item['slug'] ?? '', $item['custom_slug'] ?? '', $item['category'] ?? '')
 			];
 		}
 		echo json_encode($items);

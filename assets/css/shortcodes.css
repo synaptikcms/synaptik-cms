@@ -1,4 +1,4 @@
-/* ===== Shortcodes — SynaptikCMS ===== */
+/* ===== Shortcodes — Synaptik CMS ===== */
 /* ── [toc] ─────────── */
 .sc-toc { display: inline-block; min-width: 220px; max-width: 100%; background-color: var(--bg-darker, #161815); border: 1px solid #333; border-left: 3px solid var(--color-primary, #4fa75c); border-radius: var(--border-radius-sm, 4px); padding: 14px 18px; margin: var(--space-md, 20px) 0; }
 .sc-toc::before { content: attr(data-label); display: block; font-family: var(--font-headings, 'Saira Extra Condensed', sans-serif); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--color-primary, #4fa75c); margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #2a2d28; }
@@ -36,7 +36,7 @@
 /* ── Grid wrappers ─── */
 .sc-articles-grid, .sc-projects-grid { margin: var(--space-md, 20px) 0; }
 .sc-callout-title { margin: 0 0 4px; font-size: .85em; text-transform: uppercase; letter-spacing: .04em; opacity: .75; }
-/* ── SynaptikCMS attribution (render_footer_content) ──── */
+/* ── Synaptik CMS attribution (render_footer_content) ──── */
 .snk-credit { font-size: .72rem; opacity: .75; }
 .snk-credit a { text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 1px; }
 .snk-credit a:hover { color: currentColor; }

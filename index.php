@@ -229,7 +229,13 @@ if ($type === 'category' && !empty($category)) {
 $GLOBALS['pageContent'] = $pageContent;
 
 http_response_code($httpStatus);
-$seoData = generateSEO($pageTitle, $type, $slug, $data, $settings);
+$_seoSlug = $slug;
+if ($type === 'category') {
+	$_seoSlug = $category;
+} elseif ($type === 'tag') {
+	$_seoSlug = $tag;
+}
+$seoData = generateSEO($pageTitle, $type, $_seoSlug, $data, $settings);
 $metaTitle = $seoData['title'];
 $metaDescription = $seoData['description'];
 
@@ -390,7 +396,7 @@ if ($isAdminLoggedIn) {
 	$_ico_cog  = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l-.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
 
 	$_adminBarHtml  = '<div id="snk-admin-bar">';
-	$_adminBarHtml .= '<a class="snk-ab-site" href="' . htmlspecialchars($_adminBase . '/index.php') . '">' . $_ico_home . htmlspecialchars($settings['site_title'] ?? 'SynaptikCMS') . '</a>';
+	$_adminBarHtml .= '<a class="snk-ab-site" href="' . htmlspecialchars($_adminBase . '/index.php') . '">' . $_ico_home . htmlspecialchars($settings['site_title'] ?? 'Synaptik CMS') . '</a>';
 	$_adminBarHtml .= '<div class="snk-ab-divider"></div>';
 
 	if (!empty($_listLink)) {

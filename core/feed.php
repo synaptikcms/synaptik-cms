@@ -7,7 +7,7 @@ $articles = array_filter($articles, fn($a) => ($a['status'] ?? 'published') === 
 usort($articles, fn($a, $b) => strcmp($b['date'] ?? '', $a['date'] ?? ''));
 $articles = array_slice(array_values($articles), 0, 20);
 $baseUrl   = getBaseUrl();
-$siteTitle = htmlspecialchars($settings['site_title']      ?? 'SynaptikCMS', ENT_XML1);
+$siteTitle = htmlspecialchars($settings['site_title']      ?? 'Synaptik CMS', ENT_XML1);
 $siteDesc  = htmlspecialchars($settings['site_description'] ?? '',            ENT_XML1);
 $feedUrl   = $baseUrl . 'core/feed.php';
 $buildDate = date(DATE_RSS);

@@ -62,6 +62,28 @@ function _admin_scrub_tag_attributes($html) {
 }
 }
 
+if (!function_exists('_admin_sanitize_code_block')) {
+function _admin_sanitize_code_block($block) {
+	if (!preg_match('/^<([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)>(.*)<\/\1>$/is', $block, $m)) {
+		return htmlspecialchars($block, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', false);
+	}
+
+	$open  = _admin_scrub_tag_attributes('<' . $m[1] . $m[2] . '>');
+	$inner = preg_replace_callback(
+		'/<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/',
+		function ($tag) {
+			$allowed = ['code', 'span', 'br', 'b', 'i', 'em', 'strong'];
+			return in_array(strtolower($tag[1]), $allowed, true)
+				? _admin_scrub_tag_attributes($tag[0])
+				: htmlspecialchars($tag[0], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', false);
+		},
+		$m[3]
+	);
+
+	return $open . $inner . '</' . $m[1] . '>';
+}
+}
+
 if (!function_exists('admin_purify_html')) {
 function admin_purify_html($html) {
 	 $codeBlocks = [];
@@ -70,7 +92,7 @@ function admin_purify_html($html) {
 		 '/<pre\b[^>]*>(?:(?!<\/pre>).)*<\/pre>/s',
 		 function($matches) use (&$codeBlocks, $placeholder) {
 			 $index = count($codeBlocks);
-			 $codeBlocks[$index] = $matches[0];
+			 $codeBlocks[$index] = _admin_sanitize_code_block($matches[0]);
 			 return $placeholder . $index . '___';
 		 },
 		 $html
@@ -83,7 +105,7 @@ function admin_purify_html($html) {
 				 return $matches[0];
 			 }
 			 $index = count($codeBlocks);
-			 $codeBlocks[$index] = $matches[0];
+			 $codeBlocks[$index] = _admin_sanitize_code_block($matches[0]);
 			 return $placeholder . $index . '___';
 		 },
 		 $html

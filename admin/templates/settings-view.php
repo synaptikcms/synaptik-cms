@@ -43,6 +43,7 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 
 		<form method="post" action="index.php?action=settings" enctype="multipart/form-data">
 			<input type="hidden" name="tab" id="settings-active-tab" value="<?php echo hsc($activeTab); ?>">
+			<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token'] ?? ''); ?>">
 
 			<!-- ══════════════════════ GENERAL TAB ══════════════════════ -->
 			<div id="general-tab" class="tab-content" <?php echo $activeTab !== 'general' ? 'style="display: none;"' : ''; ?>>
@@ -466,6 +467,27 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 						?></textarea>
 					</div>
 				</div>
+				<div class="site-settings-section">
+					<h3><?php echo admin_icon('warning'); ?> <?php _e('htaccess_rules_title'); ?></h3>
+					<div class="update-notice"><?php _e('htaccess_rules_warning'); ?></div>
+					<div class="form-group">
+						<p class="help-text"><?php _e('htaccess_rules_help'); ?></p>
+						<textarea id="htaccess_rules" name="htaccess_rules" form="htaccess-rules-form" rows="8"
+							style="font-family: monospace; font-size: 0.85rem;"
+						><?php echo hsc(sl_htaccess_load_custom()); ?></textarea>
+					</div>
+					<div class="form-group" style="display:flex; gap:10px; align-items:center;">
+						<button type="submit" form="htaccess-rules-form" name="htaccess_rules_save" value="1" class="btn btn-primary">
+							<?php _e('htaccess_rules_save_btn'); ?>
+						</button>
+						<?php if (sl_htaccess_latest_backup() !== null): ?>
+						<button type="submit" form="htaccess-restore-form" name="htaccess_restore" value="1" class="btn btn-outline"
+							onclick="return confirm('<?php echo hsc(__t('htaccess_restore_confirm')); ?>');">
+							<?php _e('htaccess_restore_btn'); ?>
+						</button>
+						<?php endif; ?>
+					</div>
+				</div>
 			</div>
 
 			<!-- ══════════════════════ IMAGES TAB ══════════════════════ -->
@@ -706,6 +728,13 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 		</form>
 		<form id="clear-admin-cache-form" method="post" action="index.php?action=settings">
 			<input type="hidden" name="clear_admin_cache" value="1">
+			<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token'] ?? ''); ?>">
+		</form>
+
+		<form id="htaccess-rules-form" method="post" action="index.php?action=settings">
+			<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token'] ?? ''); ?>">
+		</form>
+		<form id="htaccess-restore-form" method="post" action="index.php?action=settings">
 			<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token'] ?? ''); ?>">
 		</form>
 

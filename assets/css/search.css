@@ -1,4 +1,4 @@
-/*  --- SynaptikCMS Custom search function ---  */
+/*  --- Synaptik CMS Custom search function ---  */
 /* ── Search icon in nav ── */
 .search-icon svg { margin-top: 3px; stroke: var(--search-accent); transition: transform 0.3s ease; }
 .search-icon a:hover svg { transform: scale(1.2); }

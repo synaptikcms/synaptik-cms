@@ -83,7 +83,7 @@ function parseRequestUri()
 
     $reserved = array_keys($typeFromSlug);
 
-    // ── 0. Single segment: root-level page (e.g. /a-propos/) ────────────────
+    // ── 0. Single segment: root-level page (e.g. /about/) ────────────────
     if (count($segments) === 1 && !isset($typeFromSlug[$segments[0]])) {
         if (isset($GLOBALS['data']['page'])) {
             foreach ($GLOBALS['data']['page'] as $page) {
@@ -123,13 +123,13 @@ function parseRequestUri()
         }
     }
 
-    // ── 3. Category listing: /categorie/slug/ or /categorie/parent/child/ ─────
+    // ── 3. Category listing: /category/slug/ or /category/parent/child/ ─────
     if (count($segments) >= 2 && $segments[0] === $catSlug) {
         $leafCat = end($segments); // last segment = leaf category slug
         return ['type' => 'category', 'slug' => '', 'page' => '', 'category' => $leafCat];
     }
 
-    // ── 4. Tag listing: /tag/nom/ or /etiquette/nom/ ─────────────────────────
+    // ── 4. Tag listing: /tag/name/ or /etiquette/nom/ ─────────────────────────
     if (count($segments) === 2 && $segments[0] === $tagSlug) {
         return ['type' => 'tag', 'slug' => '', 'page' => '', 'category' => '', 'tag' => $segments[1]];
     }
@@ -249,6 +249,32 @@ function generateSEO($pageTitle, $type, $slug, $data, $settings)
     }
 
     if (!empty($type) && !empty($slug)) {
+        if (in_array($type, ["category", "tag"])) {
+            $store = $data[$type === 'category' ? 'categories' : 'tags'] ?? [];
+            $term  = $store[$slug] ?? null;
+            $termName = $term['name'] ?? urldecode($slug);
+
+            $metaTitle = str_replace(
+                ["{page_title}", "{site_title}"],
+                [$termName, decodeHtmlEntities($settings["site_title"])],
+                $settings["default_meta_title"]
+            );
+
+            if (!empty($term['description'])) {
+                $metaDescription = decodeHtmlEntities($term['description']);
+            } else {
+                $fallbackKey = $type === 'category' ? 'seo_category_desc_default' : 'seo_tag_desc_default';
+                $fallbackTpl = $type === 'category'
+                    ? 'Browse all content in the "%s" category on %s.'
+                    : 'Browse all content tagged "%s" on %s.';
+                $metaDescription = sprintf(
+                    __t($fallbackKey, $fallbackTpl),
+                    $termName,
+                    decodeHtmlEntities($settings["site_title"])
+                );
+            }
+        }
+
         // Individual content page
         if (in_array($type, ["article", "page", "project"])) {
             foreach ($data[$type] as $item) {

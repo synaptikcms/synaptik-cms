@@ -4,6 +4,11 @@ if (!defined('INCLUDED')) {
 	exit;
 }
 
+function isValidImageFile($path) {
+	if (!file_exists($path) || filesize($path) === 0) return false;
+	return @getimagesize($path) !== false;
+}
+
 function optimizeImage($sourceFile, $destinationFile, $maxWidth = 1920, $maxHeight = 1080, $quality = 85, $createThumbnail = false, $thumbnailPath = '', $thumbWidth = 300, $thumbHeight = 300, $deleteOriginal = false, $convertToWebP = false) {
 	if (!file_exists($sourceFile)) return false;
 
@@ -115,6 +120,12 @@ function optimizeImage($sourceFile, $destinationFile, $maxWidth = 1920, $maxHeig
 		$webpResult = imagewebp($newImage, $destinationFile, $quality);
 	}
 
+	if (($result || $webpResult) && !isValidImageFile($destinationFile)) {
+		@unlink($destinationFile);
+		$result     = false;
+		$webpResult = false;
+	}
+
 	if ($createThumbnail && !empty($thumbnailPath)) {
 		$thumbDir = dirname($thumbnailPath);
 		if (!file_exists($thumbDir)) @mkdir($thumbDir, 0755, true);
@@ -203,6 +214,12 @@ function createThumbnail($sourceImage, $thumbnailPath, $width, $height, $imageTy
 	}
 
 	imagedestroy($thumbnail);
+
+	if ($result && !isValidImageFile($thumbnailPath)) {
+		@unlink($thumbnailPath);
+		$result = false;
+	}
+
 	return $result;
 }
 
