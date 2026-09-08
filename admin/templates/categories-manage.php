@@ -62,9 +62,15 @@ $categoryTree = buildCategoryTree($categories);
 		<h3 style="margin-top:0;"><?php _e('add_category'); ?></h3>
 		<form method="post" action="index.php?action=manage_categories">
 			<input type="hidden" name="category_action" value="add">
+			<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token']); ?>">
 			<div class="form-group">
 				<label for="category_name"><?php _e('cat_new_name'); ?></label>
 				<input type="text" id="category_name" name="category_name" required>
+			</div>
+			<div class="form-group">
+				<label for="category_slug"><?php _e('slug'); ?></label>
+				<input type="text" id="category_slug" name="category_slug" placeholder="<?php echo hsc(__t('slug_autogenerate_placeholder', 'Leave empty to auto-generate')); ?>">
+				<p class="help-text"><?php _e('cat_slug_help', 'Leave empty to generate automatically from the name.'); ?></p>
 			</div>
 			<div class="form-group">
 				<label for="category_parent"><?php _e('cat_parent'); ?></label>
@@ -97,6 +103,7 @@ $categoryTree = buildCategoryTree($categories);
 			<p style="font-size:.85rem; opacity:.75; margin-top:0;"><?php _e('merge_cats_help'); ?></p>
 			<form id="merge-cats-submit-form" style="margin-bottom: 20px;" method="post" action="index.php?action=manage_categories">
 				<input type="hidden" name="category_action" value="merge">
+				<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token']); ?>">
 				<div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
 					<div class="form-group" style="margin:0; padding:0; flex:1; min-width:160px;">
 						<label><?php _e('merge_source'); ?></label>
@@ -143,6 +150,7 @@ $categoryTree = buildCategoryTree($categories);
 
 			<form method="post" action="index.php?action=manage_categories" id="purge-cats-form" style="margin:0;">
 				<input type="hidden" name="category_action" value="purge_orphans">
+				<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token']); ?>">
 				<button type="button" class="btn btn-danger btn-sm purge-btn"
 					data-form="purge-cats-form"
 					data-confirm="<?php _e('confirm_purge_orphan_cats'); ?>">
@@ -236,7 +244,9 @@ $categoryTree = buildCategoryTree($categories);
 	<!-- Edit Category — bare form, populated and submitted via JS modal -->
 	<form id="edit-category-form" method="post" action="index.php?action=manage_categories" style="display:none">
 		<input type="hidden" name="category_action" value="edit">
+		<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token']); ?>">
 		<input type="hidden" id="edit_category_slug" name="category_slug">
+		<input type="hidden" id="edit_category_slug_new" name="category_slug_new">
 		<input type="hidden" id="edit_category_name" name="category_name">
 		<input type="hidden" id="edit_category_parent" name="category_parent">
 		<input type="hidden" id="edit_category_description" name="category_description">

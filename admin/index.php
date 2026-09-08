@@ -63,6 +63,23 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_content_items' &&
 			$items[] = ['title' => $name, 'slug' => $slug];
 		}
 		echo json_encode($items);
+	} elseif ($contentType === 'category') {
+		$categories = [];
+		foreach (['article', 'page', 'project'] as $type) {
+			if (!empty($data[$type])) {
+				foreach ($data[$type] as $item) {
+					if (!empty($item['category'])) {
+						$slug = sanitizeSlug($item['category']);
+						if (!isset($categories[$slug])) $categories[$slug] = $item['category'];
+					}
+				}
+			}
+		}
+		$items = [];
+		foreach ($categories as $slug => $name) {
+			$items[] = ['title' => $name, 'slug' => $slug];
+		}
+		echo json_encode($items);
 	} elseif (isset($data[$contentType])) {
 		$now = time();
 		$items = [];

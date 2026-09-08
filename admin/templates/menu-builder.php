@@ -9,6 +9,7 @@ $appSettings  = admin_load_config();
 $contentTypes = ['article', 'page', 'project'];
 ?>
 		<form method="post" action="index.php?action=menu_builder">
+		<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token'] ?? ''); ?>">
 		<div class="sitemap-content">
 			<div class="site-settings-section">
 				<h3><?php _e('menu_configuration'); ?></h3>
@@ -79,6 +80,9 @@ $contentTypes = ['article', 'page', 'project'];
 								if (isset($menuItem['tag_slug'])) {
 									echo '<input type="hidden" name="menu[' . $index . '][tag_slug]" value="' . hsc($menuItem['tag_slug']) . '">';
 								}
+								if (isset($menuItem['category_slug'])) {
+									echo '<input type="hidden" name="menu[' . $index . '][category_slug]" value="' . hsc($menuItem['category_slug']) . '">';
+								}
 								echo '</li>';
 							}
 						}
@@ -131,6 +135,7 @@ $contentTypes = ['article', 'page', 'project'];
 								<?php endforeach; ?>
 								<option value="contentlist"><?php _e('content_list'); ?></option>
 								<option value="tag"><?php _e('tag'); ?></option>
+								<option value="category"><?php _e('category'); ?></option>
 							</select>
 						</div>
 						<div id="contentlist-options" class="form-group" style="display: none;">

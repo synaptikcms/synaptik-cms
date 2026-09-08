@@ -28,9 +28,11 @@ if (isset($_POST['create_full_zip_backup'])) {
 		exit;
 	}
 
-	$root     = dirname(dirname(__DIR__));
-	$filename = 'synaptik-full-backup-' . date('Y-m-d-His') . '.zip';
-	$zipPath  = $root . '/bckps/' . $filename;
+	$root      = dirname(dirname(__DIR__));
+	$siteSlug  = str_replace('-', '', sanitizeSlug(admin_load_config()['site_title'] ?? ''));
+	if ($siteSlug === '') $siteSlug = 'site';
+	$filename  = $siteSlug . '-snk-fullbkp-' . date('Y-m-d-His') . '.zip';
+	$zipPath   = $root . '/bckps/' . $filename;
 
 	if (!is_dir($root . '/bckps')) mkdir($root . '/bckps', 0755, true);
 
@@ -169,8 +171,8 @@ if (isset($_POST['restore_zip_backup']) && isset($_FILES['backup_zip_file'])) {
 		$tmpSettings = $tmpDir . '/settings.json';
 	}
 	if (file_exists($tmpSettings)) {
-		$ok = $ok && (copy($tmpSettings, $root . '/config.json') !== false);
-		if (function_exists('loadConfig_invalidate')) loadConfig_invalidate();
+		$restoredConfig = json_decode((string) file_get_contents($tmpSettings), true);
+		$ok = $ok && is_array($restoredConfig) && sl_admin_save_config($restoredConfig);
 	}
 
 	// /data/ — clear existing JSON content, then copy from ZIP

@@ -2,6 +2,40 @@
 
 All notable changes to Synaptik CMS are documented here.  
 
+## [1.4.5] — 2026-09-08
+
+### Added
+
+- **Manual slug editing for categories and tags**,instead of always deriving the URL from the name.
+- **Menu builder can now link directly to a category archive**, picked from a dropdown the same way tags already work.
+- **Template editor now saves to child themes instead of the theme itself** — edits are written to a child theme override (`theme/child_theme/{theme}/`) so customizations survive theme updates instead of being overwritten.
+- **Revert to Theme Default button** in the template editor — discards a file's customization and falls back to the theme's original version; overrides that end up byte-identical to the theme file are now cleaned up automatically instead of silently freezing that file against future updates.
+
+### Changed
+
+- **New "Advanced" settings tab** groups the robots.txt editor and .htaccess rules manager — previously scattered across the SEO and Contact tabs.
+- **Full backup ZIP filename now starts with the site name** (e.g. `mysite-snk-fullbkp-date.zip`) instead of a generic `synaptik-full-backup-...` name, so backups from different sites are easy to tell apart.
+
+### Removed
+
+- **Read-only page templates listing in Settings > Advanced** — purely informational, duplicated the template picker already in the page editor.
+
+### Fixed
+
+- **CSP hash for the pre-paint theme-preference script was out of sync with the actual snippet** in Atrium, Ink, Prism, and Vitae, blocking the script and causing a dark/light-mode flash — flagged by PageSpeed Insights as a Content-Security-Policy violation. Re-synced `.htaccess` and `nginx.conf.example` to the snippet's real hash and added a regression test so the two can't drift apart again unnoticed.
+- **Restoring a backup could carry over a stale admin folder name**, breaking plugins (Analytics) that build admin URLs from it directly. The restored value is now re-verified against the actual folder right after restore.
+- **A manually renamed admin folder, or any other cause of a stale admin folder name in the settings file, now self-corrects the next time settings are saved** — every save now goes through a single, centralized function instead of each screen writing the settings file on its own.
+- **Scheduled and draft articles, pages, or projects could silently disappear from the admin content list** — the moment any other item of the same type became due for publishing during an ordinary front-end visit, its index got rewritten from a copy that had already dropped every draft and still-future-scheduled item, permanently deleting their rows. The item itself was never touched, only its listing — this is why it could still be found inside a backup ZIP. Fixed.
+- **A fresh draft's file could stay named "Untitled draft" forever**, even after filling in a real title and publishing or scheduling it, because autosave already synced the new title into the listing without renaming the underlying file — so the later save/schedule action never detected a change to act on. It now gets renamed to match on the next save.
+
+### Security
+
+- **Missing CSRF checks on saving the menu and on activating or deleting a theme** — fixed.
+- **Missing CSRF checks on adding, editing, merging, purging, or deleting categories and tags** — fixed.
+- **Custom .htaccess rules** — `Header`, `RequestHeader`, and the `[P]` flag are now blocked alongside the existing handler and `php_admin_*` restrictions.
+
+---
+
 ## [1.4.4] — 2026-09-02
 
 ### Added
@@ -45,7 +79,7 @@ All notable changes to Synaptik CMS are documented here.
 - **Pages loaded without any styling under a secondary domain** — the other variant of your address (with or without "www") now redirects to your main one.
 - **A mistyped "Canonical Site Host" could make the whole site unreachable.** Bad values are now corrected or ignored instead of breaking the site.
 - **Markdown images with a caption in quotes didn't display.** They now work, on images and links alike.
-
+  
 ### Added
 
 - **Reference-style Markdown links and images** — write `[text][label]` and put the address once at the bottom of the page as `[label]: address`.

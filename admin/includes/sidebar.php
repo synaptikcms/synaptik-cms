@@ -187,13 +187,13 @@ function sb_icon(string $name): string {
 			</li>
 		</ul>
 		<ul class="sidebar-subitems">
-			<li><a href="index.php?action=plugins" class="sidebar-subitem sidebar-subitem--plugin <?php echo $_sb_action === 'plugins' ? 'active' : ''; ?>"><?php echo sb_icon('settings'); ?><?php _e('plugins_manage_link'); ?></a></li>
+			<li><a href="index.php?action=plugins" class="sidebar-subitem sidebar-subitem--icon <?php echo $_sb_action === 'plugins' ? 'active' : ''; ?>"><?php echo sb_icon('settings'); ?><?php _e('plugins_manage_link'); ?></a></li>
 			<?php if (!empty($_sb_plugin_items)): ?>
 			<li class="sidebar-subitem-sep"></li>
 			<?php foreach ($_sb_plugin_items as $_sb_pi): ?>
 			<?php $_sb_pi_active = ($_sb_plugin_slug !== '' && $_sb_plugin_slug === $_sb_pi['slug']); ?>
 			<li>
-				<a href="<?php echo hsc($_sb_pi['url']); ?>" class="sidebar-subitem sidebar-subitem--plugin <?php echo $_sb_pi_active ? 'active' : ''; ?>">
+				<a href="<?php echo hsc($_sb_pi['url']); ?>" class="sidebar-subitem sidebar-subitem--icon <?php echo $_sb_pi_active ? 'active' : ''; ?>">
 					<?php if (!empty($_sb_pi['icon'])): ?>
 					<svg class="sb-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><?php echo $_sb_pi['icon']; ?></svg>
 					<?php endif; ?>
@@ -218,14 +218,15 @@ function sb_icon(string $name): string {
 			</li>
 		</ul>
 		<ul class="sidebar-subitems">
-			<li><a href="index.php?action=settings&tab=general" data-tab="general" class="sidebar-subitem <?php echo ($_sb_settings_active && $_sb_settings_tab === 'general') ? 'active' : ''; ?>"><?php _e('settings_general'); ?></a></li>
-			<li><a href="index.php?action=settings&tab=reading" data-tab="reading" class="sidebar-subitem <?php echo ($_sb_settings_active && $_sb_settings_tab === 'reading') ? 'active' : ''; ?>"><?php _e('settings_tab_reading'); ?></a></li>
-			<li><a href="index.php?action=settings&tab=writing" data-tab="writing" class="sidebar-subitem <?php echo ($_sb_settings_active && $_sb_settings_tab === 'writing') ? 'active' : ''; ?>"><?php _e('settings_tab_writing'); ?></a></li>
-			<li><a href="index.php?action=settings&tab=seo" data-tab="seo" class="sidebar-subitem <?php echo ($_sb_settings_active && $_sb_settings_tab === 'seo') ? 'active' : ''; ?>"><?php _e('seo'); ?></a></li>
-			<li><a href="index.php?action=settings&tab=images" data-tab="images" class="sidebar-subitem <?php echo ($_sb_settings_active && $_sb_settings_tab === 'images') ? 'active' : ''; ?>"><?php _e('images'); ?></a></li>
-			<li><a href="index.php?action=settings&tab=contact" data-tab="contact" class="sidebar-subitem <?php echo ($_sb_settings_active && $_sb_settings_tab === 'contact') ? 'active' : ''; ?>"><?php _e('settings_tab_contact'); ?></a></li>
-			<li><a href="index.php?action=settings&tab=custom_fields" data-tab="custom_fields" class="sidebar-subitem <?php echo ($_sb_settings_active && $_sb_settings_tab === 'custom_fields') ? 'active' : ''; ?>"><?php _e('cf_tab'); ?></a></li>
-			<li><a href="index.php?action=users" class="sidebar-subitem <?php echo $_sb_action === 'users' ? 'active' : ''; ?>"><?php _e('users_title'); ?></a></li>
+			<li><a href="index.php?action=settings&tab=general" data-tab="general" class="sidebar-subitem sidebar-subitem--icon <?php echo ($_sb_settings_active && $_sb_settings_tab === 'general') ? 'active' : ''; ?>"><?php echo sb_icon('settings'); ?><?php _e('settings_general'); ?></a></li>
+			<li><a href="index.php?action=settings&tab=reading" data-tab="reading" class="sidebar-subitem sidebar-subitem--icon <?php echo ($_sb_settings_active && $_sb_settings_tab === 'reading') ? 'active' : ''; ?>"><?php echo sb_icon('reading'); ?><?php _e('settings_tab_reading'); ?></a></li>
+			<li><a href="index.php?action=settings&tab=writing" data-tab="writing" class="sidebar-subitem sidebar-subitem--icon <?php echo ($_sb_settings_active && $_sb_settings_tab === 'writing') ? 'active' : ''; ?>"><?php echo sb_icon('writing'); ?><?php _e('settings_tab_writing'); ?></a></li>
+			<li><a href="index.php?action=settings&tab=seo" data-tab="seo" class="sidebar-subitem sidebar-subitem--icon <?php echo ($_sb_settings_active && $_sb_settings_tab === 'seo') ? 'active' : ''; ?>"><?php echo sb_icon('seo'); ?><?php _e('seo'); ?></a></li>
+			<li><a href="index.php?action=settings&tab=images" data-tab="images" class="sidebar-subitem sidebar-subitem--icon <?php echo ($_sb_settings_active && $_sb_settings_tab === 'images') ? 'active' : ''; ?>"><?php echo sb_icon('images'); ?><?php _e('images'); ?></a></li>
+			<li><a href="index.php?action=settings&tab=contact" data-tab="contact" class="sidebar-subitem sidebar-subitem--icon <?php echo ($_sb_settings_active && $_sb_settings_tab === 'contact') ? 'active' : ''; ?>"><?php echo sb_icon('contact'); ?><?php _e('settings_tab_contact'); ?></a></li>
+			<li><a href="index.php?action=settings&tab=custom_fields" data-tab="custom_fields" class="sidebar-subitem sidebar-subitem--icon <?php echo ($_sb_settings_active && $_sb_settings_tab === 'custom_fields') ? 'active' : ''; ?>"><?php echo sb_icon('puzzle'); ?><?php _e('cf_tab'); ?></a></li>
+			<li><a href="index.php?action=settings&tab=advanced" data-tab="advanced" class="sidebar-subitem sidebar-subitem--icon <?php echo ($_sb_settings_active && $_sb_settings_tab === 'advanced') ? 'active' : ''; ?>"><?php echo sb_icon('tools'); ?><?php _e('settings_tab_advanced'); ?></a></li>
+			<li><a href="index.php?action=users" class="sidebar-subitem sidebar-subitem--icon <?php echo $_sb_action === 'users' ? 'active' : ''; ?>"><?php echo sb_icon('account'); ?><?php _e('users_title'); ?></a></li>
 		</ul>
 	</div>
 	<?php endif; ?>

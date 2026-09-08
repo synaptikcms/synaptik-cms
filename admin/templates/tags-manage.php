@@ -45,9 +45,15 @@ uasort($tagsAlpha, fn($a, $b) => strcasecmp($a['name'], $b['name']));
 	<h3 style="margin-top:0;"><?php _e('add_tag'); ?></h3>
 	<form method="post" action="index.php?action=manage_tags">
 		<input type="hidden" name="tag_action" value="add">
+		<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token']); ?>">
 		<div class="form-group">
 			<label for="tag_name"><?php _e('tag_new_name'); ?></label>
 			<input type="text" id="tag_name" name="tag_name" required>
+		</div>
+		<div class="form-group">
+			<label for="tag_slug"><?php _e('slug'); ?></label>
+			<input type="text" id="tag_slug" name="tag_slug" placeholder="<?php echo hsc(__t('slug_autogenerate_placeholder', 'Leave empty to auto-generate')); ?>">
+			<p class="help-text"><?php _e('tag_slug_help', 'Leave empty to generate automatically from the name.'); ?></p>
 		</div>
 		<div class="form-group">
 			<label for="tag_description"><?php _e('tag_description'); ?></label>
@@ -64,6 +70,7 @@ uasort($tagsAlpha, fn($a, $b) => strcasecmp($a['name'], $b['name']));
 		<p style="font-size:.85rem; opacity:.75; margin-top:0;"><?php _e('merge_tags_help'); ?></p>
 		<form id="merge-tags-submit-form" style="margin-bottom: 20px;" method="post" action="index.php?action=manage_tags">
 			<input type="hidden" name="tag_action" value="merge">
+			<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token']); ?>">
 			<div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
 				<div class="form-group" style="margin:0; padding: 0; flex:1; min-width:160px;">
 					<label><?php _e('merge_source'); ?></label>
@@ -102,6 +109,7 @@ uasort($tagsAlpha, fn($a, $b) => strcasecmp($a['name'], $b['name']));
 		
 			<form method="post" action="index.php?action=manage_tags" id="purge-tags-form" style="margin:0;">
 				<input type="hidden" name="tag_action" value="purge_orphans">
+				<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token']); ?>">
 				<button type="button" class="btn btn-danger btn-sm purge-btn"
 					data-form="purge-tags-form"
 					data-confirm="<?php _e('confirm_purge_orphan_tags'); ?>">
@@ -169,7 +177,9 @@ uasort($tagsAlpha, fn($a, $b) => strcasecmp($a['name'], $b['name']));
 	<!-- Edit Tag — bare form, populated and submitted via JS modal -->
 	<form id="edit-tag-form" method="post" action="index.php?action=manage_tags" style="display:none">
 		<input type="hidden" name="tag_action" value="edit">
+		<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token']); ?>">
 		<input type="hidden" id="edit_tag_slug" name="tag_slug">
+		<input type="hidden" id="edit_tag_slug_new" name="tag_slug_new">
 		<input type="hidden" id="edit_tag_name" name="tag_name">
 		<input type="hidden" id="edit_tag_description" name="tag_description">
 	</form>

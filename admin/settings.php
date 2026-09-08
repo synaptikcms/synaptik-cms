@@ -74,6 +74,7 @@ if (isset($_POST['htaccess_restore'])) {
 }
 
 if (isset($_POST['save_menu'])) {
+	admin_csrf_check();
 	$appSettings['use_custom_menu'] = isset($_POST['use_custom_menu']);
 	$appSettings['default_menu_style'] = isset($_POST['default_menu_style']) ? $_POST['default_menu_style'] : 'flat';
 	$appSettings['default_menu_order'] = isset($_POST['default_menu_order']) ? $_POST['default_menu_order'] : 'alphabetical';
@@ -105,6 +106,9 @@ if (isset($_POST['save_menu'])) {
 				if (isset($item['tag_slug'])) {
 					$menuItem['tag_slug'] = $item['tag_slug'];
 				}
+				if (isset($item['category_slug'])) {
+					$menuItem['category_slug'] = $item['category_slug'];
+				}
 
 				$menuItem['target'] = (isset($item['target']) && $item['target'] === '_blank') ? '_blank' : '';
 				$menuItems[] = $menuItem;
@@ -114,10 +118,7 @@ if (isset($_POST['save_menu'])) {
 	
 	$appSettings['main_menu'] = $menuItems;
 
-	$jsonData = json_encode($appSettings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-	$result = file_put_contents(dirname(__DIR__) . '/config.json', $jsonData);
-	
-	if ($result !== false) {
+	if (sl_admin_save_config($appSettings)) {
 		$_SESSION['message'] = __t('menu_saved');
 	} else {
 		$_SESSION['error'] = __t('menu_save_failed');
@@ -320,15 +321,11 @@ if (isset($_POST['save_settings'])) {
 		$appSettings['type_labels'] = $_tlSubmitted;
 	}
 
-	$saveResult = file_put_contents(dirname(__DIR__) . '/config.json', json_encode($appSettings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-	if ($saveResult === false) {
+	if (!sl_admin_save_config($appSettings)) {
 		error_log('Failed to save configuration to file: ../config.json');
 		$_SESSION['error'] = __t('settings_save_failed');
-	} else {
-		if (function_exists('loadConfig_invalidate')) loadConfig_invalidate();
-		if (!isset($_SESSION['error'])) {
-			$_SESSION['message'] = __t('settings_saved');
-		}
+	} elseif (!isset($_SESSION['error'])) {
+		$_SESSION['message'] = __t('settings_saved');
 	}
 	header('Location: index.php?action=settings&tab=' . $activeTab);
 	exit;

@@ -208,6 +208,13 @@ if ($action === 'edit' && $contentType && isset($data[$contentType][$index]) && 
 // Handle category & tag management
 if ($action === 'manage_categories' || $action === 'manage_tags') {
 
+	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+		if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', $_POST['csrf_token'])) {
+			http_response_code(403);
+			exit(__t('access_denied', 'Access denied.'));
+		}
+	}
+
 	if (!isset($data['categories'])) $data['categories'] = [];
 	if (!isset($data['tags']))       $data['tags']       = [];
 
@@ -220,7 +227,7 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 			$categoryParent = isset($_POST['category_parent']) ? trim($_POST['category_parent']) : '';
 			$categoryDescription = trim($_POST['category_description'] ?? '');
 			if (!isset($data['categories'])) $data['categories'] = [];
-			$newSlug = sanitizeSlug($categoryName);
+			$newSlug = sl_resolve_taxonomy_slug(trim($_POST['category_slug'] ?? ''), $categoryName, array_keys($data['categories']));
 			$entry = ['name' => $categoryName];
 			// Only store parent if it references an existing category slug
 			if (!empty($categoryParent) && isset($data['categories'][$categoryParent])) {
@@ -296,7 +303,7 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 		if ($categoryAction === 'edit' && isset($_POST['category_slug'], $_POST['category_name'])) {
 			$oldSlug   = $_POST['category_slug'];
 			$newName   = trim($_POST['category_name']);
-			$newSlug   = sanitizeSlug($newName);
+			$newSlug   = sl_resolve_taxonomy_slug(trim($_POST['category_slug_new'] ?? ''), $newName, array_keys($data['categories']), $oldSlug);
 			$newParent = isset($_POST['category_parent']) ? trim($_POST['category_parent']) : '';
 			$newDescription = trim($_POST['category_description'] ?? '');
 			$anyChanges = false;
@@ -356,7 +363,8 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 			if (!isset($data['tags'])) $data['tags'] = [];
 			$tagEntry = ['name' => $tagName];
 			if ($tagDescription !== '') $tagEntry['description'] = $tagDescription;
-			$data['tags'][sanitizeSlug($tagName)] = $tagEntry;
+			$newTagSlug = sl_resolve_taxonomy_slug(trim($_POST['tag_slug'] ?? ''), $tagName, array_keys($data['tags']));
+			$data['tags'][$newTagSlug] = $tagEntry;
 			saveData($data);
 			$_SESSION['message'] = sprintf(__t('tag_added'), $tagName);
 			header('Location: index.php?action=manage_tags'); exit;
@@ -438,7 +446,7 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 		if ($tagAction === 'edit' && isset($_POST['tag_slug'], $_POST['tag_name'])) {
 			$oldSlug = $_POST['tag_slug'];
 			$newName = trim($_POST['tag_name']);
-			$newSlug = sanitizeSlug($newName);
+			$newSlug = sl_resolve_taxonomy_slug(trim($_POST['tag_slug_new'] ?? ''), $newName, array_keys($data['tags']), $oldSlug);
 			$newDescription = trim($_POST['tag_description'] ?? '');
 			$anyChanges = false;
 
@@ -486,6 +494,10 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 
 	// --- Category delete via GET ---
 	if ($action === 'manage_categories' && isset($_GET['category_action']) && $_GET['category_action'] === 'delete' && isset($_GET['slug'])) {
+		if (!isset($_GET['csrf_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', $_GET['csrf_token'])) {
+			http_response_code(403);
+			exit(__t('access_denied', 'Access denied.'));
+		}
 		$categorySlug = $_GET['slug'];
 		$anyChanges = false;
 		foreach (['article', 'project', 'page'] as $ct) {
@@ -515,6 +527,10 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 
 	// --- Tag delete via GET ---
 	if ($action === 'manage_tags' && isset($_GET['tag_action']) && $_GET['tag_action'] === 'delete' && isset($_GET['slug'])) {
+		if (!isset($_GET['csrf_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', $_GET['csrf_token'])) {
+			http_response_code(403);
+			exit(__t('access_denied', 'Access denied.'));
+		}
 		$tagSlug = $_GET['slug'];
 		$anyChanges = false;
 		foreach (['article', 'project', 'page'] as $ct) {
@@ -910,6 +926,13 @@ function handleContentEdit() {
 
 	$data[$contentType][$index] = $updatedItem;
 	saveData($data);
+
+	// saveData() keeps the item under its existing on-disk filename whenever that
+	// filename's slug already matches the index (autosave silently syncs the index's
+	// slug to the current title on every tick without renaming the file, so by the
+	// time a real save/schedule happens there's no slug "change" left for saveData()
+	// to detect). Reconcile the filename with the real target slug here instead.
+	sl_admin_reconcile_file_slug($contentType, $oldFileSlug, $updatedItem);
 
 	$newMenuSlug = sl_effective_slug($updatedItem);
 	$newFound    = sl_find_in_index($contentType, $newMenuSlug);

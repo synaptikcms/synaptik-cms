@@ -26,6 +26,7 @@ if (!function_exists('tm_delete_dir')) {
 
 // ── ACTIVATE THEME ────────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['activate_theme'])) {
+	admin_csrf_check();
 	$themeName = basename($_POST['theme_name'] ?? '');
 	$availableThemes = admin_get_themes();
 
@@ -33,8 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['activate_theme'])) {
 		$_SESSION['error'] = __t('theme_manager_not_found');
 	} else {
 		$appSettings['active_theme'] = $themeName;
-		$result = file_put_contents(dirname(dirname(__DIR__)) . '/config.json', json_encode($appSettings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-		if ($result !== false) {
+		if (sl_admin_save_config($appSettings)) {
 			$_SESSION['message'] = sprintf(__t('theme_manager_activated'), hsc($themeName));
 		} else {
 			$_SESSION['error'] = __t('theme_manager_activate_failed');
@@ -47,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['activate_theme'])) {
 
 // ── DELETE THEME ──────────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_theme'])) {
+	admin_csrf_check();
 	$themeName = basename($_POST['theme_name'] ?? '');
 
 	if (empty($themeName)) {

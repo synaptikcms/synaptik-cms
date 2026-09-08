@@ -79,9 +79,18 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     #               run synchronously before first paint, so defer/async isn't
     #               an option. Every occurrence across every theme is required
     #               to be byte-identical (see the comment inside each one), so
-    #               this single hash covers all of them. Recompute and update
-    #               this value if that snippet's code is ever edited:
-    #               printf '<snippet>' | openssl dgst -sha256 -binary | base64
+    #               this single hash covers all of them.
+    #               THIS HASH MUST STAY IN SYNC ACROSS THREE PLACES: this file,
+    #               both front-end CSP blocks in nginx.conf.example, and every
+    #               catalogue theme that ships the snippet (currently: Atrium,
+    #               Ink, Prism, Vitae — synaptik-docs uses an external file
+    #               instead, deliberately, for stricter host CSP setups).
+    #               DO NOT hand-edit this value. Run `php tools/sync-csp-hash.php`
+    #               instead — it recomputes the hash from the real snippet bytes
+    #               and rewrites this file and nginx.conf.example automatically.
+    #               export-release.sh and zip-themes.sh both run it and refuse
+    #               to ship if it fails. tests/Unit/CspHashTest.php also locks
+    #               this invariant in for `phpunit`/local dev.
     # frame-src   : hCaptcha iframe only
     # style-src   : theme CSS + inline styles + Google Fonts (if used) —
     #               'unsafe-inline' kept — user-authored content (articles/pages)
@@ -93,7 +102,7 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     # connect-src : same-origin XHR/fetch + hCaptcha verification API
     Header always set Content-Security-Policy "\
 default-src 'self'; \
-script-src 'self' 'sha256-IKuAx5iLABAf9AVYuoYEKcDHFB1pntqdgWQf0L+elJM=' https://js.hcaptcha.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.googletagmanager.com; \
+script-src 'self' 'sha256-IkTdP30yHFaVfjZm1HcruKVpJKKwowAYPMKI+GVaAlY=' https://js.hcaptcha.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.googletagmanager.com; \
 frame-src https://newassets.hcaptcha.com; \
 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.bunny.net https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; \
 font-src 'self' https://fonts.gstatic.com https://fonts.bunny.net https://cdn.jsdelivr.net; \

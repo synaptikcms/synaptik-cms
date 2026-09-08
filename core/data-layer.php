@@ -533,7 +533,7 @@ function sl_invalidate_taxonomy_cache(string $type): void
 
 function sl_promote_scheduled(string $type): void
 {
-    $index   = sl_load_index($type);
+    $index   = sl_load_index_unfiltered($type);
     $now     = time();
     $changed = false;
 

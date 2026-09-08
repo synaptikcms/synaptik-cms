@@ -39,8 +39,19 @@ function sl_htaccess_validate(string $rules): ?string {
 	if (strpos($rules, SL_HTACCESS_BEGIN) !== false || strpos($rules, SL_HTACCESS_END) !== false) {
 		return __t('htaccess_error_marker', 'These rules cannot contain the managed-block markers.');
 	}
-	if (preg_match('/\b(AddHandler|SetHandler|Action)\b|\bphp_admin_(value|flag)\b|<Directory\b|<VirtualHost\b|\bAllowOverride\b/i', $rules)) {
-		return __t('htaccess_error_denylist', 'These rules contain a directive that is blocked here for safety (handlers, php_admin_*, <Directory>, <VirtualHost>, AllowOverride). Add it through FTP if you really need it.');
+	if (preg_match('/\b(AddHandler|SetHandler|Action|Header|RequestHeader)\b|\bphp_admin_(value|flag)\b|<Directory\b|<VirtualHost\b|\bAllowOverride\b/i', $rules)) {
+		return __t('htaccess_error_denylist', 'These rules contain a directive that is blocked here for safety (handlers, Header/RequestHeader, php_admin_*, <Directory>, <VirtualHost>, AllowOverride). Add it through FTP if you really need it.');
+	}
+
+	if (preg_match_all('/\[([^\]]*)\]/', $rules, $_flagGroups)) {
+		foreach ($_flagGroups[1] as $_group) {
+			foreach (explode(',', $_group) as $_flag) {
+				$_flagName = strtolower(trim(explode('=', trim($_flag))[0]));
+				if ($_flagName === 'p' || $_flagName === 'proxy') {
+					return __t('htaccess_error_denylist_proxy', 'These rules use the mod_rewrite proxy flag ([P]), which is blocked here for safety. Add it through FTP if you really need it.');
+				}
+			}
+		}
 	}
 
 	$openTags = [];

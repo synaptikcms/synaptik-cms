@@ -15,11 +15,12 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-$siteRoot    = dirname(__DIR__);
-$settings    = json_decode(file_get_contents($siteRoot . '/config.json'), true);
-$activeTheme = $settings['active_theme'] ?? 'default';
-$themeDir    = $siteRoot . '/theme/' . $activeTheme;
-$backupDir   = $siteRoot . '/bckps/templates/' . $activeTheme . '/';
+$siteRoot       = dirname(__DIR__);
+$settings       = json_decode(file_get_contents($siteRoot . '/config.json'), true);
+$activeTheme    = $settings['active_theme'] ?? 'default';
+$themeDir       = $siteRoot . '/theme/' . $activeTheme;
+$childThemeDir  = $siteRoot . '/theme/child_theme/' . $activeTheme;
+$backupDir      = $siteRoot . '/bckps/templates/' . $activeTheme . '/';
 
 $message = '';
 $error   = '';
@@ -28,23 +29,26 @@ if (!is_dir($backupDir)) {
     mkdir($backupDir, 0755, true);
 }
 
-$fileGroups = theme_editor_scan_files($themeDir);
+$fileGroups = theme_editor_scan_theme_files($themeDir, $childThemeDir);
 
 $allFiles = [];
 foreach ($fileGroups as $files) {
     foreach ($files as $f) $allFiles[] = $f;
 }
 
-$requestedFile = $_GET['file'] ?? $_POST['theme_file'] ?? '';
+$requestedFileRaw = $_GET['file'] ?? $_POST['theme_file'] ?? '';
+$requestedFile = ($requestedFileRaw === '') ? '' : (theme_editor_sanitize_relative_path($requestedFileRaw) ?? '');
 if ($requestedFile === '' && in_array('css/style.css', $allFiles, true)) {
     $requestedFile = 'css/style.css';
 } elseif ($requestedFile === '' && !empty($allFiles)) {
     $requestedFile = $allFiles[0];
 }
 
-$activeFile = theme_editor_resolve_path($themeDir, $requestedFile);
+$activeFileInChild = theme_editor_resolve_path($childThemeDir, $requestedFile);
+$activeFile         = $activeFileInChild ?: theme_editor_resolve_path($themeDir, $requestedFile);
+$isChildFile        = ($activeFileInChild !== null);
 
-$backupKey = $activeFile ? str_replace('/', '__', $requestedFile) : '';
+$backupKey = ($requestedFile !== '') ? str_replace('/', '__', $requestedFile) : '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token'])
@@ -55,28 +59,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Save
+// Save — always writes into the child theme override, never into the parent theme.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['file_content'])
-    && !isset($_POST['restore_backup']) && !isset($_POST['delete_backup'])) {
-    if ($activeFile === null) {
+    && !isset($_POST['restore_backup']) && !isset($_POST['delete_backup']) && !isset($_POST['revert_override'])) {
+    $writeTarget = theme_editor_resolve_write_target($childThemeDir, $requestedFile);
+    if ($writeTarget === null) {
         $error = __t('te_invalid_file');
     } else {
-        $newContent = $_POST['file_content'];
-        $backupFile = $backupDir . $backupKey . '-' . date('Ymd-His') . '.bak';
-        if (!copy($activeFile, $backupFile)) {
+        $newContent   = $_POST['file_content'];
+        $backupFile   = $backupDir . $backupKey . '-' . date('Ymd-His') . '.bak';
+        $backupSource = $activeFile;
+        $backupOk     = ($backupSource === null) || copy($backupSource, $backupFile);
+
+        if (!$backupOk) {
             $error = __t('te_save_backup_failed') . ' <code>' . hsc($backupDir) . '</code>';
-        } elseif (file_put_contents($activeFile, $newContent) !== false) {
-            $message = __t('te_save_success') . ' <code>' . hsc(basename($backupFile)) . '</code>';
+        } elseif (file_put_contents($writeTarget, $newContent) !== false) {
+            $activeFile  = $writeTarget;
+            $isChildFile = true;
+            $reverted = theme_editor_prune_if_identical($childThemeDir, $themeDir, $requestedFile);
+            if ($reverted) {
+                $activeFile  = theme_editor_resolve_path($themeDir, $requestedFile);
+                $isChildFile = false;
+                $message = __t('te_save_success_reverted') . ' <code>' . hsc(basename($backupFile)) . '</code>';
+            } else {
+                $message = __t('te_save_success') . ' <code>' . hsc(basename($backupFile)) . '</code>';
+            }
             sl_admin_log_activity('template_save', $requestedFile);
         } else {
-            $error = __t('te_save_write_failed') . ' <code>' . hsc($activeFile) . '</code>';
+            $error = __t('te_save_write_failed') . ' <code>' . hsc($writeTarget) . '</code>';
         }
     }
 }
 
-// Restore backup
+// Restore backup — restores into the child theme override, never into the parent theme.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['restore_backup'])) {
-    if ($activeFile === null) {
+    $writeTarget = theme_editor_resolve_write_target($childThemeDir, $requestedFile);
+    if ($writeTarget === null || $backupKey === '') {
         $error = __t('te_invalid_file');
     } else {
         $backupToRestore = basename($_POST['restore_backup']);
@@ -86,10 +104,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['restore_backup'])) {
             $error = __t('te_backup_not_found');
         } else {
             $safetyBackup = $backupDir . $backupKey . '-pre-restore-' . date('Ymd-His') . '.bak';
-            copy($activeFile, $safetyBackup);
-            if (copy($fullBackupPath, $activeFile)) {
+            if ($activeFile !== null) {
+                copy($activeFile, $safetyBackup);
+            }
+            if (copy($fullBackupPath, $writeTarget)) {
+                $activeFile  = $writeTarget;
+                $isChildFile = true;
+                $reverted = theme_editor_prune_if_identical($childThemeDir, $themeDir, $requestedFile);
+                if ($reverted) {
+                    $activeFile  = theme_editor_resolve_path($themeDir, $requestedFile);
+                    $isChildFile = false;
+                }
                 $message = __t('te_restore_success_prefix') . ' <code>' . hsc($backupToRestore) . '</code>. '
-                         . __t('te_restore_success_suffix') . ' <code>' . hsc(basename($safetyBackup)) . '</code>';
+                         . __t('te_restore_success_suffix') . ' <code>' . hsc(basename($safetyBackup)) . '</code>'
+                         . ($reverted ? ' ' . __t('te_restore_reverted_note') : '');
                 sl_admin_log_activity('template_restore', $requestedFile . ' <- ' . $backupToRestore);
             } else {
                 $error = __t('te_restore_failed');
@@ -98,11 +126,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['restore_backup'])) {
     }
 }
 
+// Revert override — deletes the child theme copy entirely, falling back to the parent theme's file.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['revert_override'])) {
+    $childFile  = theme_editor_resolve_path($childThemeDir, $requestedFile);
+    $parentFile = theme_editor_resolve_path($themeDir, $requestedFile);
+    if ($childFile === null) {
+        $error = __t('te_invalid_file');
+    } elseif ($parentFile === null) {
+        $error = __t('te_revert_no_parent');
+    } else {
+        $safetyBackup = $backupDir . $backupKey . '-pre-revert-' . date('Ymd-His') . '.bak';
+        copy($childFile, $safetyBackup);
+        if (@unlink($childFile)) {
+            theme_editor_cleanup_empty_dirs($childThemeDir, dirname($requestedFile));
+            $activeFile  = $parentFile;
+            $isChildFile = false;
+            $message = __t('te_revert_success') . ' <code>' . hsc(basename($safetyBackup)) . '</code>';
+            sl_admin_log_activity('template_revert', $requestedFile);
+        } else {
+            $error = __t('te_revert_failed');
+        }
+    }
+}
+
 // Delete backup
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_backup'])) {
     $backupToDelete = basename($_POST['delete_backup']);
     $fullDeletePath = $backupDir . $backupToDelete;
-    if (strpos($backupToDelete, $backupKey . '-') !== 0 || !file_exists($fullDeletePath)) {
+    if ($backupKey === '' || strpos($backupToDelete, $backupKey . '-') !== 0 || !file_exists($fullDeletePath)) {
         $error = __t('te_backup_not_found');
     } elseif (unlink($fullDeletePath)) {
         $message = __t('te_backup_deleted_prefix') . ' <code>' . hsc($backupToDelete) . '</code> '
@@ -111,6 +162,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_backup'])) {
         $error = __t('te_backup_delete_failed');
     }
 }
+
+$canRevert = $isChildFile && ($requestedFile !== '') && (theme_editor_resolve_path($themeDir, $requestedFile) !== null);
 
 $fileContent = ($activeFile && file_exists($activeFile)) ? file_get_contents($activeFile) : '';
 $fileExt     = $activeFile ? strtolower(pathinfo($activeFile, PATHINFO_EXTENSION)) : '';
@@ -283,6 +336,17 @@ $extraHead = <<<HTML
 }
 .btn-delete-backup:hover { background: var(--danger); color: #fff; }
 .no-backups { font-size: 0.82em; color: var(--text-muted); font-style: italic; }
+.te-source-badge {
+    font-size: 0.72em;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.te-source-badge.is-override { background: var(--success, #1f8a4c); color: #fff; }
+.te-source-badge.is-inherited { background: var(--surface-2); color: var(--text-muted); }
 @media (max-width: 1100px) {
     .te-editor-wrap { grid-template-columns: 1fr; }
     .CodeMirror { height: 55vh; }
@@ -299,7 +363,7 @@ ob_start();
     </div>
 <?php endif; ?>
 <div class="alt-text-container">
-    <p><?php _e('te_editor_desc'); ?><br><?php _e('te_editor_backup_desc'); ?></p>
+    <p><?php _e('te_editor_desc'); ?> <code><?php echo hsc('theme/child_theme/' . $activeTheme . '/'); ?></code><br><?php _e('te_editor_backup_desc'); ?></p>
 </div>
 <form method="post" action="template-editor.php?file=<?php echo urlencode($requestedFile); ?>" id="template-editor-form">
     <input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token']); ?>">
@@ -311,18 +375,26 @@ ob_start();
                     <?php foreach ($fileGroups as $groupLabel => $files): ?>
                         <?php if ($groupLabel === ''): ?>
                             <?php foreach ($files as $f): ?>
-                                <option value="<?php echo hsc($f); ?>" <?php echo ($f === $requestedFile) ? 'selected' : ''; ?>><?php echo hsc($f); ?></option>
+                                <?php $fOverridden = theme_editor_is_overridden($childThemeDir, $f); ?>
+                                <option value="<?php echo hsc($f); ?>" <?php echo ($f === $requestedFile) ? 'selected' : ''; ?>><?php echo hsc($f); ?><?php echo $fOverridden ? ' ' . __t('te_file_overridden_suffix') : ''; ?></option>
                             <?php endforeach; ?>
                         <?php else: ?>
                             <optgroup label="<?php echo hsc($groupLabel); ?>">
                                 <?php foreach ($files as $f): ?>
-                                    <option value="<?php echo hsc($f); ?>" <?php echo ($f === $requestedFile) ? 'selected' : ''; ?>><?php echo hsc(basename($f)); ?></option>
+                                    <?php $fOverridden = theme_editor_is_overridden($childThemeDir, $f); ?>
+                                    <option value="<?php echo hsc($f); ?>" <?php echo ($f === $requestedFile) ? 'selected' : ''; ?>><?php echo hsc(basename($f)); ?><?php echo $fOverridden ? ' ' . __t('te_file_overridden_suffix') : ''; ?></option>
                                 <?php endforeach; ?>
                             </optgroup>
                         <?php endif; ?>
                     <?php endforeach; ?>
                 </select>
+                <span class="te-source-badge <?php echo $isChildFile ? 'is-override' : 'is-inherited'; ?>">
+                    <?php echo $isChildFile ? __t('te_file_overridden_suffix') : __t('te_file_inherited_badge'); ?>
+                </span>
                 <button type="submit" class="btn btn-primary" id="save-btn" <?php echo ($activeFile === null) ? 'disabled' : ''; ?>><?php _e('te_save_btn'); ?></button>
+                <?php if ($canRevert): ?>
+                    <button type="button" class="btn btn-outline" id="revert-override-btn"><?php _e('te_revert_btn'); ?></button>
+                <?php endif; ?>
                 <span class="dirty-indicator" id="dirty-indicator"><?php _e('te_unsaved_changes'); ?></span>
                 <span class="file-info">
                     <?php echo round(strlen($fileContent) / 1024, 1); ?> KB

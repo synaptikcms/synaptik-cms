@@ -455,39 +455,6 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 						<a href="seo-overview.php" class="btn btn-outline"><?php echo admin_icon('chart'); ?> <?php _e('seo_overview_btn'); ?></a>
 					</div>
 				</div>
-				<div class="site-settings-section">
-					<h3><?php echo admin_icon('robot'); ?> <?php _e('robots_txt_title'); ?></h3>
-					<div class="form-group">
-						<p class="help-text"><?php _e('robots_txt_help'); ?></p>
-						<textarea id="robots_txt" name="robots_txt" rows="10"
-							style="font-family: monospace; font-size: 0.85rem;"
-						><?php
-						$_robotsFile = dirname(dirname(__DIR__)) . '/robots.txt';
-						echo hsc(file_exists($_robotsFile) ? file_get_contents($_robotsFile) : '');
-						?></textarea>
-					</div>
-				</div>
-				<div class="site-settings-section">
-					<h3><?php echo admin_icon('warning'); ?> <?php _e('htaccess_rules_title'); ?></h3>
-					<div class="update-notice"><?php _e('htaccess_rules_warning'); ?></div>
-					<div class="form-group">
-						<p class="help-text"><?php _e('htaccess_rules_help'); ?></p>
-						<textarea id="htaccess_rules" name="htaccess_rules" form="htaccess-rules-form" rows="8"
-							style="font-family: monospace; font-size: 0.85rem;"
-						><?php echo hsc(sl_htaccess_load_custom()); ?></textarea>
-					</div>
-					<div class="form-group" style="display:flex; gap:10px; align-items:center;">
-						<button type="submit" form="htaccess-rules-form" name="htaccess_rules_save" value="1" class="btn btn-primary">
-							<?php _e('htaccess_rules_save_btn'); ?>
-						</button>
-						<?php if (sl_htaccess_latest_backup() !== null): ?>
-						<button type="submit" form="htaccess-restore-form" name="htaccess_restore" value="1" class="btn btn-outline"
-							onclick="return confirm('<?php echo hsc(__t('htaccess_restore_confirm')); ?>');">
-							<?php _e('htaccess_restore_btn'); ?>
-						</button>
-						<?php endif; ?>
-					</div>
-				</div>
 			</div>
 
 			<!-- ══════════════════════ IMAGES TAB ══════════════════════ -->
@@ -613,25 +580,6 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 					<?php endif; ?>
 				</div>
 
-				<div class="site-settings-section">
-					<h3><?php echo admin_icon('ruler'); ?> <?php _e('page_templates_section'); ?></h3>
-					<p class="help-text">
-						<?php _e('page_templates_help'); ?>
-					</p>
-					<?php
-					$availableTemplates = getPageTemplates();
-					if (count($availableTemplates) <= 1): ?>
-					<p style="color:var(--text-muted);"><?php _e('no_page_templates'); ?></p>
-					<?php else: ?>
-					<ul style="margin:0;padding-left:18px;">
-						<?php foreach ($availableTemplates as $tKey => $tName):
-							if ($tKey === '') continue; ?>
-						<li><code><?php echo hsc($tKey); ?>.php</code> &mdash; <?php echo hsc($tName); ?></li>
-						<?php endforeach; ?>
-					</ul>
-					<?php endif; ?>
-				</div>
-
 			</div>
 
 			<!-- ══════════════════════ CUSTOM FIELDS TAB ══════════════════════ -->
@@ -715,6 +663,46 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 					</div>
 				</div>
 				<?php endforeach; ?>
+
+			</div>
+
+			<!-- ══════════════════════ ADVANCED TAB ══════════════════════ -->
+			<div id="advanced-tab" class="tab-content" <?php echo $activeTab !== 'advanced' ? 'style="display: none;"' : ''; ?>>
+
+				<div class="site-settings-section">
+					<h3><?php echo admin_icon('robot'); ?> <?php _e('robots_txt_title'); ?></h3>
+					<div class="form-group">
+						<p class="help-text"><?php _e('robots_txt_help'); ?></p>
+						<textarea id="robots_txt" name="robots_txt" rows="10"
+							style="font-family: monospace; font-size: 0.85rem;"
+						><?php
+						$_robotsFile = dirname(dirname(__DIR__)) . '/robots.txt';
+						echo hsc(file_exists($_robotsFile) ? file_get_contents($_robotsFile) : '');
+						?></textarea>
+					</div>
+				</div>
+
+				<div class="site-settings-section">
+					<h3><?php echo admin_icon('warning'); ?> <?php _e('htaccess_rules_title'); ?></h3>
+					<div class="update-notice"><?php _e('htaccess_rules_warning'); ?></div>
+					<div class="form-group">
+						<p class="help-text"><?php _e('htaccess_rules_help'); ?></p>
+						<textarea id="htaccess_rules" name="htaccess_rules" form="htaccess-rules-form" rows="8"
+							style="font-family: monospace; font-size: 0.85rem;"
+						><?php echo hsc(sl_htaccess_load_custom()); ?></textarea>
+					</div>
+					<div class="form-group" style="display:flex; gap:10px; align-items:center;">
+						<button type="submit" form="htaccess-rules-form" name="htaccess_rules_save" value="1" class="btn btn-primary">
+							<?php _e('htaccess_rules_save_btn'); ?>
+						</button>
+						<?php if (sl_htaccess_latest_backup() !== null): ?>
+						<button type="submit" form="htaccess-restore-form" name="htaccess_restore" value="1" class="btn btn-outline"
+							onclick="return confirm('<?php echo hsc(__t('htaccess_restore_confirm')); ?>');">
+							<?php _e('htaccess_restore_btn'); ?>
+						</button>
+						<?php endif; ?>
+					</div>
+				</div>
 
 			</div>
 

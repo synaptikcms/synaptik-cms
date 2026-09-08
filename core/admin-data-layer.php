@@ -223,6 +223,17 @@ function _sl_write_json(string $path, array $data): bool
     return $ok;
 }
 
+function sl_admin_save_config(array $config): bool
+{
+    $config['admin_dir'] = resolve_admin_dir();
+
+    $ok = _sl_write_json(CMS_ROOT . '/config.json', $config);
+    if ($ok && function_exists('loadConfig_invalidate')) {
+        loadConfig_invalidate();
+    }
+    return $ok;
+}
+
 const SL_ACTIVITY_LOG_MAX_ENTRIES = 2000;
 function sl_admin_activity_log_path(): string
 {
@@ -560,6 +571,30 @@ function sl_admin_restore_revision(string $type, string $fileSlug, int $timestam
     sl_admin_update_index($type, $indexEntry);
 
     return true;
+}
+
+function sl_admin_reconcile_file_slug(string $type, string $oldFileSlug, array $item): string
+{
+    $desiredFileSlug = sl_effective_slug($item);
+    if ($desiredFileSlug === '' || $desiredFileSlug === $oldFileSlug) {
+        return $oldFileSlug;
+    }
+    if (!file_exists(sl_item_path($type, $oldFileSlug))) {
+        return $oldFileSlug;
+    }
+
+    $newFileSlug = sl_unique_file_slug($type, $desiredFileSlug);
+
+    if (!sl_admin_save_item($type, $newFileSlug, $item)) {
+        return $oldFileSlug;
+    }
+    sl_admin_delete_item($type, $oldFileSlug);
+
+    $renamedEntry = sl_admin_extract_index_entry($type, $item);
+    $renamedEntry['_file'] = $newFileSlug;
+    sl_admin_update_index($type, $renamedEntry, $oldFileSlug);
+
+    return $newFileSlug;
 }
 
 function sl_admin_migrate_revisions(string $type, string $oldFileSlug, string $newFileSlug): void
