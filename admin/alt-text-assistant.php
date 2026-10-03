@@ -62,7 +62,7 @@ function alt_replace_inline_image_alt(string $content, string $format, int $targ
 			$counter++;
 			if ($counter !== $targetIndex) return $m[0];
 			$tag     = $m[0];
-			$encoded = htmlspecialchars($newAlt, ENT_QUOTES);
+			$encoded = hsc($newAlt, ENT_QUOTES);
 			if (preg_match('/\balt=(["\']).*?\1/i', $tag)) {
 				return preg_replace('/\balt=(["\']).*?\1/i', 'alt="' . $encoded . '"', $tag, 1);
 			}
@@ -92,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_alt_save'])) {
 		exit;
 	}
 
-	$allowed_types   = ['article', 'page', 'project'];
+	$allowed_types = sl_all_type_slugs();
 	$allowed_fields  = ['alt_text', 'caption'];
 	$allowed_targets = ['gallery', 'featured', 'inline'];
 
@@ -170,7 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_alt_save'])) {
 $protocol = _sl_request_is_https() ? 'https' : 'http';
 $baseUrl  = $protocol . '://' . _sl_request_host() . rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');
 
-$contentTypes = ['article', 'page', 'project'];
+$contentTypes = sl_all_type_slugs();
 
 $allImages = [];
 
@@ -330,7 +330,7 @@ ob_start();
 				?>
 				<a href="alt-text-assistant.php?filter=<?php echo $key; ?>"
 				   class="tab <?php echo $filter === $key ? 'active' : ''; ?>">
-					<?php echo htmlspecialchars($tab[0]); ?>
+					<?php echo hsc($tab[0]); ?>
 					<span class="badge"><?php echo $tab[1]; ?></span>
 				</a>
 				<?php endforeach; ?>
@@ -350,8 +350,8 @@ ob_start();
 						if (!$img['has_alt']) $cardClasses .= ' missing-alt';
 					?>
 					<div class="<?php echo $cardClasses; ?>"
-						 data-target="<?php echo htmlspecialchars($img['target']); ?>"
-						 data-post-type="<?php echo htmlspecialchars($img['post_type']); ?>"
+						 data-target="<?php echo hsc($img['target']); ?>"
+						 data-post-type="<?php echo hsc($img['post_type']); ?>"
 						 data-post-index="<?php echo (int)$img['post_index']; ?>"
 						 data-gallery-index="<?php echo (int)$img['gallery_index']; ?>"
 						 data-image-index="<?php echo (int)$img['image_index']; ?>"
@@ -359,17 +359,17 @@ ob_start();
 
 						<!-- Thumbnail -->
 						<div class="alt-card-thumb">
-							<img src="<?php echo htmlspecialchars($img['img_url']); ?>"
-								 alt="<?php echo htmlspecialchars($img['alt_text']); ?>"
+							<img src="<?php echo hsc($img['img_url']); ?>"
+								 alt="<?php echo hsc($img['alt_text']); ?>"
 								 loading="lazy">
 						</div>
 						<!-- Body -->
 						<div class="alt-card-body">
 							<!-- Post context -->
 							<div class="alt-card-context">
-								<span class="post-title"><?php echo htmlspecialchars($img['post_title']); ?></span>
+								<span class="post-title"><?php echo hsc($img['post_title']); ?></span>
 								<span class="type-badge type-<?php echo hsc($img['post_type']); ?>"><?php echo hsc(sl_type_label($img['post_type'])); ?></span>
-								<span class="gallery-name">— <?php echo htmlspecialchars($img['gallery_label']); ?></span>
+								<span class="gallery-name">— <?php echo hsc($img['gallery_label']); ?></span>
 							</div>
 							<!-- Alt text field -->
 							<div class="alt-field-group">
@@ -381,7 +381,7 @@ ob_start();
 									   class="seo-field alt-editable <?php echo $img['has_alt'] ? '' : 'empty'; ?>"
 									   data-field="alt_text"
 									   data-max="250"
-									   value="<?php echo htmlspecialchars($img['alt_text']); ?>"
+									   value="<?php echo hsc($img['alt_text']); ?>"
 									   placeholder="<?php _e('alt_text_placeholder', 'Describe the image…'); ?>"
 									   maxlength="250">
 								<span class="save-indicator"></span>
@@ -397,14 +397,14 @@ ob_start();
 										  data-max="500"
 										  placeholder="<?php _e('caption_placeholder', 'Optional caption…'); ?>"
 										  maxlength="500"
-										  rows="2"><?php echo htmlspecialchars($img['caption']); ?></textarea>
+										  rows="2"><?php echo hsc($img['caption']); ?></textarea>
 								<span class="save-indicator"></span>
 							</div>
 							<?php endif; ?>
 						</div><!-- /.alt-card-body -->
 						<!-- Footer: link to the post editor -->
 						<div class="alt-card-footer">
-							<span class="slug-cell">/<?php echo htmlspecialchars($img['post_slug']); ?></span>
+							<span class="slug-cell">/<?php echo hsc($img['post_slug']); ?></span>
 							<a href="<?php echo $img['edit_url']; ?>" class="table-btn edit-btn small"><?php echo admin_icon('writing', '', 13); ?><?php _e('edit', 'Edit post'); ?></a>
 						</div>
 					</div><!-- /.alt-card -->

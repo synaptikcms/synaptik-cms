@@ -28,3 +28,17 @@ function render_enqueued_assets(): string
 
     return $out;
 }
+
+function sl_content_needs_shortcode_assets(string $renderedHtml): bool
+{
+    return $renderedHtml !== '' && stripos($renderedHtml, 'class="sc-') !== false;
+}
+
+function sl_content_needs_gallery_assets(string $renderedHtml): bool
+{
+    if ($renderedHtml === '') return false;
+    foreach (['class="c-col', 'class="tab-group', 'class="inline-gallery', 'class="gallery-', 'class="carousel-', 'class="masonry-item', 'class="justified-gallery'] as $marker) {
+        if (stripos($renderedHtml, $marker) !== false) return true;
+    }
+    return false;
+}

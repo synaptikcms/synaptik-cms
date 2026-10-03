@@ -12,7 +12,7 @@ if (!admin_is_logged_in()) {
     exit;
 }
 
-$allowedTypes = ['article', 'page', 'project'];
+$allowedTypes = sl_all_type_slugs();
 $type = $_GET['type'] ?? '';
 if (!in_array($type, $allowedTypes, true)) {
     http_response_code(400);

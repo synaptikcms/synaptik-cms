@@ -27,7 +27,7 @@ if (
     !file_exists($themePath . '/home.php')
 ) {
     http_response_code(400);
-    exit('Invalid or incomplete theme: ' . htmlspecialchars($requestedTheme));
+    exit('Invalid or incomplete theme: ' . hsc($requestedTheme));
 }
 
 // ── Build HMAC token ──────────────────────────────────────────────────────────

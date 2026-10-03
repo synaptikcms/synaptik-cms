@@ -95,7 +95,7 @@ if ($type === 'locale') {
         ext_upload_error($codes[$upload['error']] ?? sprintf(__t('theme_upload_err_unknown', 'Upload error code: %s.'), $upload['error']));
     }
     if (strtolower(pathinfo($upload['name'], PATHINFO_EXTENSION)) !== 'zip') {
-        ext_upload_error(sprintf(__t('theme_upload_not_zip', 'The file "%s" is not a .zip.'), htmlspecialchars($upload['name'])));
+        ext_upload_error(sprintf(__t('theme_upload_not_zip', 'The file "%s" is not a .zip.'), hsc($upload['name'])));
     }
     // Locale packs are two small JSON files — 5 MB is already generous headroom.
     if ($upload['size'] > 5 * 1024 * 1024) {
@@ -151,7 +151,7 @@ if ($type === 'locale') {
 
     if (file_exists($langDir['admin'] . $locale . '.json') || file_exists($langDir['front'] . $locale . '.json')) {
         $zip->close();
-        ext_upload_error(sprintf(__t('translations_import_locale_exists', 'Locale "%s" already exists. Delete it first if you want to re-import.'), htmlspecialchars($locale)));
+        ext_upload_error(sprintf(__t('translations_import_locale_exists', 'Locale "%s" already exists. Delete it first if you want to re-import.'), hsc($locale)));
     }
 
     $toWrite = [];
@@ -208,8 +208,8 @@ if ($type === 'locale') {
 
     ext_upload_success(sprintf(
         __t('translations_import_success', 'Locale "%s" (%s) imported — %d admin strings, %d front strings.'),
-        htmlspecialchars($label),
-        htmlspecialchars($locale),
+        hsc($label),
+        hsc($locale),
         $stats['admin'],
         $stats['front']
     ));
@@ -253,7 +253,7 @@ if ($upload['error'] !== UPLOAD_ERR_OK) {
 
 // ── 3. .zip extension ─────────────────────────────────────────────────────────
 if (strtolower(pathinfo($upload['name'], PATHINFO_EXTENSION)) !== 'zip') {
-    ext_upload_error(sprintf(__t('theme_upload_not_zip', 'The file "%s" is not a .zip.'), htmlspecialchars($upload['name'])));
+    ext_upload_error(sprintf(__t('theme_upload_not_zip', 'The file "%s" is not a .zip.'), hsc($upload['name'])));
 }
 
 // ── 4. Max size 20 MB ─────────────────────────────────────────────────────────
@@ -317,7 +317,7 @@ if (!$hasManifest) {
 $manifestRaw = $zip->getFromName($extRoot . $manifest);
 if ($manifestRaw === false) {
     $zip->close();
-    ext_upload_error(sprintf(__t('extensions_upload_manifest_unreadable', 'Cannot read "%s" from the ZIP.'), htmlspecialchars($extRoot . $manifest)));
+    ext_upload_error(sprintf(__t('extensions_upload_manifest_unreadable', 'Cannot read "%s" from the ZIP.'), hsc($extRoot . $manifest)));
 }
 
 $meta = json_decode($manifestRaw, true);
@@ -348,7 +348,7 @@ if ($isTheme) {
         $zip->close();
         ext_upload_error(sprintf(
             __t('extensions_upload_entry_missing', 'plugin.json declares entry "%s" but that file is not in the ZIP.'),
-            htmlspecialchars($entryFile)
+            hsc($entryFile)
         ));
     }
 }
@@ -371,7 +371,7 @@ if (!$isTheme && is_dir($destDir)) {
     $zip->close();
     ext_upload_error(sprintf(
         __t('extensions_upload_already_exists', 'A plugin folder named "%s" already exists. Delete it first.'),
-        htmlspecialchars($dirName)
+        hsc($dirName)
     ));
 }
 
@@ -379,23 +379,23 @@ if (!$isTheme && is_dir($destDir)) {
 $tmpDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'synaptik_ext_' . uniqid() . DIRECTORY_SEPARATOR;
 if (!@mkdir($tmpDir, 0755, true)) {
     $zip->close();
-    ext_upload_error(sprintf(__t('theme_upload_tmp_failed', 'Cannot create temp directory: %s.'), htmlspecialchars($tmpDir)));
+    ext_upload_error(sprintf(__t('theme_upload_tmp_failed', 'Cannot create temp directory: %s.'), hsc($tmpDir)));
 }
 if (!$zip->extractTo($tmpDir)) {
     $zip->close();
-    ext_upload_error(sprintf(__t('theme_upload_extract_failed', 'Extraction to temp failed: %s.'), htmlspecialchars($tmpDir)));
+    ext_upload_error(sprintf(__t('theme_upload_extract_failed', 'Extraction to temp failed: %s.'), hsc($tmpDir)));
 }
 $zip->close();
 
 // ── 14. Copy to destination ───────────────────────────────────────────────────
 $srcDir = $tmpDir . $extRoot;
 if (!is_dir($srcDir)) {
-    ext_upload_error(sprintf(__t('theme_upload_src_missing', 'Expected source directory not found: %s.'), htmlspecialchars($srcDir)));
+    ext_upload_error(sprintf(__t('theme_upload_src_missing', 'Expected source directory not found: %s.'), hsc($srcDir)));
 }
 
 $destExisted = is_dir($destDir);
 if (!$destExisted && !@mkdir($destDir, 0755, true)) {
-    ext_upload_error(sprintf(__t('theme_upload_dest_failed', 'Cannot create destination directory: %s.'), htmlspecialchars($dirName)));
+    ext_upload_error(sprintf(__t('theme_upload_dest_failed', 'Cannot create destination directory: %s.'), hsc($dirName)));
 }
 
 function _ext_copy_r(string $src, string $dst): void
@@ -443,13 +443,13 @@ if ($isTheme) {
     sl_admin_log_activity('theme_install', $meta['name'] ?? $dirName);
     ext_upload_success(sprintf(
         __t('theme_upload_success', 'Theme "%s" installed successfully in /theme/%s/.'),
-        htmlspecialchars($meta['name'] ?? $dirName),
-        htmlspecialchars($dirName)
+        hsc($meta['name'] ?? $dirName),
+        hsc($dirName)
     ));
 } else {
     sl_admin_log_activity('extension_install', $meta['name'] ?? $dirName);
     ext_upload_success(sprintf(
         __t('extensions_upload_success', 'Plugin "%s" installed successfully. Activate it below to enable it.'),
-        htmlspecialchars($meta['name'] ?? $dirName)
+        hsc($meta['name'] ?? $dirName)
     ));
 }

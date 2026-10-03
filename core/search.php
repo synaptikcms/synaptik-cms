@@ -106,7 +106,7 @@ $contentTypes = [];
 if ($searchArticles) $contentTypes[] = 'article';
 if ($searchPages)    $contentTypes[] = 'page';
 if ($searchProjects) $contentTypes[] = 'project';
-if (empty($contentTypes)) $contentTypes = ['article', 'page', 'project'];
+if (empty($contentTypes)) $contentTypes = sl_all_type_slugs();
 
 $data = sl_build_data_array($contentTypes, $searchInContent);
 $GLOBALS['data'] = $data;

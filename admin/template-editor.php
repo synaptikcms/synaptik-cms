@@ -195,9 +195,9 @@ if ($activeFile && is_dir($backupDir)) {
 
 $pageTitle = __t('template_editor_title');
 $extraHead = <<<HTML
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" integrity="sha384-zaeBlB/vwYsDRSlFajnDd7OydJ0cWk+c2OWybl3eSUf6hW2EbhlCsQPqKr3gkznT" crossorigin="anonymous">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css" integrity="sha384-ccdJwIIg/K0Ab6aXF4MPACh7ckk61tvQFTrfkhXZEALgAETURNZIAuQLcS/aPbrM" crossorigin="anonymous">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.css" integrity="sha384-MomRjC6IKuGHk2XIFKXAwFx0gytd6+ZsF9pnFM3JWZV5izBqPgoLapxRqG1h5IKm" crossorigin="anonymous">
+<link rel="stylesheet" href="assets/vendor/codemirror/codemirror.min.css">
+<link rel="stylesheet" href="assets/vendor/codemirror/theme/dracula.min.css">
+<link rel="stylesheet" href="assets/vendor/codemirror/addon/dialog/dialog.min.css">
 <link rel="stylesheet" href="assets/css/admin-content.css">
 <style>
 .te-editor-wrap {
@@ -465,19 +465,19 @@ $pageContent = ob_get_clean();
 
 $teJsVersion = @filemtime(__DIR__ . '/assets/js/template-editor.js');
 $extraFooterScripts = <<<HTML
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js" integrity="sha384-ZYmwuq4n2gOcNxMSiJ6jyTj+BbIrilr7p6dlq6q5nmSWKmsH9UU4K1qqjycMkfmR" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js" integrity="sha384-fpeIC2FZuPmw7mIsTvgB5BNc8QVxQC/nWg2W+CgPYOAiBiYVuHe2E8HiTWHBMIJQ" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js" integrity="sha384-g0o+WW9mdIxA7LaaCKTkRm0M5TVT+Bb4s9eocxPsI2G0Xm0POG9iD6G6qP1IIsfS" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js" integrity="sha384-xPpkMo5nDgD98fIcuRVYhxkZV6/9Y4L8s3p0J5c4MxgJkyKJ8BJr+xfRkq7kn6Tw" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js" integrity="sha384-xYIbc5F55vPi7pb/lUnFj3wu24HlpAMZdtBHkNrb2YhPzJV3pX7+eqXT2PXSNMrw" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js" integrity="sha384-o9m634t2Hy35pPNKd9Xe16ntbSw11jCOuKPDrzQGXI8k87L2JZthaA3rwmJjnF7Z" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/php/php.min.js" integrity="sha384-1FUwPY2kaZKXw258/9CYBSS+zcc3CPggxE1zLjmYYiOdkcOw3KcXH5VNJWWbjw2U" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js" integrity="sha384-LjCI3E8qhhxXZvu7+FCvqx9eZYSowFvuJ7z54KsgI/BDPGKEuysqCg/vYiKHvC4Y" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js" integrity="sha384-69mJoUoPPF/C7qPs6lLjvXvrt6w225+rmxWqGO3a1glVjITdnnwPQOtG9FRTd2Ni" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/comment/comment.min.js" integrity="sha384-B6Af6BES5glvxvAPc9Vrl9t1lHx1k3iL8AcT1XmsmlEVZudSW8E+8CA1TxVbdQbj" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/search.min.js" integrity="sha384-v64L7YTJ/ullw5v36qIJcvWAxuEnRGu9E326vUV3Ro7sx4HCZHIDTphKO53htazT" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js" integrity="sha384-ILkploZWukdp1VMmzMnE+32H0mgy2e+w29evc4grALGOqIRGBgbBGrwkX7a6zK7y" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.js" integrity="sha384-3COleknUtlGKoEOR9Wm7WKVRyS6ljwYU2x1ebD8nd6ujaLMqwY+q3F8+yDcefbXr" crossorigin="anonymous"></script>
+<script src="assets/vendor/codemirror/codemirror.min.js"></script>
+<script src="assets/vendor/codemirror/mode/css/css.min.js"></script>
+<script src="assets/vendor/codemirror/mode/javascript/javascript.min.js"></script>
+<script src="assets/vendor/codemirror/mode/xml/xml.min.js"></script>
+<script src="assets/vendor/codemirror/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="assets/vendor/codemirror/mode/clike/clike.min.js"></script>
+<script src="assets/vendor/codemirror/mode/php/php.min.js"></script>
+<script src="assets/vendor/codemirror/addon/edit/matchbrackets.min.js"></script>
+<script src="assets/vendor/codemirror/addon/edit/closebrackets.min.js"></script>
+<script src="assets/vendor/codemirror/addon/comment/comment.min.js"></script>
+<script src="assets/vendor/codemirror/addon/search/search.min.js"></script>
+<script src="assets/vendor/codemirror/addon/search/searchcursor.min.js"></script>
+<script src="assets/vendor/codemirror/addon/dialog/dialog.min.js"></script>
 <script src="assets/js/template-editor.js?v={$teJsVersion}"></script>
 HTML;
 

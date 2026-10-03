@@ -8,6 +8,8 @@ if (!defined('INCLUDED')) {
 // Set default content type or use the one from URL
 $selectedType = isset($_GET['type']) && in_array($_GET['type'], $contentTypes) ? $_GET['type'] : 'article';
 $defaultEditor = ($appSettings['default_editor'] ?? 'html') === 'markdown' ? 'markdown' : 'html';
+$_selectedTypeDef = sl_content_type($selectedType);
+$showSummaryField = $selectedType === 'article' || ($_selectedTypeDef !== null && empty($_selectedTypeDef['built_in']));
 ?>
 
 			<div class="editor-layout" id="editor-layout">
@@ -33,7 +35,7 @@ $defaultEditor = ($appSettings['default_editor'] ?? 'html') === 'markdown' ? 'ma
 							<textarea id="content" name="content" rows="20" required><?php echo isset($_SESSION['form_data']['content']) ? hsc($_SESSION['form_data']['content']) : ''; ?></textarea>
 						</div>
 
-						<?php if ($selectedType === 'article'): ?>
+						<?php if ($showSummaryField): ?>
 						<!-- Article Summary -->
 						<div class="editor-section">
 								<label for="summary" style="margin: 0 0 7px;"><?php _e('article_summary_label', 'Short summary'); ?></label>
@@ -186,7 +188,7 @@ $defaultEditor = ($appSettings['default_editor'] ?? 'html') === 'markdown' ? 'ma
 				  }
 				 }
 				 // Collect inline categories from items not yet in the store (legacy resilience)
-				 foreach (['article', 'project', 'page'] as $type) {
+				 foreach (sl_all_type_slugs() as $type) {
 				 	if (!isset($data[$type])) continue;
 				 	foreach ($data[$type] as $item) {
 				 		if (empty($item['category'])) continue;
@@ -202,7 +204,7 @@ $defaultEditor = ($appSettings['default_editor'] ?? 'html') === 'markdown' ? 'ma
 				  }
 				 }
 				 // Collect inline tags from items not yet in the store (legacy resilience)
-				  foreach (['article', 'project', 'page'] as $type) {
+				  foreach (sl_all_type_slugs() as $type) {
 				 	if (!isset($data[$type])) continue;
 				 	foreach ($data[$type] as $item) {
 				 		if (empty($item['tags']) || !is_array($item['tags'])) continue;

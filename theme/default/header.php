@@ -10,7 +10,6 @@ $bodyClass = function_exists('mono_body_class') ? mono_body_class() : 'theme-mon
     <?php echo render_meta_tags($settings, $metaTitle, $metaDescription); ?>
     <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
     <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Manrope:wght@200..800&display=swap">
-    <link rel="stylesheet" href="<?php echo getBaseUrl(); ?>assets/css/lightbox.css">
     <?php echo render_header_scripts($headerScripts); ?>
     <?php echo render_site_favicon($settings); ?>
 </head>

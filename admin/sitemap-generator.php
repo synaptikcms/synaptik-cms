@@ -30,18 +30,40 @@ $contentCounts = [
 ];
 
 // Get the protocol and domain
-$protocol = _sl_request_is_https() ? 'https' : 'http';
-$domain   = _sl_request_host();
-$baseDir  = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');
-$baseUrl  = $protocol . '://' . $domain . $baseDir;
+$baseUrl = sm_base_url();
 
 // Default path for sitemap
-$sitemapPath = '../sitemap.xml';
+$sitemapPath = sm_sitemap_path();
 
-// Generate sitemap when form is submitted
+// Add / remove sitemap exclusions
 $message = '';
 $error   = '';
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_exclusion']) || isset($_POST['remove_exclusion']))) {
+    $__tok = $_POST['csrf_token'] ?? '';
+    if (!isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $__tok)) {
+        $error = 'Security token invalid or expired. Please try again.';
+        goto sitemap_render;
+    }
+
+    $exclusions = sm_load_exclusions();
+
+    if (isset($_POST['add_exclusion'])) {
+        $entry = sm_normalize_exclusion((string)($_POST['exclusion_path'] ?? ''), $baseUrl);
+        if ($entry !== '' && !in_array($entry, $exclusions, true)) {
+            $exclusions[] = $entry;
+        }
+    } elseif (isset($_POST['remove_exclusion'])) {
+        $target     = (string)($_POST['remove_exclusion'] ?? '');
+        $exclusions = array_values(array_filter($exclusions, fn($e) => $e !== $target));
+    }
+
+    _sl_write_json(sm_exclusions_path(), $exclusions);
+}
+
+$sitemapExclusions = sm_load_exclusions();
+
+// Generate sitemap when form is submitted
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_sitemap'])) {
     $__tok = $_POST['csrf_token'] ?? '';
     if (!isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $__tok)) {
@@ -49,100 +71,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_sitemap'])) 
         goto sitemap_render;
     }
 
-    $xml = new DOMDocument('1.0', 'UTF-8');
-    $xml->formatOutput = true;
-
-    $urlset = $xml->createElement('urlset');
-    $urlset->setAttribute('xmlns', 'http://www.sitemaps.org/schemas/sitemap/0.9');
-    $xml->appendChild($urlset);
-    $addUrl = function (string $loc, string $lastmod, string $priority) use ($xml, $urlset): void {
-        $url = $xml->createElement('url');
-        $url->appendChild($xml->createElement('loc',      htmlspecialchars($loc, ENT_XML1 | ENT_QUOTES, 'UTF-8')));
-        $url->appendChild($xml->createElement('lastmod',  $lastmod));
-        $url->appendChild($xml->createElement('priority', $priority));
-        $urlset->appendChild($url);
-    };
-
-    // ── Homepage ──────────────────────────────────────────────────────────────
-    $addUrl($baseUrl . '/', date('Y-m-d'), '1.0');
-    $priorities = ['page' => '0.9', 'article' => '0.8', 'project' => '0.7'];
-
-    foreach (['article', 'page', 'project'] as $ct) {
-        foreach ($data[$ct] ?? [] as $item) {
-            if (($item['status'] ?? 'published') !== 'published') continue;
-
-            $slug       = $item['slug']        ?? '';
-            $customSlug = $item['custom_slug'] ?? '';
-            $category   = $item['category']    ?? '';
-
-            if (empty($slug) && empty($customSlug)) continue;
-
-            $itemUrl = admin_content_url($ct, $slug, $customSlug, $category);
-            $raw     = !empty($item['last_modified']) ? $item['last_modified'] : (!empty($item['date']) ? $item['date'] : date('Y-m-d'));
-            $lastmod = substr($raw, 0, 10);
-            $addUrl($itemUrl, $lastmod, $priorities[$ct] ?? '0.8');
-        }
-    }
-
-    // ── Category listing pages ───────
-    $seenCatUrls = [];
-    $catPrefix   = admin_front_url_slug('category');
-    $categories  = $data['categories'] ?? [];
-
-    foreach (['article', 'project', 'page'] as $ct) {
-        foreach ($data[$ct] ?? [] as $item) {
-            if (($item['status'] ?? 'published') !== 'published') continue;
-            if (empty($item['category'])) continue;
-
-            $leafSlug = sanitizeSlug($item['category']);
-            $catPath  = getCategoryPath($leafSlug, $data);
-
-            $segments    = explode('/', $catPath);
-            $accumulated = '';
-            foreach ($segments as $seg) {
-                $accumulated = $accumulated !== '' ? $accumulated . '/' . $seg : $seg;
-                $catUrl = $baseUrl . '/' . $catPrefix . '/' . $accumulated . '/';
-                if (isset($seenCatUrls[$catUrl])) continue;
-                $seenCatUrls[$catUrl] = true;
-                if (empty($categories[$seg]['description'])) continue;
-                $addUrl($catUrl, date('Y-m-d'), '0.6');
-            }
-        }
-    }
-
-    // ── Tag listing pages ───────
-    $seenTagUrls = [];
-    $tagPrefix   = admin_front_url_slug('tag');
-    $tags        = $data['tags'] ?? [];
-
-    foreach (['article', 'project', 'page'] as $ct) {
-        foreach ($data[$ct] ?? [] as $item) {
-            if (($item['status'] ?? 'published') !== 'published') continue;
-            if (empty($item['tags']) || !is_array($item['tags'])) continue;
-
-            foreach ($item['tags'] as $itemTag) {
-                $tagSlug = sanitizeSlug($itemTag);
-                if ($tagSlug === '' || empty($tags[$tagSlug]['description'])) continue;
-
-                $tagUrl = $baseUrl . '/' . $tagPrefix . '/' . $tagSlug . '/';
-                if (isset($seenTagUrls[$tagUrl])) continue;
-                $seenTagUrls[$tagUrl] = true;
-                $addUrl($tagUrl, date('Y-m-d'), '0.6');
-            }
-        }
-    }
-    // ── Save ─────
-    try {
-        $xml->save($sitemapPath);
+    if (sm_regenerate()) {
         $message = __t('sitemap_generated') . ' <a href="' . $baseUrl . '/sitemap.xml" target="_blank">' . __t('view') . '</a>';
 
-        if (isset($_POST['ping_search_engines']) && $_POST['ping_search_engines'] == 1) {
-            $sitemapUrl = urlencode($baseUrl . '/sitemap.xml');
-            @file_get_contents('https://www.bing.com/ping?sitemap=' . $sitemapUrl);
-            $message .= '<br>' . __t('sitemap_pinged');
+        if (!empty($_POST['indexnow'])) {
+            $indexNow = sm_indexnow_submit($baseUrl);
+            if (!$indexNow['ok']) {
+                $message .= '<br>' . sprintf(__t('sitemap_indexnow_failed', 'IndexNow notification failed (HTTP %s).'), $indexNow['status'] ?: 'n/a');
+            } elseif ($indexNow['sent'] > 0) {
+                $message .= '<br>' . sprintf(__t('sitemap_indexnow_sent', 'IndexNow: %d URL(s) sent to search engines.'), $indexNow['sent']);
+            } else {
+                $message .= '<br>' . __t('sitemap_indexnow_none', 'IndexNow: no URL changed since the last notification.');
+            }
         }
-    } catch (Exception $e) {
-        $error = 'Error generating sitemap: ' . $e->getMessage();
+    } else {
+        $error = 'Error generating sitemap.';
     }
 }
 
@@ -159,56 +102,75 @@ $pageTitle = __t('sitemap_generator');
 
 ob_start();
 ?>
+<?php
+$smCsrf   = hsc($_SESSION['csrf_token'] ?? '');
+$smUrl    = $baseUrl . '/sitemap.xml';
+$smExists = file_exists($sitemapPath);
+?>
+            <div class="sitemap-intro">
+                <p><?php _e('sitemap_desc'); ?></p>
+                <h3><?php _e('sitemap_how_to_use'); ?></h3>
+                <ol>
+                    <li><?php _e('sitemap_step_1'); ?></li>
+                    <li><?php _e('sitemap_step_2'); ?>
+                        <pre>Sitemap: <?php echo hsc($smUrl); ?></pre>
+                    </li>
+                    <li><?php _e('sitemap_step_3'); ?></li>
+                    <li><?php _e('sitemap_step_4'); ?></li>
+                </ol>
+            </div>
             <div class="sitemap-content">
                 <div class="site-settings-section">
-                    <h3><?php _e('sitemap_how_to_use'); ?></h3>
-                    <div class="form-group">
-                        <ol>
-                            <li><?php _e('sitemap_step_1'); ?></li>
-                            <li><?php _e('sitemap_step_2'); ?>
-                                <pre>Sitemap: <?php echo $baseUrl; ?>/sitemap.xml</pre>
-                            </li>
-                            <li><?php _e('sitemap_step_3'); ?></li>
-                        </ol>
-                    </div>
-                    
                     <h3><?php _e('sitemap_current_status'); ?></h3>
-                    <div class="form-group" style="margin-top:30px;">
-                        <?php if (file_exists($sitemapPath)): ?>
-                            <p><strong><?php _e('sitemap_location'); ?></strong> <a href="<?php echo $baseUrl . '/sitemap.xml'; ?>" target="_blank"><?php echo $baseUrl . '/sitemap.xml'; ?></a></p>
-                            <p><strong><?php _e('sitemap_last_updated'); ?></strong> <?php echo date('F j, Y, g:i a', filemtime($sitemapPath)); ?></p>
-                            <p><strong><?php _e('sitemap_file_size'); ?></strong> <?php echo sm_format_filesize(filesize($sitemapPath)); ?></p>
-                        <?php else: ?>
-                            <p><?php _e('sitemap_not_generated'); ?></p>
-                        <?php endif; ?>
-                    </div>
+                    <?php if ($smExists): ?>
+                    <dl class="sitemap-status">
+                        <dt><?php _e('sitemap_location'); ?></dt>
+                        <dd><a href="<?php echo hsc($smUrl); ?>" target="_blank"><?php echo hsc($smUrl); ?></a></dd>
+                        <dt><?php _e('sitemap_last_updated'); ?></dt>
+                        <dd><?php echo hsc(date('d-m-Y H:i', filemtime($sitemapPath))); ?></dd>
+                        <dt><?php _e('sitemap_file_size'); ?></dt>
+                        <dd><?php echo hsc(sm_format_filesize(filesize($sitemapPath))); ?></dd>
+                    </dl>
+                    <?php else: ?>
+                    <p class="help-text"><?php _e('sitemap_not_generated'); ?></p>
+                    <?php endif; ?>
+                    <form method="post" action="" class="sitemap-generate-form">
+                        <input type="hidden" name="csrf_token" value="<?php echo $smCsrf; ?>">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="indexnow" value="1" checked>
+                            <?php _e('sitemap_indexnow_label'); ?>
+                        </label>
+                        <p class="help-text"><?php _e('sitemap_indexnow_help'); ?></p>
+                        <button type="submit" name="generate_sitemap" class="btn btn-primary"><?php _e($smExists ? 'sitemap_update_btn' : 'generate_sitemap'); ?></button>
+                    </form>
                 </div>
                 <div class="site-settings-section">
-                    <?php if (file_exists($sitemapPath)): ?>
-                        <h3><?php _e('sitemap_update_btn'); ?></h3>
+                    <h3><?php _e('sitemap_exclusions_title'); ?></h3>
+                    <p class="help-text"><?php _e('sitemap_exclusions_desc'); ?></p>
+                    <?php if (empty($sitemapExclusions)): ?>
+                    <p class="sitemap-exclusion-empty"><?php _e('sitemap_exclusion_empty'); ?></p>
                     <?php else: ?>
-                        <h3><?php _e('generate_sitemap'); ?></h3>
+                    <ul class="sitemap-exclusion-list">
+                        <?php foreach ($sitemapExclusions as $sitemapExclusion): ?>
+                        <li>
+                            <code><?php echo hsc($sitemapExclusion); ?></code>
+                            <form method="post" action="">
+                                <input type="hidden" name="csrf_token" value="<?php echo $smCsrf; ?>">
+                                <input type="hidden" name="remove_exclusion" value="<?php echo hsc($sitemapExclusion); ?>">
+                                <button type="submit" class="btn btn-outline btn-sm"><?php _e('sitemap_exclusion_remove'); ?></button>
+                            </form>
+                        </li>
+                        <?php endforeach; ?>
+                    </ul>
                     <?php endif; ?>
-                    <div class="form-group">
-                        <p><?php _e('sitemap_desc'); ?></p>
-                        <form method="post" action="">
-                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
-                            <div class="form-group">
-                                <label class="checkbox-label">
-                                    <input type="checkbox" name="ping_search_engines" value="1" checked>
-                                    <?php _e('sitemap_ping_label'); ?>
-                                </label>
-                            </div>
-                            <?php if (file_exists($sitemapPath)): ?>
-                                <button type="submit" name="generate_sitemap" class="btn btn-primary"><?php _e('sitemap_update_btn'); ?></button>
-                            <?php else: ?>
-                                <button type="submit" name="generate_sitemap" class="btn btn-primary"><?php _e('generate_sitemap'); ?></button>
-                            <?php endif; ?>
-                        </form>
-                    </div>
+                    <form method="post" action="" class="sitemap-exclusion-add">
+                        <input type="hidden" name="csrf_token" value="<?php echo $smCsrf; ?>">
+                        <input type="text" name="exclusion_path" placeholder="<?php echo hsc(__t('sitemap_exclusion_placeholder')); ?>">
+                        <button type="submit" name="add_exclusion" class="btn btn-outline"><?php _e('sitemap_exclusion_add'); ?></button>
+                    </form>
                 </div>
             </div>
-        
+
 <?php
 $pageContent = ob_get_clean();
 require_once 'includes/layout.php';

@@ -6,7 +6,7 @@ if (!defined('INCLUDED')) {
 
 $categories = [];
 
-foreach (['article', 'project', 'page'] as $ct) {
+foreach (sl_all_type_slugs() as $ct) {
 	if (!isset($data[$ct])) continue;
 	foreach ($data[$ct] as $idx => $item) {
 		if (empty($item['category'])) continue;
@@ -81,8 +81,8 @@ $categoryTree = buildCategoryTree($categories);
 						if ($cat['depth'] >= 2) continue;
 						$prefix = str_repeat('— ', $cat['depth']);
 					?>
-					<option value="<?php echo htmlspecialchars($cat['slug']); ?>">
-						<?php echo $prefix . htmlspecialchars($cat['name']); ?>
+					<option value="<?php echo hsc($cat['slug']); ?>">
+						<?php echo $prefix . hsc($cat['name']); ?>
 					</option>
 					<?php endforeach; ?>
 				</select>
@@ -113,7 +113,7 @@ $categoryTree = buildCategoryTree($categories);
 								$prefix = str_repeat('— ', $cat['depth']);
 							?>
 							<option value="<?php echo $cat['slug']; ?>">
-								<?php echo $prefix . htmlspecialchars($cat['name']); ?> (<?php echo $cat['count']; ?>)
+								<?php echo $prefix . hsc($cat['name']); ?> (<?php echo $cat['count']; ?>)
 							</option>
 							<?php endforeach; ?>
 						</select>
@@ -127,7 +127,7 @@ $categoryTree = buildCategoryTree($categories);
 								$prefix = str_repeat('— ', $cat['depth']);
 							?>
 							<option value="<?php echo $cat['slug']; ?>">
-								<?php echo $prefix . htmlspecialchars($cat['name']); ?> (<?php echo $cat['count']; ?>)
+								<?php echo $prefix . hsc($cat['name']); ?> (<?php echo $cat['count']; ?>)
 							</option>
 							<?php endforeach; ?>
 						</select>

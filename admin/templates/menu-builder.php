@@ -6,7 +6,7 @@ if (!defined('INCLUDED')) {
 }
 
 $appSettings  = admin_load_config();
-$contentTypes = ['article', 'page', 'project'];
+$contentTypes = sl_all_type_slugs();
 ?>
 		<form method="post" action="index.php?action=menu_builder">
 		<input type="hidden" name="csrf_token" value="<?php echo hsc($_SESSION['csrf_token'] ?? ''); ?>">
@@ -134,8 +134,8 @@ $contentTypes = ['article', 'page', 'project'];
 								<option value="<?php echo $type; ?>"><?php echo hsc(sl_type_label($type, false)); ?></option>
 								<?php endforeach; ?>
 								<option value="contentlist"><?php _e('content_list'); ?></option>
-								<option value="tag"><?php _e('tag'); ?></option>
-								<option value="category"><?php _e('category'); ?></option>
+								<option value="tag" data-url-slug="<?php echo hsc(admin_front_url_slug('tag')); ?>"><?php _e('tag'); ?></option>
+								<option value="category" data-url-slug="<?php echo hsc(admin_front_url_slug('category')); ?>"><?php _e('category'); ?></option>
 							</select>
 						</div>
 						<div id="contentlist-options" class="form-group" style="display: none;">
@@ -143,7 +143,7 @@ $contentTypes = ['article', 'page', 'project'];
 							<select id="contentlist-type" name="contentlist-type">
 								<?php foreach ($contentTypes as $type): ?>
 								<?php
-								$pluralSlug = admin_front_url_slug($type . 's');
+								$pluralSlug = sl_type_url_slug($type, true);
 								?>
 								<option value="<?php echo $type; ?>" data-plural-slug="<?php echo hsc($pluralSlug); ?>"><?php echo hsc(sl_type_label($type, true)); ?></option>
 								<?php endforeach; ?>

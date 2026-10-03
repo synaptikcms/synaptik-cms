@@ -1,12 +1,16 @@
 <?php
+if (!defined('INCLUDED')) {
+    http_response_code(403);
+    exit;
+}
 if (!isset($data)) {
 	require_once dirname(dirname(__DIR__)) . '/core/data-layer.php';
-	$data = sl_build_data_array(['article', 'page', 'project'], false);
+	$data = sl_build_data_array(null, false);
 }
 
 $_sb_trashCount = 0;
 if (function_exists('sl_admin_load_trash_index')) {
-	foreach (['article', 'page', 'project'] as $_sb_trashType) {
+	foreach (sl_all_type_slugs() as $_sb_trashType) {
 		$_sb_trashCount += count(sl_admin_load_trash_index($_sb_trashType));
 	}
 }
@@ -36,7 +40,7 @@ if (file_exists($_sb_versionFile)) {
 	}
 }
 
-$_sb_content_active    = !empty($_sb_type) || in_array($_sb_action, ['add', 'trash', 'manage_categories', 'manage_tags']);
+$_sb_content_active    = !empty($_sb_type) || in_array($_sb_action, ['add', 'trash', 'manage_categories', 'manage_tags', 'manage_content_types']);
 $_sb_appearance_active = in_array($_sb_action, ['appearance', 'manage_themes', 'menu_builder'])
 	|| $_sb_file === 'template-editor.php';
 $_sb_settings_active   = in_array($_sb_action, ['settings', 'users']);
@@ -86,9 +90,11 @@ function sb_icon(string $name): string {
 		</ul>
 		<ul class="sidebar-subitems">
 			<li><a href="index.php?action=add&type=article" class="sidebar-subitem sidebar-subitem--add <?php echo $_sb_action === 'add' ? 'active' : ''; ?>"><?php _e('add_new'); ?></a></li>
-			<li><a href="index.php?type=article" class="sidebar-subitem <?php echo ($_sb_type === 'article' && $_sb_action !== 'add') ? 'active' : ''; ?>" data-badge="<?php echo $_sb_articles; ?>"><?php echo hsc(sl_type_label('article', true)); ?></a></li>
-			<li><a href="index.php?type=page" class="sidebar-subitem <?php echo ($_sb_type === 'page' && $_sb_action !== 'add') ? 'active' : ''; ?>" data-badge="<?php echo $_sb_pages; ?>"><?php echo hsc(sl_type_label('page', true)); ?></a></li>
-			<li><a href="index.php?type=project" class="sidebar-subitem <?php echo ($_sb_type === 'project' && $_sb_action !== 'add') ? 'active' : ''; ?>" data-badge="<?php echo $_sb_projects; ?>"><?php echo hsc(sl_type_label('project', true)); ?></a></li>
+			<?php foreach (sl_all_type_slugs() as $_sb_typeSlug):
+				$_sb_typeCount = count($data[$_sb_typeSlug] ?? []);
+			?>
+			<li><a href="index.php?type=<?php echo hsc($_sb_typeSlug); ?>" class="sidebar-subitem <?php echo ($_sb_type === $_sb_typeSlug && $_sb_action !== 'add') ? 'active' : ''; ?>" data-badge="<?php echo $_sb_typeCount; ?>"><?php echo hsc(sl_type_label($_sb_typeSlug, true)); ?></a></li>
+			<?php endforeach; ?>
 			<?php if ($_sb_trash > 0): ?>
 			<li><a href="index.php?action=trash" class="sidebar-subitem <?php echo $_sb_action === 'trash' ? 'active' : ''; ?>" data-badge="<?php echo $_sb_trash; ?>"><?php _e('trash'); ?></a></li>
 			<?php endif; ?>
@@ -96,6 +102,7 @@ function sb_icon(string $name): string {
 			<li class="sidebar-subitem-sep"></li>
 			<li><a href="index.php?action=manage_categories" class="sidebar-subitem <?php echo $_sb_action === 'manage_categories' ? 'active' : ''; ?>"><?php _e('categories'); ?></a></li>
 			<li><a href="index.php?action=manage_tags" class="sidebar-subitem <?php echo $_sb_action === 'manage_tags' ? 'active' : ''; ?>"><?php _e('tags'); ?></a></li>
+			<li><a href="index.php?action=manage_content_types" class="sidebar-subitem <?php echo $_sb_action === 'manage_content_types' ? 'active' : ''; ?>"><?php _e('content_types', 'Content Types'); ?></a></li>
 			<?php endif; ?>
 		</ul>
 	</div>
@@ -157,7 +164,7 @@ function sb_icon(string $name): string {
 			<?php endif; ?>
 			<?php if (admin_is_admin()): ?>
 			<li class="sidebar-subitem-sep"></li>
-			<li><a href="index.php?action=backup" class="sidebar-subitem <?php echo $_sb_action === 'backup' ? 'active' : ''; ?>"><?php _e('backup_export'); ?></a></li>
+			<li><a href="index.php?action=backup" class="sidebar-subitem <?php echo $_sb_action === 'backup' ? 'active' : ''; ?>"><?php _e('backup_restore'); ?></a></li>
 			<li><a href="index.php?action=translations" class="sidebar-subitem <?php echo $_sb_action === 'translations' ? 'active' : ''; ?>"><?php _e('translations_title'); ?></a></li>
 			<li><a href="index.php?action=system_info" class="sidebar-subitem <?php echo $_sb_action === 'system_info' ? 'active' : ''; ?>"><?php _e('system_information'); ?></a></li>
 			<li><a href="index.php?action=activity_log" class="sidebar-subitem <?php echo $_sb_action === 'activity_log' ? 'active' : ''; ?>"><?php _e('activity_log'); ?></a></li>

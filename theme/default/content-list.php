@@ -25,7 +25,7 @@ switch ($list_type) {
 
     default:
         $eyebrow = '';
-        $heading = htmlspecialchars(ucfirst(__t($list_type . 's') ?: ($list_type . 's')));
+        $heading = htmlspecialchars(sl_type_label($list_type, true));
 }
 ?>
 

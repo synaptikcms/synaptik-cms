@@ -102,15 +102,16 @@ $headers .= "Content-Type: text/plain; charset=UTF-8"                           
 $headers .= "X-Mailer: SynaptikCMS/ContactForm"                                          . "\r\n";
 $headers .= "X-Originating-IP: " . _contact_sanitize_header($clientIp)                  . "\r\n";
 
+if (!_contact_check_and_record_rate($clientIp)) {
+    _contact_fail('rate');
+}
+
 $sent = mail(
     $toEmail,
     '=?UTF-8?B?' . base64_encode($subjectLine) . '?=',
     $body,
     $headers
 );
-
-// Record successful submission in rate-limit file (increments counter)
-_contact_record_rate($clientIp);
 
 // Redirect
 _contact_redirect($sent ? 'sent' : 'error_send');
@@ -209,27 +210,48 @@ function _contact_check_rate(string $ip): bool
     return true; // Window has expired — allow
 }
 
-function _contact_record_rate(string $ip): void
+function _contact_check_and_record_rate(string $ip): bool
 {
+    $limit    = 5;
     $window   = 3600;
     $rateFile = _contact_private_dir() . '/contact_rate.json';
     $now      = time();
+    $key      = hash('sha256', $ip);
 
-    $data = [];
-    if (file_exists($rateFile)) {
-        $raw  = file_get_contents($rateFile);
-        $data = json_decode($raw, true) ?? [];
+    $fh = fopen($rateFile, 'c+');
+    if ($fh === false) {
+        return true;
     }
 
-    $key = hash('sha256', $ip);
+    flock($fh, LOCK_EX);
 
-    if (!isset($data[$key]) || ($now - ($data[$key]['window_start'] ?? 0)) >= $window) {
-        $data[$key] = ['count' => 1, 'window_start' => $now];
-    } else {
-        $data[$key]['count']++;
+    $size = filesize($rateFile);
+    $raw  = $size > 0 ? fread($fh, $size) : '';
+    $data = $raw !== '' ? (json_decode($raw, true) ?? []) : [];
+
+    foreach (array_keys($data) as $k) {
+        if (($now - ($data[$k]['window_start'] ?? 0)) > $window) {
+            unset($data[$k]);
+        }
     }
 
-    @file_put_contents($rateFile, json_encode($data), LOCK_EX);
+    $allowed = !isset($data[$key]) || $data[$key]['count'] < $limit;
+    if ($allowed) {
+        if (!isset($data[$key])) {
+            $data[$key] = ['count' => 1, 'window_start' => $now];
+        } else {
+            $data[$key]['count']++;
+        }
+    }
+
+    ftruncate($fh, 0);
+    rewind($fh);
+    fwrite($fh, json_encode($data));
+    fflush($fh);
+    flock($fh, LOCK_UN);
+    fclose($fh);
+
+    return $allowed;
 }
 
 function _contact_is_spam(string $name, string $message): bool

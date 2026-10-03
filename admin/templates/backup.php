@@ -231,7 +231,7 @@ if (is_dir($_bckpsDir)) {
 }
 ?>
 
-	<p class="help-text"><?php _e('backup_page_desc'); ?></p>
+	<p><?php _e('backup_page_desc'); ?></p>
 
 	<div class="backup-content">
 		<div class="tab-content">
@@ -290,14 +290,14 @@ if (is_dir($_bckpsDir)) {
 							<tbody>
 								<?php foreach ($_backups as $_b): ?>
 								<tr>
-									<td style="font-family:monospace;font-size:.82em;"><?php echo htmlspecialchars($_b['name']); ?></td>
+									<td style="font-family:monospace;font-size:.82em;"><?php echo hsc($_b['name']); ?></td>
 									<td><?php echo date('Y-m-d H:i', $_b['date']); ?></td>
 									<td><?php echo admin_format_file_size($_b['size']); ?></td>
 									<td>
 										<a href="backup-dl.php?file=<?php echo urlencode($_b['name']); ?>" class="table-btn view-btn">
 											<?php echo admin_icon('download', '', 12); ?><?php _e('download'); ?>
 										</a>
-										<button type="button" class="table-btn delete-btn delete-backup-btn" data-backup-name="<?php echo htmlspecialchars($_b['name'], ENT_QUOTES); ?>">
+										<button type="button" class="table-btn delete-btn delete-backup-btn" data-backup-name="<?php echo hsc($_b['name'], ENT_QUOTES); ?>">
 											<?php echo admin_icon('trash', '', 12); ?><?php _e('delete'); ?>
 										</button>
 									</td>

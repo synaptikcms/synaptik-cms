@@ -250,7 +250,7 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 					<h3><?php _e('type_labels_title'); ?></h3>
 					<p class="help-text"><?php _e('type_labels_help'); ?></p>
 					<div class="form-group">
-						<?php foreach (['article', 'page', 'project'] as $_svType): ?>
+						<?php foreach (sl_all_type_slugs() as $_svType): ?>
 						<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;">
 							<div>
 								<label for="type_label_<?php echo $_svType; ?>_singular"><?php echo hsc(sl_type_label($_svType, false)); ?> — <?php _e('type_labels_singular'); ?></label>
@@ -433,6 +433,13 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 							placeholder="<?php echo hsc(__t('canonical_host_placeholder')); ?>">
 						<p class="help-text"><?php _e('canonical_host_help'); ?></p>
 					</div>
+					<div class="form-group">
+						<label class="checkbox-label">
+							<input type="checkbox" name="force_https" value="1" <?php echo !empty($appSettings['force_https']) ? 'checked' : ''; ?>>
+							<?php _e('force_https_label'); ?>
+						</label>
+						<p class="help-text"><?php _e('force_https_help'); ?></p>
+					</div>
 					<h3>Schema.org JSON-LD</h3>
 					<div class="form-group">
 						<label for="schema_author_name"><?php _e('schema_author_name_label'); ?></label>
@@ -591,12 +598,11 @@ $socialLinks = isset($appSettings['footer_social_links']) && is_array($appSettin
 
 				<?php
 				$cfSchema  = $appSettings['custom_fields_schema'] ?? [];
-				$cfTypes   = ['article', 'page', 'project'];
-				$cfLabels  = [
-					'article' => __t('cf_type_article'),
-					'page'    => __t('cf_type_page'),
-					'project' => __t('cf_type_project'),
-				];
+				$cfTypes = sl_all_type_slugs();
+				$cfLabels  = [];
+				foreach ($cfTypes as $__cfType) {
+					$cfLabels[$__cfType] = sl_type_label($__cfType, false);
+				}
 				$fieldTypes = [
 					'text'     => __t('cf_type_text'),
 					'textarea' => __t('cf_type_textarea'),

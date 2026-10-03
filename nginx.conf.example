@@ -41,7 +41,7 @@ server {
     }
 
     # ── Block direct access to sensitive files ────────────────────────────────
-    location ~ /(config\.json|plugins\.json|install\.lock)$ {
+    location ~ /(config\.json|plugins\.json|install\.lock|version\.json)$ {
         deny all;
         return 403;
     }
@@ -58,13 +58,9 @@ server {
         return 403;
     }
 
-    # ── llms.txt / llms-full.txt — rewrite to core/llms.php / core/llms-full.php ─
-    location = /llms.txt {
-        rewrite ^ /core/llms.php last;
-    }
-    location = /llms-full.txt {
-        rewrite ^ /core/llms-full.php last;
-    }
+    # ── llms.txt / llms-full.txt are routed by index.php itself (see the
+    # early REQUEST_URI check at the top of index.php) via the generic
+    # fallback below — no server-specific rewrite needed here.
 
     # ── Legacy redirects (search and contact-process moved to /core/) ─────────
     location = /search.php {
@@ -111,8 +107,8 @@ server {
         try_files $uri $uri/ /index.php?$query_string;
     }
 
-    # ── Admin panel — stricter CSP, no hCaptcha/GA origins, CodeMirror/jQuery/
-    # Sortable allow-listed instead. Mirrors admin/.htaccess exactly — if you
+    # ── Admin panel — stricter CSP, no hCaptcha/GA origins; jQuery, SortableJS
+    # and CodeMirror are bundled locally. Mirrors admin/.htaccess exactly — if you
     # change one, change the other. Must come before the generic PHP-FPM block
     # below: nginx picks the first matching regex location, so this has to be
     # declared earlier to win for admin requests.
@@ -123,7 +119,7 @@ server {
         add_header X-Content-Type-Options "nosniff" always;
         add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()" always;
-        add_header Content-Security-Policy "default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://code.jquery.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.bunny.net; img-src 'self' data: blob: https:; font-src 'self' https://cdnjs.cloudflare.com https://fonts.bunny.net; connect-src 'self'; frame-ancestors 'none';" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.bunny.net; img-src 'self' data: blob: https:; font-src 'self' https://fonts.bunny.net; connect-src 'self'; frame-ancestors 'none';" always;
 
         try_files $uri =404;
         fastcgi_pass unix:/var/run/php/php8.3-fpm.sock; # adjust to your PHP version

@@ -73,11 +73,10 @@ if ($_sb_cacheValid) {
 }
 
 // ── Content stats ────────────────────────────────────────────────────────────
-$contentStats = [
-	'article' => count($data['article'] ?? []),
-	'page'    => count($data['page']    ?? []),
-	'project' => count($data['project'] ?? []),
-];
+$contentStats = [];
+foreach (sl_all_type_slugs() as $_sb_csType) {
+	$contentStats[$_sb_csType] = count($data[$_sb_csType] ?? []);
+}
 
 // ── Content storage size — bytes on disk per type, cached like media stats ───
 $_sb_contentSizeCache    = dirname(__DIR__) . '/cache/content-size-stats.json';
@@ -89,12 +88,12 @@ $_sb_contentSizeValid = file_exists($_sb_contentSizeCache)
 if ($_sb_contentSizeValid) {
 	$_sb_csData = json_decode(file_get_contents($_sb_contentSizeCache), true);
 	if (is_array($_sb_csData)) {
-		foreach (['article', 'page', 'project'] as $_sb_cst) {
+		foreach (sl_all_type_slugs() as $_sb_cst) {
 			$_sb_contentSize[$_sb_cst] = (int)($_sb_csData[$_sb_cst] ?? 0);
 		}
 	}
 } else {
-	foreach (['article', 'page', 'project'] as $_sb_cst) {
+	foreach (sl_all_type_slugs() as $_sb_cst) {
 		$_sb_typeDir = sl_data_dir() . '/' . sl_type_dir($_sb_cst);
 		if (!is_dir($_sb_typeDir)) continue;
 		foreach (glob($_sb_typeDir . '/*.json') ?: [] as $_sb_itemFile) {
@@ -132,7 +131,7 @@ foreach (admin_load_users() as $_sb_u) {
 $_sb_show_authors = count($_sb_authors) > 1;
 
 $recentItems = [];
-foreach (['article', 'page', 'project'] as $_type) {
+foreach (sl_all_type_slugs() as $_type) {
 	foreach ($data[$_type] ?? [] as $_idx => $_item) {
 		if (!admin_can_edit_item($_item)) continue;
 		$recentItems[] = [
@@ -222,56 +221,27 @@ $recentItems = array_slice($recentItems, 0, 6);
 	<?php /* ── Stat cards ────────────────────────────────────── */ ?>
 	<div class="dashboard-stats">
 
-		<div class="stat-card<?php echo $contentStats['article'] === 0 ? ' stat-card--empty' : ''; ?>">
+		<?php foreach (sl_all_type_slugs() as $_sb_statType):
+			$_sb_statIcon  = in_array($_sb_statType, ['article', 'page', 'project'], true) ? $_sb_statType : 'article';
+			$_sb_statCount = $contentStats[$_sb_statType] ?? 0;
+		?>
+		<div class="stat-card<?php echo $_sb_statCount === 0 ? ' stat-card--empty' : ''; ?>">
 			<div class="stat-icon">
-				<?php echo admin_icon('article', '', 20); ?>
+				<?php echo admin_icon($_sb_statIcon, '', 20); ?>
 			</div>
 			<div class="stat-content">
-				<div class="stat-value"><?php echo $contentStats['article']; ?></div>
-				<div class="stat-label"><?php echo hsc(sl_type_label('article', true)); ?></div>
+				<div class="stat-value"><?php echo $_sb_statCount; ?></div>
+				<div class="stat-label"><?php echo hsc(sl_type_label($_sb_statType, true)); ?></div>
 			</div>
 			<div class="stat-action">
-				<?php if ($contentStats['article'] === 0): ?>
-					<a href="index.php?action=add&type=article"><?php _e('add_new'); ?></a>
+				<?php if ($_sb_statCount === 0): ?>
+					<a href="index.php?action=add&type=<?php echo urlencode($_sb_statType); ?>"><?php _e('add_new'); ?></a>
 				<?php else: ?>
-					<a href="index.php?type=article"><?php _e('view_all'); ?></a>
+					<a href="index.php?type=<?php echo urlencode($_sb_statType); ?>"><?php _e('view_all'); ?></a>
 				<?php endif; ?>
 			</div>
 		</div>
-
-		<div class="stat-card<?php echo $contentStats['page'] === 0 ? ' stat-card--empty' : ''; ?>">
-			<div class="stat-icon">
-				<?php echo admin_icon('page', '', 20); ?>
-			</div>
-			<div class="stat-content">
-				<div class="stat-value"><?php echo $contentStats['page']; ?></div>
-				<div class="stat-label"><?php echo hsc(sl_type_label('page', true)); ?></div>
-			</div>
-			<div class="stat-action">
-				<?php if ($contentStats['page'] === 0): ?>
-					<a href="index.php?action=add&type=page"><?php _e('add_new'); ?></a>
-				<?php else: ?>
-					<a href="index.php?type=page"><?php _e('view_all'); ?></a>
-				<?php endif; ?>
-			</div>
-		</div>
-
-		<div class="stat-card<?php echo $contentStats['project'] === 0 ? ' stat-card--empty' : ''; ?>">
-			<div class="stat-icon">
-				<?php echo admin_icon('project', '', 20); ?>
-			</div>
-			<div class="stat-content">
-				<div class="stat-value"><?php echo $contentStats['project']; ?></div>
-				<div class="stat-label"><?php echo hsc(sl_type_label('project', true)); ?></div>
-			</div>
-			<div class="stat-action">
-				<?php if ($contentStats['project'] === 0): ?>
-					<a href="index.php?action=add&type=project"><?php _e('add_new'); ?></a>
-				<?php else: ?>
-					<a href="index.php?type=project"><?php _e('view_all'); ?></a>
-				<?php endif; ?>
-			</div>
-		</div>
+		<?php endforeach; ?>
 
 		<div class="stat-card">
 			<div class="stat-icon">
@@ -291,10 +261,17 @@ $recentItems = array_slice($recentItems, 0, 6);
 
 	<?php /* ── Storage breakdown: media / articles / other, by size on disk — iPhone-storage style ── */ ?>
 	<?php
+	$_sb_otherSize  = 0;
+	$_sb_otherCount = 0;
+	foreach (sl_all_type_slugs() as $_sb_csType) {
+		if ($_sb_csType === 'article') continue;
+		$_sb_otherSize  += $_sb_contentSize[$_sb_csType] ?? 0;
+		$_sb_otherCount += $contentStats[$_sb_csType]    ?? 0;
+	}
 	$_sb_compo = [
 		'media'   => ['size' => $_sb_fileSize, 'count' => $_sb_fileCount, 'label_key' => 'dashboard_type_media', 'class' => 'compo-media'],
 		'article' => ['size' => $_sb_contentSize['article'], 'count' => $contentStats['article'], 'label' => sl_type_label('article', true), 'class' => 'compo-articles'],
-		'other'   => ['size' => $_sb_contentSize['page'] + $_sb_contentSize['project'], 'count' => $contentStats['page'] + $contentStats['project'], 'label_key' => 'dashboard_type_other', 'class' => 'compo-other'],
+		'other'   => ['size' => $_sb_otherSize, 'count' => $_sb_otherCount, 'label_key' => 'dashboard_type_other', 'class' => 'compo-other'],
 	];
 	$_sb_compoTotalSize = array_sum(array_column($_sb_compo, 'size'));
 	?>

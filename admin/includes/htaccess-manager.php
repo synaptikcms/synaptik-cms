@@ -101,7 +101,7 @@ function sl_htaccess_latest_backup(): ?string {
 }
 
 function sl_htaccess_write(string $path, string $content): bool {
-	$tmp = $path . '.tmp';
+	$tmp = $path . '.' . getmypid() . '.tmp';
 	if (file_put_contents($tmp, $content, LOCK_EX) === false) return false;
 	if (!rename($tmp, $path)) {
 		@unlink($tmp);
@@ -114,7 +114,7 @@ function sl_htaccess_store_rules(string $rules): void {
 	$json = json_encode(['rules' => $rules], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 	if ($json === false) return;
 	$path = sl_htaccess_custom_store_path();
-	$tmp  = $path . '.tmp';
+	$tmp  = $path . '.' . getmypid() . '.tmp';
 	if (file_put_contents($tmp, $json, LOCK_EX) !== false) {
 		rename($tmp, $path);
 	}

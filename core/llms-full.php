@@ -16,6 +16,14 @@ usort($articles, fn($a, $b) => strcmp($b['date'] ?? '', $a['date'] ?? ''));
 $siteTitle = $settings['site_title']       ?? 'Synaptik CMS';
 $siteDesc  = $settings['site_description'] ?? '';
 
+function _llms_plain_text(string $content, array $item): string {
+    $html = render_content_html($content, $item);
+    $html = preg_replace('#<(script|style)\b[^>]*>.*?</\1>#is', '', $html);
+    $text = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $text = preg_replace('/\n{3,}/', "\n\n", trim($text));
+    return $text;
+}
+
 header('Content-Type: text/plain; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 
@@ -33,7 +41,7 @@ if (!empty($pages)) {
         if ($item === null) continue;
         $url     = cleanUrl('page', $slug);
         $title   = $item['title']   ?? $slug;
-        $content = strip_tags($item['content'] ?? '');
+        $content = _llms_plain_text($item['content'] ?? '', $item);
 
         echo '## ' . $title . "\n";
         echo 'URL: ' . $url . "\n\n";
@@ -53,7 +61,7 @@ if (!empty($articles)) {
         $title   = $item['title']   ?? $slug;
         $date    = $item['date']    ?? '';
         $summary = $item['summary'] ?? '';
-        $content = strip_tags($item['content'] ?? '');
+        $content = _llms_plain_text($item['content'] ?? '', $item);
 
         echo '## ' . $title . "\n";
         echo 'URL: ' . $url . "\n";

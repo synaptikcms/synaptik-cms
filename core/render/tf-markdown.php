@@ -1,6 +1,39 @@
 <?php
-function _md_to_html(string $md): string
+
+function _md_next_image_is_first(bool $reset = false): bool
 {
+    static $consumed = false;
+    if ($reset) {
+        $consumed = false;
+        return false;
+    }
+    if ($consumed) return false;
+    $consumed = true;
+    return true;
+}
+
+function _md_local_image_path(string $src): string
+{
+    if ($src === '' || strpos($src, '://') === false) {
+        return ltrim($src, '/');
+    }
+    $baseUrl  = getBaseUrl();
+    $srcHost  = parse_url($src, PHP_URL_HOST);
+    $baseHost = parse_url($baseUrl, PHP_URL_HOST);
+    if ($srcHost === null || $srcHost !== $baseHost) return '';
+
+    $imgPath  = parse_url($src, PHP_URL_PATH) ?? '';
+    $basePath = parse_url($baseUrl, PHP_URL_PATH) ?? '';
+    if ($basePath !== '' && strpos($imgPath, $basePath) === 0) {
+        $imgPath = substr($imgPath, strlen($basePath));
+    }
+    return ltrim($imgPath, '/');
+}
+
+function _md_to_html(string $md, bool $isTopLevel = true): string
+{
+    if ($isTopLevel) _md_next_image_is_first(true);
+
     $md = str_replace("\r\n", "\n", $md);
     $md = str_replace("\r",   "\n", $md);
 
@@ -69,9 +102,9 @@ function _md_to_html(string $md): string
                 ];
                 $cssType   = $typeMap[$alias]  ?? 'info';
                 $icon      = $iconMap[$cssType] ?? '&#x2139;&#xFE0F;';
-                $bodyHtml  = _md_to_html($body);
+                $bodyHtml  = _md_to_html($body, false);
                 $titleHtml = $title !== ''
-                    ? '<p class="sc-callout-title"><strong>' . htmlspecialchars($title) . '</strong></p>'
+                    ? '<p class="sc-callout-title"><strong>' . hsc($title) . '</strong></p>'
                     : '';
                 $html = '<div class="sc-callout sc-callout-' . $cssType . '">'
                       . '<span class="sc-callout-icon">' . $icon . '</span>'
@@ -90,8 +123,8 @@ function _md_to_html(string $md): string
     $md = preg_replace_callback(
         '/^(`{3,})([^\n]*)\n([\s\S]*?)^\1[ \t]*$/m',
         function ($m) use (&$codeBlocks) {
-            $lang  = htmlspecialchars(trim($m[2]));
-            $code  = htmlspecialchars($m[3]);
+            $lang  = hsc(trim($m[2]));
+            $code  = hsc($m[3]);
             $code  = str_replace(['[', ']'], ['&#91;', '&#93;'], $code);
             $cls   = $lang ? ' class="language-' . $lang . '"' : '';
             $token = '\x00CODE' . count($codeBlocks) . '\x00';
@@ -106,7 +139,7 @@ function _md_to_html(string $md): string
         '/(`{1,2})([^`\n]+?)\1/',
         function ($m) use (&$inlineCodes) {
             $token               = '\x00IC' . count($inlineCodes) . '\x00';
-            $content             = htmlspecialchars($m[2]);
+            $content             = hsc($m[2]);
             $content             = str_replace(['[', ']'], ['&#91;', '&#93;'], $content);
             $inlineCodes[$token] = '<code>' . $content . '</code>';
             return $token;
@@ -221,10 +254,10 @@ function _md_to_html(string $md): string
 
     // Append footnote list if any definitions were found
     if ($footnotes) {
-        $currentPath = htmlspecialchars(strtok($_SERVER['REQUEST_URI'] ?? '/', '?'));
+        $currentPath = hsc(strtok($_SERVER['REQUEST_URI'] ?? '/', '?'));
         $output .= '<ol class="md-footnotes">' . "\n";
         foreach ($footnotes as $key => $text) {
-            $keyEsc  = htmlspecialchars($key);
+            $keyEsc  = hsc($key);
             $refId   = 'fn-'    . $keyEsc;
             $backId  = 'fnref-' . $keyEsc;
             $output .= '<li id="' . $refId . '">';
@@ -338,12 +371,13 @@ function _md_inline(string $text): string {
     $text = preg_replace_callback(
         '/!\[([^\]]*)\]\(\s*([^)\s]+?)(?:\s+=(\d+%?)?x(\d+%?)?)?(?:\s+(?:"([^"]*)"|\'([^\']*)\'))?\s*\)/',
         function ($m) {
-            $alt   = htmlspecialchars($m[1], ENT_QUOTES);
-            $src   = htmlspecialchars(trim($m[2]), ENT_QUOTES);
+            $rawSrc = trim($m[2]);
+            $alt   = hsc($m[1], ENT_QUOTES);
+            $src   = hsc($rawSrc, ENT_QUOTES);
             $w     = $m[3] ?? '';
             $h     = $m[4] ?? '';
             $title = ($m[5] ?? '') !== '' ? $m[5] : ($m[6] ?? '');
-            $attrs = $title !== '' ? ' title="' . htmlspecialchars($title, ENT_QUOTES) . '"' : '';
+            $attrs = $title !== '' ? ' title="' . hsc($title, ENT_QUOTES) . '"' : '';
             $style = 'max-width:100%';
             if ($w !== '') {
                 $attrs .= ' width="' . $w . '"';
@@ -351,8 +385,15 @@ function _md_inline(string $text): string {
             }
             if ($h !== '') {
                 $attrs .= ' height="' . $h . '"';
+            } elseif ($w === '') {
+                $attrs .= _image_dimensions_attr(_md_local_image_path($rawSrc));
             }
-            return '<img src="' . $src . '" alt="' . $alt . '"' . $attrs . ' loading="lazy" decoding="async" style="' . $style . '">';
+            if (_md_next_image_is_first()) {
+                $loading = ' loading="eager" fetchpriority="high"';
+            } else {
+                $loading = ' loading="lazy"';
+            }
+            return '<img src="' . $src . '" alt="' . $alt . '"' . $attrs . $loading . ' decoding="async" style="' . $style . '">';
         },
         $text
     );
@@ -370,9 +411,9 @@ function _md_inline(string $text): string {
             $url    = _md_sanitize_url($url);
             $label  = preg_match('/^<img\b[^>]*>$/', $m[1])
                 ? $m[1]
-                : htmlspecialchars($m[1], ENT_QUOTES, 'UTF-8');
-            $titleAttr = $title !== '' ? ' title="' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '"' : '';
-            return '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '"' . $titleAttr . $target . '>' . $label . '</a>';
+                : hsc($m[1], ENT_QUOTES, 'UTF-8');
+            $titleAttr = $title !== '' ? ' title="' . hsc($title, ENT_QUOTES, 'UTF-8') . '"' : '';
+            return '<a href="' . hsc($url, ENT_QUOTES, 'UTF-8') . '"' . $titleAttr . $target . '>' . $label . '</a>';
         },
         $text
     );
@@ -380,7 +421,7 @@ function _md_inline(string $text): string {
     $text = preg_replace_callback(
         '/\{(#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?):([^{}]+)\}/',
         function ($m) {
-            return '<span style="color:' . htmlspecialchars($m[1], ENT_QUOTES, 'UTF-8') . '">' . $m[2] . '</span>';
+            return '<span style="color:' . hsc($m[1], ENT_QUOTES, 'UTF-8') . '">' . $m[2] . '</span>';
         },
         $text
     );
@@ -389,11 +430,11 @@ function _md_inline(string $text): string {
     $text = preg_replace('/\*(.+?)\*|(?<!\w)_(.+?)_(?!\w)/',       '<em>$1$2</em>',         $text);
     $text = preg_replace('/~~(.+?)~~/',                              '<s>$1</s>',             $text);
 
-    $currentPath = htmlspecialchars(strtok($_SERVER['REQUEST_URI'] ?? '/', '?'), ENT_QUOTES, 'UTF-8');
+    $currentPath = hsc(strtok($_SERVER['REQUEST_URI'] ?? '/', '?'), ENT_QUOTES, 'UTF-8');
     $text = preg_replace_callback(
         '/\[\^([^\]]+)\]/',
         function ($m) use ($currentPath) {
-            $key    = htmlspecialchars($m[1], ENT_QUOTES, 'UTF-8');
+            $key    = hsc($m[1], ENT_QUOTES, 'UTF-8');
             $refId  = 'fn-'    . $key;
             $backId = 'fnref-' . $key;
             return '<sup><a href="' . $currentPath . '#' . $refId . '" id="' . $backId . '" class="md-fnref">[' . $key . ']</a></sup>';
@@ -405,7 +446,7 @@ function _md_inline(string $text): string {
     $text = preg_replace_callback(
         '/(?<!["\'=>])\b(https?:\/\/[^\s<>"\)\]]+)/',
         function ($m) {
-            $url = htmlspecialchars($m[1], ENT_QUOTES);
+            $url = hsc($m[1], ENT_QUOTES);
             return '<a href="' . $url . '" target="_blank" rel="noopener">' . $url . '</a>';
         },
         $text

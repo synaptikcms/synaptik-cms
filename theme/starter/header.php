@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $metaTitle; ?></title>
     <?php echo render_meta_tags($settings, $metaTitle, $metaDescription); ?>
-    <link rel="stylesheet" href="<?php echo getBaseUrl(); ?>assets/css/lightbox.css">
     <?php echo render_header_scripts($headerScripts); ?>
     <?php echo render_site_favicon($settings); ?>
 </head>

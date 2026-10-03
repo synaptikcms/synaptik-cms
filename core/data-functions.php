@@ -68,13 +68,13 @@ function parseRequestUri()
     $slugFromType = []; // internal_type  → localized_slug (singular)
     $slugPluralFromType = []; // internal_type → localized plural slug
 
-    foreach (['article', 'project', 'page'] as $_t) {
-        $single = url_slug($_t);
-        $plural = url_slug($_t . 's');
+    foreach (sl_all_type_slugs() as $_t) {
+        $slugFromType[$_t]       = sl_type_url_slug($_t, false);
+        $slugPluralFromType[$_t] = sl_type_url_slug($_t, true);
+        $typeFromSlug[$slugPluralFromType[$_t]] = $_t;
+    }
+    foreach ($slugFromType as $_t => $single) {
         $typeFromSlug[$single] = $_t;
-        $typeFromSlug[$plural] = $_t; // plural also maps to internal type
-        $slugFromType[$_t]       = $single;
-        $slugPluralFromType[$_t] = $plural;
     }
     $catSlug = sanitizeSlug(__t('url_slug_category', 'category'));
     $tagSlug = sanitizeSlug(__t('url_slug_tag',      'tag'));
@@ -106,7 +106,7 @@ function parseRequestUri()
     // ── 1. Content type list: /articles/, /projets/, /pages/ ─────────────────
     if (count($segments) === 1 && isset($typeFromSlug[$segments[0]])) {
         $internalType = $typeFromSlug[$segments[0]];
-        if (in_array($internalType, ['article', 'project', 'page'])) {
+        if (sl_content_type_exists($internalType)) {
             return ['type' => $internalType, 'slug' => '', 'page' => '', 'category' => ''];
         }
     }
@@ -118,7 +118,7 @@ function parseRequestUri()
         && is_numeric($segments[2])
     ) {
         $internalType = $typeFromSlug[$segments[0]];
-        if (in_array($internalType, ['article', 'project', 'page'])) {
+        if (sl_content_type_exists($internalType)) {
             return ['type' => $internalType, 'slug' => '', 'page' => $segments[2], 'category' => ''];
         }
     }
@@ -134,10 +134,11 @@ function parseRequestUri()
         return ['type' => 'tag', 'slug' => '', 'page' => '', 'category' => '', 'tag' => $segments[1]];
     }
 
-    // ── 5. Single article/page without category: /article/slug/ or localized: /article/slug/
+    // ── 5. Single item without category: /article/slug/, /page/slug/, or any
+    //      registered type's /{type}/slug/ (localized prefix) ────────────────
     if (count($segments) === 2
         && isset($typeFromSlug[$segments[0]])
-        && in_array($typeFromSlug[$segments[0]], ['article', 'page'])
+        && sl_content_type_exists($typeFromSlug[$segments[0]])
     ) {
         return [
             'type'     => $typeFromSlug[$segments[0]],
@@ -147,23 +148,21 @@ function parseRequestUri()
         ];
     }
 
-    // ── 6. Project without category: /project/slug/ (localized prefix) ───────
-    if (count($segments) === 2
-        && isset($typeFromSlug[$segments[0]])
-        && $typeFromSlug[$segments[0]] === 'project'
-    ) {
-        return ['type' => 'project', 'slug' => $segments[1], 'page' => '', 'category' => ''];
-    }
-
-    // ── 7. Project with category: /project/[parent/]cat/slug/ ────────────────
+    // ── 6/7. Project — or any custom content type — with category, keeping its
+    //        type prefix: /project/[parent/]cat/slug/. Article and page use the
+    //        bare category-chain form instead (see case 8 below), so they're
+    //        excluded here to avoid opening a second, redirect-only route to
+    //        the same item.
     if (count($segments) >= 3
         && isset($typeFromSlug[$segments[0]])
-        && $typeFromSlug[$segments[0]] === 'project'
+        && sl_content_type_exists($typeFromSlug[$segments[0]])
+        && !in_array($typeFromSlug[$segments[0]], ['article', 'page'], true)
     ) {
-        $projectSlug = end($segments);
-        $catParts    = array_slice($segments, 1, -1);
-        $leafCatSlug = end($catParts);
-        return ['type' => 'project', 'slug' => $projectSlug, 'page' => '', 'category' => $leafCatSlug];
+        $internalType = $typeFromSlug[$segments[0]];
+        $itemSlug     = end($segments);
+        $catParts     = array_slice($segments, 1, -1);
+        $leafCatSlug  = end($catParts);
+        return ['type' => $internalType, 'slug' => $itemSlug, 'page' => '', 'category' => $leafCatSlug];
     }
 
     // ── 8. Article/page with hierarchical category path ───────────────────────
@@ -172,63 +171,36 @@ function parseRequestUri()
         $potentialCatParts = array_slice($segments, 0, -1);
         $potentialCatSlug  = end($potentialCatParts);
         $requestedCatPath  = implode('/', $potentialCatParts);
+        $fullRequestedPath = implode('/', $segments);
 
-        $foundArticle  = false;
-        $foundCategory = false;
+        $foundType = null;
 
-        if (isset($GLOBALS['data']['article'])) {
-            foreach ($GLOBALS['data']['article'] as $article) {
-                if (!isset($article['category'])) continue;
-                $itemCatSlug = sanitizeSlug($article['category']);
-                $itemSlug    = !empty($article['custom_slug']) ? $article['custom_slug'] : $article['slug'];
+        $passes = [['article', $GLOBALS['data']['article'] ?? []], ['page', $GLOBALS['data']['page'] ?? []]];
+        if (sl_admin_preview_session_active()) {
+            $passes[] = ['article', sl_load_index_unfiltered('article')];
+            $passes[] = ['page', sl_load_index_unfiltered('page')];
+        }
+
+        foreach ($passes as [$_type, $items]) {
+            foreach ($items as $item) {
+                if (!isset($item['category'])) continue;
+                $itemCatSlug = sanitizeSlug($item['category']);
+                $itemSlug    = !empty($item['custom_slug']) ? $item['custom_slug'] : $item['slug'];
                 $fullCatPath = getCategoryPath($itemCatSlug, $GLOBALS['data']);
-                if ($fullCatPath === $requestedCatPath) {
-                    $foundCategory = true;
-                    if ($itemSlug === $potentialSlug) { $foundArticle = true; break; }
-                }
+                if ($fullCatPath !== $requestedCatPath) continue;
+                if ($itemSlug === $potentialSlug) { $foundType = $_type; break 2; }
             }
         }
 
-        if (!$foundArticle && isset($GLOBALS['data']['page'])) {
-            foreach ($GLOBALS['data']['page'] as $page) {
-                if (!isset($page['category'])) continue;
-                $itemCatSlug = sanitizeSlug($page['category']);
-                $itemSlug    = !empty($page['custom_slug']) ? $page['custom_slug'] : $page['slug'];
-                $fullCatPath = getCategoryPath($itemCatSlug, $GLOBALS['data']);
-                if ($fullCatPath === $requestedCatPath && $itemSlug === $potentialSlug) {
-                    return ['type' => 'page', 'slug' => $potentialSlug, 'page' => '', 'category' => $potentialCatSlug];
-                }
-            }
+        if ($foundType !== null) {
+            return ['type' => $foundType, 'slug' => $potentialSlug, 'page' => '', 'category' => $potentialCatSlug];
         }
 
-        if (!$foundArticle && sl_admin_preview_session_active()) {
-            foreach (sl_load_index_unfiltered('article') as $article) {
-                if (!isset($article['category'])) continue;
-                $itemCatSlug = sanitizeSlug($article['category']);
-                $itemSlug    = !empty($article['custom_slug']) ? $article['custom_slug'] : $article['slug'];
-                $fullCatPath = getCategoryPath($itemCatSlug, $GLOBALS['data']);
-                if ($fullCatPath === $requestedCatPath) {
-                    $foundCategory = true;
-                    if ($itemSlug === $potentialSlug) { $foundArticle = true; break; }
-                }
-            }
-            if (!$foundArticle) {
-                foreach (sl_load_index_unfiltered('page') as $page) {
-                    if (!isset($page['category'])) continue;
-                    $itemCatSlug = sanitizeSlug($page['category']);
-                    $itemSlug    = !empty($page['custom_slug']) ? $page['custom_slug'] : $page['slug'];
-                    $fullCatPath = getCategoryPath($itemCatSlug, $GLOBALS['data']);
-                    if ($fullCatPath === $requestedCatPath && $itemSlug === $potentialSlug) {
-                        return ['type' => 'page', 'slug' => $potentialSlug, 'page' => '', 'category' => $potentialCatSlug];
-                    }
-                }
-            }
-        }
-
-        if ($foundArticle) {
-            return ['type' => 'article', 'slug' => $potentialSlug, 'page' => '', 'category' => $potentialCatSlug];
-        } elseif ($foundCategory) {
-            return ['type' => 'category', 'slug' => '', 'page' => '', 'category' => $potentialCatSlug];
+        // Only fall back to a category page when the full requested path is
+        // itself a real category chain — not merely a sibling of one.
+        $categories = $GLOBALS['data']['categories'] ?? [];
+        if (isset($categories[$potentialSlug]) && getCategoryPath($potentialSlug, $GLOBALS['data']) === $fullRequestedPath) {
+            return ['type' => 'category', 'slug' => '', 'page' => '', 'category' => $potentialSlug];
         }
     }
 
@@ -276,7 +248,7 @@ function generateSEO($pageTitle, $type, $slug, $data, $settings)
         }
 
         // Individual content page
-        if (in_array($type, ["article", "page", "project"])) {
+        if (sl_content_type_exists($type)) {
             foreach ($data[$type] as $item) {
                 // Check for custom slug or default slug
                 $itemSlug = !empty($item["custom_slug"]) ? $item["custom_slug"] : $item["slug"];

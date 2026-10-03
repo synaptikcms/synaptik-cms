@@ -1,4 +1,8 @@
 <?php
+if (!defined('INCLUDED')) {
+    http_response_code(403);
+    exit;
+}
 /* Template Name: Contact */
 /* Template Description: Page with contact form appended below the content  */
 $settings = loadConfig();

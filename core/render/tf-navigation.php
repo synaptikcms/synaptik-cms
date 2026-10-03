@@ -27,13 +27,13 @@ function renderMenuTree($menuTree)
     $html = '<ul>';
     foreach ($menuTree as $item) {
         $url    = generateMenuItemUrl($item);
-        $target = !empty($item['target']) ? ' target="' . htmlspecialchars($item['target']) . '"' : '';
+        $target = !empty($item['target']) ? ' target="' . hsc($item['target']) . '"' : '';
         $label  = $item['label'];
         if (($item['content_type'] ?? '') === 'list' && !empty($item['label_auto']) && !empty($item['content_slug'])) {
             $label = sl_type_label($item['content_slug'], true);
         }
         $html  .= '<li' . (!empty($item['children']) ? ' class="has-submenu"' : '') . '>';
-        $html  .= '<a href="' . htmlspecialchars($url) . '"' . $target . '>' . htmlspecialchars($label) . '</a>';
+        $html  .= '<a href="' . hsc($url) . '"' . $target . '>' . hsc($label) . '</a>';
         if (!empty($item['children'])) {
             $html .= renderMenuTree($item['children']);
         }
@@ -57,7 +57,9 @@ function generateMenuItemUrl($item)
         if (isset($item['content_type']) && $item['content_type'] === 'list') {
             $baseType = isset($item['content_slug']) ? $item['content_slug'] : '';
             if ($baseType !== '') {
-                return $baseUrl . url_slug($baseType . 's') . '/';
+                return $baseUrl . (sl_content_type_exists($baseType)
+                    ? sl_type_url_slug($baseType, true)
+                    : url_slug($baseType . 's')) . '/';
             }
             return $baseUrl . ltrim($item['url'], '/');
         }
@@ -84,18 +86,17 @@ function generateMenuItemUrl($item)
 function renderDefaultMenu($data)
 {
     $settings = loadConfig();
-    $data = [
-        'page'    => sl_load_index('page'),
-        'article' => sl_load_index('article'),
-        'project' => sl_load_index('project'),
-    ];
+    $data = [];
+    foreach (sl_all_type_slugs() as $__navType) {
+        $data[$__navType] = sl_load_index($__navType);
+    }
     $menuStyle = $settings['default_menu_style'] ?? 'flat';
     $orderBy   = $settings['default_menu_order']  ?? 'alphabetical';
 
     $html  = '<ul>';
     $html .= '<li><a href="' . cleanUrl('home') . '">' . __t('home') . '</a></li>';
 
-    foreach (['page', 'article', 'project'] as $type) {
+    foreach (sl_all_type_slugs() as $type) {
         if (empty($data[$type])) continue;
 
         $flagged = array_filter($data[$type], fn($i) => !empty($i['show_in_menu']));
@@ -103,14 +104,14 @@ function renderDefaultMenu($data)
         if ($menuStyle === 'grouped') {
             $hasDropdown = !empty($flagged);
             $html .= '<li' . ($hasDropdown ? ' class="has-submenu"' : '') . '>';
-            $html .= '<a href="' . cleanUrl($type) . '">' . htmlspecialchars(sl_type_label($type, true)) . '</a>';
+            $html .= '<a href="' . cleanUrl($type) . '">' . hsc(sl_type_label($type, true)) . '</a>';
             if ($hasDropdown) {
                 $flagged = sortMenuItems(array_values($flagged), $orderBy);
                 $html .= '<ul>';
                 foreach ($flagged as $item) {
                     $slug     = !empty($item['custom_slug']) ? $item['custom_slug'] : $item['slug'];
                     $category = !empty($item['category']) ? sanitizeSlug($item['category']) : null;
-                    $html    .= '<li><a href="' . cleanUrl($type, $slug, null, $category) . '">' . htmlspecialchars($item['title']) . '</a></li>';
+                    $html    .= '<li><a href="' . cleanUrl($type, $slug, null, $category) . '">' . hsc($item['title']) . '</a></li>';
                 }
                 $html .= '</ul>';
             }
@@ -123,7 +124,7 @@ function renderDefaultMenu($data)
         foreach ($flagged as $item) {
             $slug     = !empty($item['custom_slug']) ? $item['custom_slug'] : $item['slug'];
             $category = !empty($item['category']) ? sanitizeSlug($item['category']) : null;
-            $html    .= '<li><a href="' . cleanUrl($type, $slug, null, $category) . '">' . htmlspecialchars($item['title']) . '</a></li>';
+            $html    .= '<li><a href="' . cleanUrl($type, $slug, null, $category) . '">' . hsc($item['title']) . '</a></li>';
         }
     }
 

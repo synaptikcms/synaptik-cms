@@ -9,7 +9,7 @@ if (!defined('INCLUDED')) {
 $tags = [];
 $_tagStore = $data['tags'] ?? [];
 
-foreach (['article', 'project', 'page'] as $_tagCt) {
+foreach (sl_all_type_slugs() as $_tagCt) {
 	if (!isset($data[$_tagCt])) continue;
 	foreach ($data[$_tagCt] as $idx => $item) {
 		if (!isset($item['tags']) || !is_array($item['tags'])) continue;
@@ -77,7 +77,7 @@ uasort($tagsAlpha, fn($a, $b) => strcasecmp($a['name'], $b['name']));
 					<select name="source_slug" style="width:100%;" required>
 						<option value=""><?php _e('select_tag'); ?></option>
 						<?php foreach ($tagsAlpha as $slug => $tag): ?>
-						<option value="<?php echo $slug; ?>"><?php echo htmlspecialchars($tag['name']); ?> (<?php echo $tag['count']; ?>)</option>
+						<option value="<?php echo $slug; ?>"><?php echo hsc($tag['name']); ?> (<?php echo $tag['count']; ?>)</option>
 						<?php endforeach; ?>
 					</select>
 				</div>
@@ -87,7 +87,7 @@ uasort($tagsAlpha, fn($a, $b) => strcasecmp($a['name'], $b['name']));
 					<select name="target_slug" style="width:100%;" required>
 						<option value=""><?php _e('select_tag'); ?></option>
 						<?php foreach ($tagsAlpha as $slug => $tag): ?>
-						<option value="<?php echo $slug; ?>"><?php echo htmlspecialchars($tag['name']); ?> (<?php echo $tag['count']; ?>)</option>
+						<option value="<?php echo $slug; ?>"><?php echo hsc($tag['name']); ?> (<?php echo $tag['count']; ?>)</option>
 						<?php endforeach; ?>
 					</select>
 				</div>

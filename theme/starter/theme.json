@@ -2,7 +2,7 @@
     "synaptik_theme": true,
     "name": "Starter",
     "folder": "starter",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "author": "Synaptik CMS",
     "author_url": "https://synaptikcms.com",
     "description": "Minimal reference theme. Copy this folder, rename it, edit css/style.css. Everything else already works.",

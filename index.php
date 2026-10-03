@@ -1,10 +1,18 @@
 <?php
 ini_set('memory_limit', '256M');
 
-if (isset($_GET['_llms'])) {
-    require_once __DIR__ . '/core/' . ($_GET['_llms'] === 'full' ? 'llms-full' : 'llms') . '.php';
+$__llmsRequestPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
+$__llmsBasePath    = rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? ''), '/');
+if ($__llmsBasePath !== '' && $__llmsBasePath !== '/' && strpos($__llmsRequestPath, $__llmsBasePath) === 0) {
+    $__llmsRequestPath = substr($__llmsRequestPath, strlen($__llmsBasePath));
+}
+$__llmsRequestPath = '/' . ltrim($__llmsRequestPath, '/');
+
+if ($__llmsRequestPath === '/llms.txt' || $__llmsRequestPath === '/llms-full.txt') {
+    require_once __DIR__ . '/core/' . ($__llmsRequestPath === '/llms-full.txt' ? 'llms-full' : 'llms') . '.php';
     exit;
 }
+unset($__llmsRequestPath, $__llmsBasePath);
 
 $__adminDirForSession = 'admin';
 $__configPathForSession = __DIR__ . '/config.json';
@@ -37,6 +45,8 @@ require_once __DIR__ . '/core/functions.php';
 pl_do_hook('early_request');
 
 $settings = loadConfig();
+
+sl_enforce_https();
 
 $__canonicalRedirect = _sl_canonical_host_redirect_target();
 if ($__canonicalRedirect !== null) {
@@ -108,7 +118,7 @@ $__pageCacheEligible = ($_SERVER['REQUEST_METHOD'] === 'GET')
 $__pageCacheKey = null;
 
 if ($__pageCacheEligible) {
-    foreach (['article', 'page', 'project'] as $__scheduledType) {
+    foreach (sl_all_type_slugs() as $__scheduledType) {
         sl_promote_scheduled($__scheduledType);
     }
     unset($__scheduledType);
@@ -124,14 +134,14 @@ if ($__pageCacheEligible) {
     ob_start();
 }
 
-$data = sl_build_data_array(['article', 'page', 'project'], false);
+$data = sl_build_data_array(null, false);
 $GLOBALS['data'] = $data;
 
 if (isset($data['content'])) {
   $data['content'] = stripslashes($data['content']);
 }
 
-$contentTypes = ["article", "page", "project"];
+$contentTypes = sl_all_type_slugs();
 $uriParams = parseRequestUri();
 
 pl_do_hook('after_routing', $uriParams['type'] === '404');
@@ -171,6 +181,16 @@ if (!empty($type) && !empty($slug) && in_array($type, $contentTypes)) {
 	if ($_fullItem !== null) {
 		$data[$type]         = [$_fullItem];
 		$GLOBALS['data']     = $data;
+
+		$__canonicalContentRedirect = sl_canonical_content_redirect($type, $slug, $_fullItem["category"] ?? "", $settings);
+		if ($__canonicalContentRedirect !== null) {
+			if ($__pageCacheEligible) {
+				ob_end_clean();
+			}
+			header('Location: ' . $__canonicalContentRedirect, true, 301);
+			exit;
+		}
+		unset($__canonicalContentRedirect);
 	}
 } elseif (
 	empty($type) && empty($slug)
@@ -246,6 +266,9 @@ $metaKeywords = '';
 $ogImage = '';
 $ogTitle = '';
 $ogDescription = '';
+$ogType = 'website';
+$ogPublishedTime = '';
+$ogModifiedTime = '';
 
 if (empty($type) && empty($slug) && ($settings['homepage_type'] ?? 'default') === 'default') {
 	$metaKeywords  = $settings['home_meta_keywords']  ?? '';
@@ -263,9 +286,18 @@ if (!empty($type) && !empty($slug) && in_array($type, $contentTypes)) {
 			   (!empty($item['image']) ? getBaseUrl() . $item['image'] : '');
 			$ogTitle = $item['og_title'] ?? $metaTitle;
 			$ogDescription = $item['og_description'] ?? $metaDescription;
+			if (in_array($type, ['article', 'project'], true)) {
+				$ogType = 'article';
+				$ogPublishedTime = $item['date'] ?? '';
+				$ogModifiedTime = $item['last_modified'] ?? '';
+			}
 			break;
 		}
 	}
+}
+
+if ($ogImage === '' && !empty($settings['home_og_image'])) {
+	$ogImage = getBaseUrl() . $settings['home_og_image'];
 }
 
 if (!empty($type) && !empty($slug) && in_array($type, $contentTypes)) {
@@ -310,6 +342,7 @@ foreach ($galleryLayouts as $layout) {
 }
 
 if (!empty($galleryLayouts)) {
+	enqueue_css('lightbox', 'assets/css/lightbox.css');
 	enqueue_js('lightbox', 'assets/js/features/lightbox.js');
 }
 
@@ -320,6 +353,11 @@ if ($_schemaJsonld !== '') {
 	$headerScripts[] = $_schemaJsonld;
 }
 unset($_schemaJsonld);
+$_websiteSchemaJsonld = render_website_schema($settings);
+if ($_websiteSchemaJsonld !== '') {
+	$headerScripts[] = $_websiteSchemaJsonld;
+}
+unset($_websiteSchemaJsonld);
 $headerScripts[] = '	<script type="application/json" id="cms-appsettings-json">'
 	. json_encode(['showSearchIcon' => isset($settings["show_search_icon"]) && $settings["show_search_icon"]])
 	. '</script>';
@@ -350,9 +388,10 @@ if ($isAdminLoggedIn) {
 	$_showSettings = true;
 
 	if (!empty($type) && !empty($slug)) {
-		$_singleType = in_array($type, $contentTypes) ? $type : rtrim($type, 's');
+		$_singleType = $type;
 		if (in_array($_singleType, $contentTypes)) {
-			$_rawIndex   = json_decode(file_get_contents(CMS_ROOT . '/data/' . $_singleType . 's/_index.json'), true) ?? [];
+			$_rawIndexFile = sl_index_path($_singleType);
+			$_rawIndex   = is_file($_rawIndexFile) ? (json_decode(file_get_contents($_rawIndexFile), true) ?? []) : [];
 			$_adminIndex = null;
 			foreach ($_rawIndex as $_rawPos => $_rawEntry) {
 				if (sl_effective_slug($_rawEntry) === $slug) { $_adminIndex = $_rawPos; break; }
@@ -365,8 +404,8 @@ if ($isAdminLoggedIn) {
 				$_listLink = $_adminBase . '/index.php?type=' . $_singleType;
 			}
 		}
-	} elseif (!empty($type) && empty($slug) && in_array(rtrim($type, 's'), $contentTypes)) {
-		$_listType     = rtrim($type, 's');
+	} elseif (!empty($type) && empty($slug) && in_array($type, $contentTypes, true)) {
+		$_listType     = $type;
 		$_ctxLabel     = $_adminLang['manage']                  ?? 'Manage';
 		$_ctxHref      = $_adminBase . '/index.php?type=' . $_listType;
 		$_newLabel     = $_adminLang['new_' . $_listType]       ?? ('New ' . $_listType);
@@ -400,7 +439,7 @@ if ($isAdminLoggedIn) {
 	$_adminBarHtml .= '<div class="snk-ab-divider"></div>';
 
 	if (!empty($_listLink)) {
-		$_adminBarHtml .= '<a href="' . htmlspecialchars($_listLink) . '">' . $_ico_list . htmlspecialchars($_adminLang[rtrim($type, 's') . 's'] ?? ucfirst($type)) . '</a>';
+		$_adminBarHtml .= '<a href="' . htmlspecialchars($_listLink) . '">' . $_ico_list . htmlspecialchars(in_array($type, ['article', 'page', 'project'], true) ? ($_adminLang[$type . 's'] ?? ucfirst($type)) : sl_type_label($type, true)) . '</a>';
 	}
 
 	if (!empty($_ctxLabel) && !empty($_ctxHref)) {

@@ -38,7 +38,7 @@ $_layoutTitle = $pageTitle
 
 $_editItemStatus  = null;
 if ($_isEditor && $_currentAction === 'edit'
-	&& in_array($_currentType, ['article', 'page', 'project'], true)) {
+	&& sl_content_type_exists($_currentType)) {
 	$_editIdx = isset($_GET['index']) ? (int)$_GET['index'] : -1;
 	if ($_editIdx >= 0 && !empty($data[$_currentType][$_editIdx]['slug'])) {
 		$_editItemStatus = $data[$_currentType][$_editIdx]['status'] ?? 'published';
@@ -48,9 +48,9 @@ if ($_isEditor && $_currentAction === 'edit'
 $_currentScript  = basename($_SERVER['PHP_SELF']);
 $_needsPanel     = $_isEditor
 	|| in_array($_currentAction, ['settings', 'menu_builder', 'manage_categories',
-		'manage_tags', 'manage_themes'], true)
+		'manage_tags', 'manage_content_types', 'manage_themes'], true)
 	|| in_array($_currentScript, ['dashboard.php'], true)
-	|| (isset($_GET['type']) && in_array($_currentType, ['article', 'page', 'project'], true))
+	|| (isset($_GET['type']) && sl_content_type_exists($_currentType))
 	|| empty($_currentAction); // dashboard
 $_needsMenuJS    = in_array($_currentAction, ['settings', 'menu_builder'], true);
 $_needsEditorJS  = $_isEditor;
@@ -60,11 +60,11 @@ $_sb_versionData = file_exists($_sb_versionFile) ? json_decode(file_get_contents
 $_sb_version     = (is_array($_sb_versionData) && !empty($_sb_versionData['version'])) ? $_sb_versionData['version'] : '';
 ?>
 <!DOCTYPE html>
-<html lang="<?php echo htmlspecialchars(lang_current()); ?>">
+<html lang="<?php echo hsc(lang_current()); ?>">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title><?php echo htmlspecialchars($_layoutTitle); ?> | Synaptik CMS Admin</title>
+	<title><?php echo hsc($_layoutTitle); ?> | Synaptik CMS Admin</title>
 	<link rel="icon" href="assets/img/favicon.ico" type="image/x-icon">
 	<script src="assets/js/theme-boot.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/theme-boot.js'); ?>"></script>
 	<link rel="preconnect" href="https://fonts.bunny.net">
@@ -91,7 +91,7 @@ $_sb_version     = (is_array($_sb_versionData) && !empty($_sb_versionData['versi
 			<div class="admin-topbar">
 			<?php if ($_isEditor): ?>
 				<div class="admin-topbar-default admin-topbar-editor">
-					<h1 class="admin-topbar-title"><?php echo htmlspecialchars($_layoutTitle); ?></h1>
+					<h1 class="admin-topbar-title"><?php echo hsc($_layoutTitle); ?></h1>
 					<div class="editor-topbar-format" id="topbar-format-switcher">
 						<button type="button" class="editor-format-tab active" data-format="html">WYSIWYG</button>
 						<button type="button" class="editor-format-tab" data-format="markdown">Markdown</button>
@@ -113,25 +113,21 @@ $_sb_version     = (is_array($_sb_versionData) && !empty($_sb_versionData['versi
 				</div>
 			<?php else: ?>
 				<div class="admin-topbar-default">
-					<h1 class="admin-topbar-title"><?php echo htmlspecialchars($_layoutTitle); ?></h1>
+					<h1 class="admin-topbar-title"><?php echo hsc($_layoutTitle); ?></h1>
 					<div class="topbar-new-dropdown">
 						<button type="button" class="btn btn-outline btn-sm topbar-new-toggle" id="topbar-new-btn-global" aria-haspopup="true" aria-expanded="false">
 							<?php echo admin_icon('circle-plus', '', 14); ?>
 							<span class="topbar-hide-mobile"><?php _e('add_new'); ?></span>
 						</button>
 						<div class="topbar-new-menu" id="topbar-new-menu-global" role="menu">
-							<a href="index.php?action=add&type=article" class="topbar-new-item" role="menuitem">
-								<?php echo admin_icon('article', '', 14); ?>
-								<?php printf(hsc(__t('add_new_type')), hsc(sl_type_label('article'))); ?>
+							<?php foreach (sl_all_type_slugs() as $_tbType):
+								$_tbIcon = in_array($_tbType, ['article', 'page', 'project'], true) ? $_tbType : 'article';
+							?>
+							<a href="index.php?action=add&type=<?php echo urlencode($_tbType); ?>" class="topbar-new-item" role="menuitem">
+								<?php echo admin_icon($_tbIcon, '', 14); ?>
+								<?php printf(hsc(__t('add_new_type')), hsc(sl_type_label($_tbType))); ?>
 							</a>
-							<a href="index.php?action=add&type=page" class="topbar-new-item" role="menuitem">
-								<?php echo admin_icon('page', '', 14); ?>
-								<?php printf(hsc(__t('add_new_type')), hsc(sl_type_label('page'))); ?>
-							</a>
-							<a href="index.php?action=add&type=project" class="topbar-new-item" role="menuitem">
-								<?php echo admin_icon('project', '', 14); ?>
-								<?php printf(hsc(__t('add_new_type')), hsc(sl_type_label('project'))); ?>
-							</a>
+							<?php endforeach; ?>
 						</div>
 					</div>
 					<a target="_blank" href="<?php echo admin_site_url(); ?>" class="btn btn-outline btn-sm">
@@ -145,7 +141,7 @@ $_sb_version     = (is_array($_sb_versionData) && !empty($_sb_versionData['versi
 					<div class="message success"><?php echo $message; ?></div>
 				<?php endif; ?>
 				<?php if (!empty($notice)): ?>
-					<div class="message warning"><?php echo htmlspecialchars($notice); ?></div>
+					<div class="message warning"><?php echo hsc($notice); ?></div>
 				<?php endif; ?>
 				<?php if (!empty($error)): ?>
 					<div class="message error"><?php echo $error; ?></div>
@@ -153,15 +149,15 @@ $_sb_version     = (is_array($_sb_versionData) && !empty($_sb_versionData['versi
 				<?php echo $pageContent ?? ''; ?>
 			</main>
 			<footer class="admin-footer">
-				<span>Powered by <a target="_blank" href="https://synaptikcms.com/">Synaptik CMS</a> — v<?php echo htmlspecialchars($_sb_version ?? ''); ?></span>
+				<span>Powered by <a target="_blank" href="https://synaptikcms.com/">Synaptik CMS</a> — v<?php echo hsc($_sb_version ?? ''); ?></span>
 			</footer>
 		</div><!-- /.admin-main -->
 	</div><!-- /.admin-container -->
 
 	<script type="application/json" id="cms-csrf-json"><?php echo json_encode($_SESSION['csrf_token'] ?? ''); ?></script>
 	<script src="assets/js/admin-boot.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/admin-boot.js'); ?>"></script>
-	<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha384-vtXRMe3mGCbOeY7l30aIg8H9p3GdeSe4IFlP6G8JMa7o7lXvnz3GFKzPxzJdPfGK" crossorigin="anonymous"></script>
-	<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js" integrity="sha384-vxc713BCZYoMxC6DlBK6K4M+gLAS8+63q7TtgB2+KZVn8GNafLKZCJ7Wk2S6ZEl1" crossorigin="anonymous"></script>
+	<script src="assets/vendor/jquery-3.6.0.min.js"></script>
+	<script src="assets/vendor/Sortable-1.14.0.min.js"></script>
 	<script src="assets/js/common.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/common.js'); ?>"></script>
 	<script src="assets/js/admin-sidebar.js?v=<?php echo @filemtime(__DIR__ . '/../assets/js/admin-sidebar.js'); ?>"></script>
 	<?php if ($_needsPanel): ?>

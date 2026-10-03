@@ -26,6 +26,8 @@ if (!$editItem) {
 	echo '<div class="message error">' . __t('item_not_found') . '</div>';
 	return;
 }
+$_editTypeDef = sl_content_type($contentType);
+$showSummaryField = $contentType === 'article' || ($_editTypeDef !== null && empty($_editTypeDef['built_in']));
 ?>
 			
 			<div class="editor-layout" id="editor-layout">
@@ -56,7 +58,7 @@ if (!$editItem) {
 							<textarea id="content" name="content" rows="20" required><?php echo hsc($editItem['content'] ?? ''); ?></textarea>
 						</div>
 			
-						<?php if ($contentType === 'article'): ?>
+						<?php if ($showSummaryField): ?>
 						<div class="editor-section">
 								<label for="summary" style="margin: 0 0 7px;"><?php _e('article_summary_label', 'Short summary'); ?></label>
 								<textarea id="summary" name="summary" rows="3" placeholder="<?php echo hsc(__t('article_summary_placeholder', 'Summary shown in article cards — leave empty to use a content excerpt…')); ?>"><?php echo hsc($editItem['summary'] ?? ''); ?></textarea>
@@ -188,7 +190,7 @@ if (!$editItem) {
 								<div class="slug-field-row">
 									<input type="text" id="custom_slug" name="custom_slug" form="content-form" value="<?php echo hsc($editItem['custom_slug'] ?? ''); ?>" placeholder="<?php _e('slug_autogenerate_placeholder'); ?>">
 									<?php if (!empty($editItem['slug'])): ?>
-									<a href="<?php echo htmlspecialchars(admin_content_url($contentType, $editItem['slug'] ?? '', $editItem['custom_slug'] ?? '', $editItem['category'] ?? '')); ?>" class="btn btn-outline btn-sm btn-icon-action slug-view-btn" target="_blank" rel="noopener" title="<?php _e('view_online'); ?>">
+									<a href="<?php echo hsc(admin_content_url($contentType, $editItem['slug'] ?? '', $editItem['custom_slug'] ?? '', $editItem['category'] ?? '')); ?>" class="btn btn-outline btn-sm btn-icon-action slug-view-btn" target="_blank" rel="noopener" title="<?php _e('view_online'); ?>">
 										<?php echo admin_icon('external-link', '', 14); ?>
 									</a>
 									<?php endif; ?>
@@ -202,7 +204,7 @@ if (!$editItem) {
 								}
 								}
 								// Collect inline categories from items not yet in the store (legacy resilience)
-								foreach (['article', 'project', 'page'] as $type) {
+								foreach (sl_all_type_slugs() as $type) {
 							if (!isset($data[$type])) continue;
 							foreach ($data[$type] as $item) {
 								if (empty($item['category'])) continue;
@@ -218,7 +220,7 @@ if (!$editItem) {
 								}
 								}
 								// Collect inline tags from items not yet in the store (legacy resilience)
-								foreach (['article', 'project', 'page'] as $type) {
+								foreach (sl_all_type_slugs() as $type) {
 							if (!isset($data[$type])) continue;
 							foreach ($data[$type] as $item) {
 								if (empty($item['tags']) || !is_array($item['tags'])) continue;

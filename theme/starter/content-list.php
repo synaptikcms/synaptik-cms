@@ -1,5 +1,5 @@
 <?php
-$heading = ucfirst(__t($list_type . 's') ?: ($list_type . 's'));
+$heading = sl_type_label($list_type, true);
 ?>
 <div class="content-list">
     <h1 class="list-heading"><?php echo htmlspecialchars($heading); ?></h1>

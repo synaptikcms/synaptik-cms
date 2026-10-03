@@ -65,7 +65,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_content_items' &&
 		echo json_encode($items);
 	} elseif ($contentType === 'category') {
 		$categories = [];
-		foreach (['article', 'page', 'project'] as $type) {
+		foreach (sl_all_type_slugs() as $type) {
 			if (!empty($data[$type])) {
 				foreach ($data[$type] as $item) {
 					if (!empty($item['category'])) {
@@ -144,7 +144,7 @@ if ($_isDestructiveGet) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_alt_save']) && ($_GET['action'] ?? '') === 'tools') {
 	header('Content-Type: application/json');
 	$_alt_data      = loadData();
-	$_allowed_types  = ['article', 'page', 'project'];
+	$_allowed_types = sl_all_type_slugs();
 	$_allowed_fields = ['alt_text', 'caption'];
 	$_post_type   = $_POST['post_type']     ?? '';
 	$_post_index  = (int)($_POST['post_index']    ?? -1);
@@ -190,7 +190,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cf_quick_add'])) {
 $action = $_GET['action'] ?? '';
 $type   = $_GET['type']   ?? '';
 
-if ($type !== '' && in_array($type, ['article', 'page', 'project'], true) && $action === '') {
+if ($type !== '' && sl_content_type_exists($type) && $action === '') {
 	$contentType = $type;
 	$data = [
 		'article'    => [],
@@ -213,7 +213,7 @@ if ($action === 'plugin_page') {
 	if ($_pluginSlug === '' || !pl_is_active($_pluginSlug)) {
 		http_response_code(404);
 		$pageTitle   = __t('extensions_title', 'Extensions');
-		$pageContent = '<div class="site-settings-section"><p>' . htmlspecialchars(__t('extensions_no_plugins', 'Plugin not found or not active.')) . '</p></div>';
+		$pageContent = '<div class="site-settings-section"><p>' . hsc(__t('extensions_no_plugins', 'Plugin not found or not active.')) . '</p></div>';
 		require_once 'includes/layout.php';
 		exit;
 	}
@@ -225,7 +225,7 @@ if ($action === 'plugin_page') {
 	if (!function_exists($_pluginRenderFn)) {
 		http_response_code(500);
 		$pageTitle   = __t('extensions_title', 'Extensions');
-		$pageContent = '<div class="site-settings-section"><p>Plugin "' . htmlspecialchars($_pluginSlug) . '" does not expose an admin page renderer.</p></div>';
+		$pageContent = '<div class="site-settings-section"><p>Plugin "' . hsc($_pluginSlug) . '" does not expose an admin page renderer.</p></div>';
 		require_once 'includes/layout.php';
 		exit;
 	}
@@ -241,7 +241,7 @@ if ($action === 'plugin_page') {
 }
 
 $_adminOnlyActions        = ['settings', 'translations', 'system_info', 'activity_log', 'backup', 'update', 'plugins', 'manage_themes'];
-$_editorAndAboveActions   = ['menu_builder', 'manage_categories', 'manage_tags'];
+$_editorAndAboveActions   = ['menu_builder', 'manage_categories', 'manage_tags', 'manage_content_types'];
 
 if (in_array($action, $_adminOnlyActions, true) && !admin_is_admin()) {
 	http_response_code(403);
@@ -263,7 +263,7 @@ if (in_array($action, $_editorAndAboveActions, true) && !admin_can_manage_all_co
 }
 
 ob_start();
-if ($action === 'add' || $action === 'edit' || $action === 'delete' || $action === 'unpublish' || $action === 'drafts' || $action === 'trash' || $action === 'revision_diff' || $action === 'revision_restore' || $action === 'delete_revision' || $action === 'pending_diff' || $action === 'manage_categories' || $action === 'manage_tags' || $action === 'manage_themes') {
+if ($action === 'add' || $action === 'edit' || $action === 'delete' || $action === 'unpublish' || $action === 'drafts' || $action === 'trash' || $action === 'revision_diff' || $action === 'revision_restore' || $action === 'delete_revision' || $action === 'pending_diff' || $action === 'manage_categories' || $action === 'manage_tags' || $action === 'manage_content_types' || $action === 'manage_themes') {
 	include_once 'content.php';
 } elseif ($action === 'settings' || $action === 'menu_builder') {
 	include_once 'settings.php';
@@ -285,7 +285,7 @@ if ($action === 'add' || $action === 'edit' || $action === 'delete' || $action =
 	include 'templates/update.php';
 } elseif ($action === 'plugins') {
 	include 'templates/plugins-manager.php';
-} elseif ($type === 'article' || $type === 'page' || $type === 'project') {
+} elseif ($type !== '' && sl_content_type_exists($type)) {
 	include_once 'content.php';
 } else {
 	include_once 'dashboard.php';

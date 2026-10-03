@@ -198,11 +198,25 @@ if (!function_exists('lang_current')) {
 	}
 }
 
+if (!function_exists('lang_js_bridge_keys')) {
+	function lang_js_bridge_keys(): array {
+		return [
+			'search_placeholder', 'search_in_content', 'search_loading',
+			'search_error_generic', 'search_no_results', 'search_found_one',
+			'search_found_many', 'search_results',
+			'tab', 'expand_all', 'collapse_all',
+		];
+	}
+}
+
 if (!function_exists('lang_js_bridge')) {
 	function lang_js_bridge(): string {
 		$strings = lang_load();
-		unset($strings['_meta']);
-		return json_encode($strings, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+		$context = defined('LANG_CONTEXT') ? LANG_CONTEXT : 'front';
+		$bridge  = $context === 'admin'
+			? $strings
+			: array_intersect_key($strings, array_flip(lang_js_bridge_keys()));
+		return json_encode($bridge, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
 	}
 }
 

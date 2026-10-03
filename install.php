@@ -28,6 +28,8 @@ $i18n = [
         'help_contact_email'    => 'Used for contact form submissions and admin password reset.',
         'lbl_canonical_host'    => 'Canonical Site Host',
         'help_canonical_host'   => 'Recommended. Pre-filled with the domain you\'re installing from — correct it if this isn\'t where the site will be reached publicly (e.g. you\'re setting up on a local or staging address first). Leave blank to auto-detect the domain from each request instead; you can change this anytime in Settings → SEO.',
+        'lbl_force_https'       => 'Force HTTPS',
+        'help_force_https'      => 'Redirect visitors from HTTP to HTTPS and enable HSTS (browsers will only use HTTPS for this site). Recommended, since you are installing over HTTPS.',
         'help_admin_dir'        => 'Letters, numbers, hyphens and underscores only. Min. 3 characters. Cannot be: %s.',
         'dir_preview'           => 'URL: yoursite.com/',
         'btn_install'           => 'Install Synaptik CMS →',
@@ -104,6 +106,8 @@ $i18n = [
         'help_contact_email'    => 'Utilisé pour le formulaire de contact et la réinitialisation du mot de passe admin.',
         'lbl_canonical_host'    => 'Domaine canonique du site',
         'help_canonical_host'   => 'Recommandé. Pré-rempli avec le domaine depuis lequel vous installez — corrigez-le si ce n\'est pas là où le site sera accessible publiquement (par ex. vous configurez d\'abord en local ou sur un environnement de test). Laissez vide pour une détection automatique du domaine à chaque requête ; modifiable à tout moment dans Réglages → SEO.',
+        'lbl_force_https'       => 'Forcer HTTPS',
+        'help_force_https'      => 'Redirige les visiteurs de HTTP vers HTTPS et active HSTS (les navigateurs n\'utiliseront que HTTPS pour ce site). Recommandé, puisque vous installez en HTTPS.',
         'help_admin_dir'        => 'Lettres, chiffres, tirets et underscores uniquement. Min. 3 caractères. Interdit : %s.',
         'dir_preview'           => 'URL : votresite.com/',
         'btn_install'           => 'Installer Synaptik CMS →',
@@ -180,6 +184,8 @@ $i18n = [
         'help_contact_email'    => 'Usado para el formulario de contacto y el restablecimiento de contraseña.',
         'lbl_canonical_host'    => 'Dominio canónico del sitio',
         'help_canonical_host'   => 'Recomendado. Prerrellenado con el dominio desde el que está instalando — corríjalo si no es donde el sitio será accesible públicamente (por ejemplo, si está configurando primero en local o en un entorno de pruebas). Déjelo vacío para la detección automática del dominio en cada solicitud; se puede cambiar en cualquier momento en Ajustes → SEO.',
+        'lbl_force_https'       => 'Forzar HTTPS',
+        'help_force_https'      => 'Redirige a los visitantes de HTTP a HTTPS y activa HSTS (los navegadores solo usarán HTTPS en este sitio). Recomendado, ya que está instalando por HTTPS.',
         'help_admin_dir'        => 'Solo letras, números, guiones y guiones bajos. Mín. 3 caracteres. No puede ser: %s.',
         'dir_preview'           => 'URL: tusitio.com/',
         'btn_install'           => 'Instalar Synaptik CMS →',
@@ -310,6 +316,13 @@ function installer_detected_host(): string
     return preg_match('/^(\[[0-9a-fA-F:]+\]|[a-zA-Z0-9.-]+)(:\d{1,5})?$/', $host) ? strtolower($host) : '';
 }
 
+function installer_is_https(): bool
+{
+    return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+        || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443);
+}
+
 function installer_validate_canonical_host(string $input): string
 {
     $host = trim($input);
@@ -408,6 +421,7 @@ $pv = [
     'site_description' => '', 'admin_dir' => 'admin',
     'timezone' => 'Europe/Paris', 'contact_email' => '',
     'canonical_host' => installer_detected_host(),
+    'force_https' => installer_is_https(),
 ];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -423,11 +437,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password     = $_POST['password']              ?? '';
     $passwordConf = $_POST['password_confirm']      ?? '';
     $canonicalHost = installer_validate_canonical_host($_POST['canonical_host'] ?? '');
+    $forceHttps    = installer_is_https() && !empty($_POST['force_https']);
 
     $pv = ['language' => $language, 'site_title' => $siteTitle, 'site_description' => $siteDesc,
            'admin_dir' => $adminDir, 'timezone' => $timezone, 'contact_email' => $contactEmail,
            'admin_username' => $adminUsername, 'admin_display_name' => $adminDisplayName,
-           'canonical_host' => $canonicalHost];
+           'canonical_host' => $canonicalHost, 'force_https' => $forceHttps];
 
     if (!array_key_exists($language, $cmsLanguages))   $errors[] = __i('err_invalid_lang');
     if ($siteTitle === '')                              $errors[] = __i('err_site_title');
@@ -554,6 +569,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'admin_dir'                  => $adminDir,
             'site_url'                   => rtrim((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . str_replace($_SERVER['DOCUMENT_ROOT'], '', rtrim(__DIR__, '/')), '/'),
             'canonical_host'             => $canonicalHost,
+            'force_https'                => $forceHttps,
             'timezone'                   => $timezone,
             'site_logo'                  => '',
             'site_favicon'               => '',
@@ -801,6 +817,15 @@ select option { background: var(--secondary); }
                        value="<?= htmlspecialchars($pv['canonical_host']) ?>" placeholder="www.example.com">
                 <p class="help-text"><?= __i('help_canonical_host') ?></p>
             </div>
+            <?php if (installer_is_https()): ?>
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="force_https" value="1" <?= !empty($pv['force_https']) ? 'checked' : '' ?>>
+                    <?= __i('lbl_force_https') ?>
+                </label>
+                <p class="help-text"><?= __i('help_force_https') ?></p>
+            </div>
+            <?php endif; ?>
         </div>
         <div class="card">
             <div class="card-title"><span>🔐</span> <?= __i('sec_admin') ?></div>

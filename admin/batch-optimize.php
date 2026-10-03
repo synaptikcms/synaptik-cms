@@ -250,8 +250,8 @@ ob_start();
 			<label for="directory"><?php _e('batch_select_directory'); ?></label>
 			<select id="directory" name="directory" required>
 				<?php foreach ($availableDirs as $d): ?>
-					<option value="<?php echo htmlspecialchars($d); ?>">
-						<?php echo $d !== '' ? htmlspecialchars($d) : '/ (' . __t('batch_root_directory') . ')'; ?>
+					<option value="<?php echo hsc($d); ?>">
+						<?php echo $d !== '' ? hsc($d) : '/ (' . __t('batch_root_directory') . ')'; ?>
 					</option>
 				<?php endforeach; ?>
 			</select>

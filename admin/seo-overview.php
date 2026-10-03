@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_seo_save'])) {
 	$index = (int)($_POST['index'] ?? -1);
 	$field = $_POST['field'] ?? '';
 
-	$allowed_types  = ['article', 'page', 'project'];
+	$allowed_types = sl_all_type_slugs();
 	$allowed_fields = ['meta_title', 'meta_description', 'meta_keywords'];
 
 	if (!in_array($type, $allowed_types) || !in_array($field, $allowed_fields) || $index < 0) {
@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_seo_save'])) {
 $protocol = _sl_request_is_https() ? 'https' : 'http';
 $baseUrl  = $protocol . '://' . _sl_request_host() . rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');
 
-$contentTypes = ['article', 'page', 'project'];
+$contentTypes = sl_all_type_slugs();
 
 $allItems = [];
 foreach ($contentTypes as $type) {

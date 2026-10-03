@@ -162,6 +162,7 @@ if (isset($_POST['save_settings'])) {
 	$canonicalHost = rtrim(strtok($canonicalHost, '/'), '/');
 	$appSettings['canonical_host'] = preg_match('/^(\[[0-9a-fA-F:]+\]|[a-zA-Z0-9.-]+)(:\d{1,5})?$/', $canonicalHost)
 		? $canonicalHost : '';
+	$appSettings['force_https'] = !empty($_POST['force_https']);
 	$appSettings['show_site_title_in_header'] = isset($_POST['show_site_title_in_header']);
 	$appSettings['homepage_type'] = $_POST['homepage_type'];
 	$appSettings['homepage_page_id'] = $_POST['homepage_page_id'];
@@ -238,7 +239,7 @@ if (isset($_POST['save_settings'])) {
 		? $_POST['custom_fields_schema']
 		: [];
 	$_cfAllowedTypes = ['text', 'textarea', 'number', 'url', 'checkbox', 'select'];
-	foreach (['article', 'page', 'project'] as $_cfType) {
+	foreach (sl_all_type_slugs() as $_cfType) {
 		$_cfFields = [];
 		if (!empty($_cfRaw[$_cfType]) && is_array($_cfRaw[$_cfType])) {
 			foreach ($_cfRaw[$_cfType] as $_field) {
@@ -292,7 +293,7 @@ if (isset($_POST['save_settings'])) {
 	}
 
 	$_tlSubmitted = [];
-	foreach (['article', 'page', 'project'] as $_tlType) {
+	foreach (sl_all_type_slugs() as $_tlType) {
 		$_tlSubmitted[$_tlType] = [
 			'singular' => trim($_POST['type_label_' . $_tlType . '_singular'] ?? ''),
 			'plural'   => trim($_POST['type_label_' . $_tlType . '_plural'] ?? ''),

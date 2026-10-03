@@ -29,7 +29,7 @@ require_once '../core/data-functions.php';
 require_once '../core/core-functions.php';
 
 require_once '../core/data-layer.php';
-$data = sl_build_data_array(['article', 'page', 'project'], false);
+$data = sl_build_data_array(null, false);
 
 $baseUploadPath = '../files/';
 $currentPath    = isset($_GET['path']) ? $_GET['path'] : '';
@@ -731,7 +731,7 @@ ob_start();
 			<div class="breadcrumbs">
 				<?php foreach ($breadcrumbs as $i => $crumb): ?>
 				<?php if ($i > 0): ?> / <?php endif; ?>
-				<a href="?path=<?php echo urlencode($crumb['path']); ?>"><?php echo htmlspecialchars($crumb['name']); ?></a>
+				<a href="?path=<?php echo urlencode($crumb['path']); ?>"><?php echo hsc($crumb['name']); ?></a>
 				<?php endforeach; ?>
 				<span class="folder-info"><?php echo sprintf(__t('fm_folder_file_count'), count($folders), count($files)); ?></span>
 			</div>
@@ -771,7 +771,7 @@ ob_start();
 		?>
 		<div class="folder-item" draggable="true"
 			data-type="folder"
-			data-name="<?php echo htmlspecialchars($folder); ?>"
+			data-name="<?php echo hsc($folder); ?>"
 			data-has-contents="<?php echo $hasContents ? 'true' : 'false'; ?>"
 			data-filetype="folder"
 			data-modified="<?php echo filemtime($folderPath); ?>"
@@ -783,14 +783,14 @@ ob_start();
 						<path class="folder-icon-front" d="M3.8 7.7L22.6,7.7C22.9,7.7,23,7.9,23,8.1L20.7,20.9C20.6,20.9,20.6,21,20.6,21C20.6,21.1,20.6,21.1,20.5,21.2C20.4,21.4,20.2,21.5,20,21.5L1.4,21.5C1.1,21.5,1,21.3,1,21.1L3.3,8.3C3.3,8.1,3.5,7.7,3.8,7.7Z"/>
 					</svg>
 				</div>
-				<div class="folder-name"><?php echo htmlspecialchars($folder); ?></div>
+				<div class="folder-name"><?php echo hsc($folder); ?></div>
 			</div>
 			<a href="?path=<?php echo urlencode($currentPath . $folder . '/'); ?>" class="folder-navigate-btn">
 				<span class="navigate-icon"><?php _e('fm_open'); ?></span>
 			</a>
 			<div class="folder-drag-overlay"><?php _e('fm_drop_here'); ?></div>
 			<div class="file-actions">
-				<a href="#" class="rename-btn fm-icon-btn" data-name="<?php echo htmlspecialchars($folder); ?>" data-type="folder" title="<?php _e('file_rename'); ?>">
+				<a href="#" class="rename-btn fm-icon-btn" data-name="<?php echo hsc($folder); ?>" data-type="folder" title="<?php _e('file_rename'); ?>">
 					<?php echo admin_icon('writing', '', 14); ?>
 				</a>
 				<a href="?path=<?php echo urlencode($currentPath); ?>&delete_folder=<?php echo urlencode($folder); ?>" class="delete-folder-link fm-icon-btn" title="<?php _e('delete'); ?>">
@@ -818,19 +818,19 @@ ob_start();
 		?>
 		<div class="file-item" draggable="true"
 			data-type="file"
-			data-name="<?php echo htmlspecialchars($file['name']); ?>"
+			data-name="<?php echo hsc($file['name']); ?>"
 			data-filetype="<?php echo $_fm_ftype; ?>"
 			data-modified="<?php echo $_fm_modified; ?>"
 			data-bytes="<?php echo $_fm_bytes; ?>">
-			<input type="checkbox" class="selection-checkbox" data-filename="<?php echo htmlspecialchars($file['name']); ?>" style="display:none;">
+			<input type="checkbox" class="selection-checkbox" data-filename="<?php echo hsc($file['name']); ?>" style="display:none;">
 			<?php if (in_array(strtolower($file['type']), $_fm_imageExts)): ?>
 			<div class="file-thumbnail">
-				<img src="<?php echo getPublicUrl($currentPath, $file['name']); ?>" alt="<?php echo htmlspecialchars($file['name']); ?>">
+				<img src="<?php echo getPublicUrl($currentPath, $file['name']); ?>" alt="<?php echo hsc($file['name']); ?>">
 			</div>
 			<?php else: ?>
 			<div class="file-icon"><?php echo getFileIcon($file['type']); ?></div>
 			<?php endif; ?>
-			<div class="file-name"><?php echo htmlspecialchars($file['name']); ?></div>
+			<div class="file-name"><?php echo hsc($file['name']); ?></div>
 			<div class="file-size"><?php echo $file['size']; ?></div>
 			<div class="file-actions">
 				<a href="<?php echo getPublicUrl($currentPath, $file['name']); ?>" class="view-img-btn fm-icon-btn" target="_blank" title="<?php _e('view'); ?>">
@@ -839,7 +839,7 @@ ob_start();
 				<a href="#" class="copy-url-btn fm-icon-btn" data-url="<?php echo getPublicUrl($currentPath, $file['name']); ?>" title="<?php _e('fm_copy_url_btn'); ?>">
 					<?php echo admin_icon('link', '', 16); ?>
 				</a>
-				<a href="#" class="rename-btn fm-icon-btn" data-name="<?php echo htmlspecialchars($file['name']); ?>" data-type="file" title="<?php _e('file_rename'); ?>">
+				<a href="#" class="rename-btn fm-icon-btn" data-name="<?php echo hsc($file['name']); ?>" data-type="file" title="<?php _e('file_rename'); ?>">
 					<?php echo admin_icon('writing', '', 14); ?>
 				</a>
 				<a href="?path=<?php echo urlencode($currentPath); ?>&delete=<?php echo urlencode($file['name']); ?>" class="delete-file-link fm-icon-btn" title="<?php _e('delete'); ?>">

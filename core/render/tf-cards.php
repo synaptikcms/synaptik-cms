@@ -4,6 +4,8 @@ function render_item_custom_fields(array $item, string $type): string
     $values = $item['custom_fields'] ?? [];
     if (empty($values)) return '';
 
+    $type = (string) ($item['_content_type'] ?? $type);
+
     $schema = loadConfig()['custom_fields_schema'][$type] ?? [];
     if (empty($schema)) return '';
 
@@ -17,11 +19,11 @@ function render_item_custom_fields(array $item, string $type): string
             $rendered = $val ? '&#x2713;' : '';
             if ($rendered === '') continue;
         } elseif ($cf['type'] === 'url') {
-            $rendered = '<a href="' . htmlspecialchars($val) . '" target="_blank" rel="noopener">' . htmlspecialchars($val) . '</a>';
+            $rendered = '<a href="' . hsc($val) . '" target="_blank" rel="noopener">' . hsc($val) . '</a>';
         } else {
-            $rendered = nl2br(htmlspecialchars((string)$val));
+            $rendered = nl2br(hsc((string)$val));
         }
-        $rows .= '<div class="cf-row"><dt>' . htmlspecialchars($cf['label'] ?? $key) . '</dt><dd>' . $rendered . '</dd></div>';
+        $rows .= '<div class="cf-row"><dt>' . hsc($cf['label'] ?? $key) . '</dt><dd>' . $rendered . '</dd></div>';
     }
 
     if ($rows === '') return '';
@@ -110,13 +112,13 @@ function render_article_card($article)
         <?php if (!empty($article['image'])): ?>
         <div class="article-thumbnail">
             <a href="<?php echo $articleLink; ?>">
-                <img src="<?php echo getBaseUrl() . htmlspecialchars($article['image']); ?>" alt="<?php echo htmlspecialchars(!empty($article['image_alt']) ? $article['image_alt'] : $article['title']); ?>" loading="lazy"<?php echo _image_dimensions_attr($article['image']); ?>>
+                <img src="<?php echo getBaseUrl() . hsc($article['image']); ?>" alt="<?php echo hsc(!empty($article['image_alt']) ? $article['image_alt'] : $article['title']); ?>" loading="lazy"<?php echo _image_dimensions_attr($article['image']); ?>>
             </a>
         </div>
         <?php endif; ?>
-        <h3><a href="<?php echo $articleLink; ?>"><?php echo htmlspecialchars($article['title']); ?></a></h3>
+        <h3><a href="<?php echo $articleLink; ?>"><?php echo hsc($article['title']); ?></a></h3>
         <?php if (!empty($article['date']) && !empty($article['show_date'])): ?>
-        <div class="article-date"><?php echo htmlspecialchars(format_date($article['date'])); ?></div>
+        <div class="article-date"><?php echo hsc(format_date($article['date'])); ?></div>
         <?php endif; ?>
         <?php if (!empty($article['tags']) && is_array($article['tags'])): ?>
         <div class="article-tags">
@@ -125,7 +127,7 @@ function render_article_card($article)
                 if ($__tagSlug === '') continue;
                 $__tagName = $__tagStore[$__tagSlug]['name'] ?? $tag;
             ?>
-            <a href="<?php echo getBaseUrl() . url_slug('tag') . '/' . $__tagSlug . '/'; ?>" class="tag-link"><?php echo htmlspecialchars($__tagName); ?></a>
+            <a href="<?php echo getBaseUrl() . url_slug('tag') . '/' . $__tagSlug . '/'; ?>" class="tag-link"><?php echo hsc($__tagName); ?></a>
             <?php endforeach; ?>
         </div>
         <?php endif; ?>
@@ -141,10 +143,10 @@ function render_article_card($article)
 function get_article_summary(array $article, int $length = 150): string
 {
     if (!empty($article['summary'])) {
-        return htmlspecialchars($article['summary']);
+        return hsc($article['summary']);
     }
     if (!empty($article['content'])) {
-        return htmlspecialchars(_clean_excerpt($article['content'], $length)) . '...';
+        return hsc(_clean_excerpt($article['content'], $length)) . '...';
     }
     // Index mode: load full item on demand for articles without a summary field
     $fileSlug = $article['_file']
@@ -152,9 +154,9 @@ function get_article_summary(array $article, int $length = 150): string
     if ($fileSlug !== '') {
         // data-layer.php is already loaded by /core/functions.php; require kept as safety net.
         require_once dirname(__DIR__) . '/data-layer.php';
-        $full = sl_load_item('article', $fileSlug);
+        $full = sl_load_item($article['_content_type'] ?? 'article', $fileSlug);
         if ($full !== null && !empty($full['content'])) {
-            return htmlspecialchars(_clean_excerpt($full['content'], $length)) . '...';
+            return hsc(_clean_excerpt($full['content'], $length)) . '...';
         }
     }
     return '';
@@ -177,13 +179,13 @@ function render_project_card($project)
     <article class="<?php echo $cardClass; ?>">
         <?php if (!empty($project['image'])): ?>
         <div class="project-thumbnail">
-            <img src="<?php echo getBaseUrl() . htmlspecialchars($project['image']); ?>" alt="<?php echo htmlspecialchars(!empty($project['image_alt']) ? $project['image_alt'] : $project['title']); ?>" loading="lazy"<?php echo _image_dimensions_attr($project['image']); ?>>
+            <img src="<?php echo getBaseUrl() . hsc($project['image']); ?>" alt="<?php echo hsc(!empty($project['image_alt']) ? $project['image_alt'] : $project['title']); ?>" loading="lazy"<?php echo _image_dimensions_attr($project['image']); ?>>
         </div>
         <?php endif; ?>
         <div class="project-overlay">
-            <h3><?php echo htmlspecialchars($project['title']); ?></h3>
+            <h3><?php echo hsc($project['title']); ?></h3>
             <?php if (!empty($project['date']) && !empty($project['show_date'])): ?>
-            <div class="project-date"><?php echo htmlspecialchars(format_date($project['date'])); ?></div>
+            <div class="project-date"><?php echo hsc(format_date($project['date'])); ?></div>
             <?php endif; ?>
             <?php if (!empty($project['tags']) && is_array($project['tags'])): ?>
             <div class="project-tags">
@@ -192,7 +194,7 @@ function render_project_card($project)
                     if ($__tagSlug === '') continue;
                     $__tagName = $__tagStore[$__tagSlug]['name'] ?? $tag;
                 ?>
-                <a href="<?php echo getBaseUrl() . url_slug('tag') . '/' . $__tagSlug . '/'; ?>" class="tag-link"><?php echo htmlspecialchars($__tagName); ?></a>
+                <a href="<?php echo getBaseUrl() . url_slug('tag') . '/' . $__tagSlug . '/'; ?>" class="tag-link"><?php echo hsc($__tagName); ?></a>
                 <?php endforeach; ?>
             </div>
             <?php endif; ?>
@@ -240,7 +242,7 @@ function render_related_items(array $item, int $limit = 5): string
         $currentCat  = sanitizeSlug($item['category'] ?? '');
         $candidates  = [];
 
-        foreach (['article', 'page', 'project'] as $type) {
+        foreach (sl_all_type_slugs() as $type) {
             foreach (sl_load_index($type) as $candidate) {
                 if (sl_effective_slug($candidate) === $currentSlug) continue;
                 $score = 0;
@@ -266,14 +268,14 @@ function render_related_items(array $item, int $limit = 5): string
     if (empty($resolvedItems)) return '';
 
     $html  = '<section class="related-items">';
-    $html .= '<h3 class="related-items-title">' . htmlspecialchars(__t('related_content', 'Related Content')) . '</h3>';
+    $html .= '<h3 class="related-items-title">' . hsc(__t('related_content', 'Related Content')) . '</h3>';
     $html .= '<ul class="related-items-list">';
     foreach ($resolvedItems as $r) {
         $badgeLabel = !empty($r['category']) ? $r['category'] : ucfirst($r['type']);
-        $html .= '<li class="related-item related-item--' . htmlspecialchars($r['type']) . '">';
-        $html .= '<a href="' . htmlspecialchars($r['url']) . '">';
-        $html .= '<span class="related-item-type">' . htmlspecialchars($badgeLabel) . '</span>';
-        $html .= htmlspecialchars($r['title']) . '</a></li>';
+        $html .= '<li class="related-item related-item--' . hsc($r['type']) . '">';
+        $html .= '<a href="' . hsc($r['url']) . '">';
+        $html .= '<span class="related-item-type">' . hsc($badgeLabel) . '</span>';
+        $html .= hsc($r['title']) . '</a></li>';
     }
     $html .= '</ul></section>';
     return $html;

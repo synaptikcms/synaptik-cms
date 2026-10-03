@@ -52,18 +52,18 @@ function render_content_html($html, $item = null)
                 $tocHeadings[] = ['level' => (int)substr($tag, 1), 'id' => $id, 'text' => $text];
                 // Always overwrite any existing id so the TOC link and heading anchor always match
                 $attrs = preg_replace('/\s*id\s*=\s*(["\'][^"\']*["\']|\S+)/i', '', $attrs);
-                $attrs = ' id="' . htmlspecialchars($id) . '"' . $attrs;
+                $attrs = ' id="' . hsc($id) . '"' . $attrs;
                 return "<{$tag}{$attrs}>{$m[3]}</{$tag}>";
             },
             $html
         );
         if (!empty($tocHeadings)) {
-            $pageUrl = htmlspecialchars(strtok($_SERVER['REQUEST_URI'], '?'));
+            $pageUrl = hsc(strtok($_SERVER['REQUEST_URI'], '?'));
             $tocLabel = __t('toc_label', 'On this page');
-            $toc = '<nav class="sc-toc" data-label="' . htmlspecialchars($tocLabel) . '"><ul>';
+            $toc = '<nav class="sc-toc" data-label="' . hsc($tocLabel) . '"><ul>';
             foreach ($tocHeadings as $h) {
                 $cls  = $h['level'] === 3 ? ' class="sc-toc-sub"' : '';
-                $toc .= '<li' . $cls . '><a href="' . $pageUrl . '#' . htmlspecialchars($h['id']) . '">' . htmlspecialchars($h['text']) . '</a></li>';
+                $toc .= '<li' . $cls . '><a href="' . $pageUrl . '#' . hsc($h['id']) . '">' . hsc($h['text']) . '</a></li>';
             }
             $toc .= '</ul></nav>';
             $html = str_replace('[toc]', $toc, $html);
@@ -93,7 +93,7 @@ function render_content_html($html, $item = null)
         $html = preg_replace_callback(
             '/\[quote(?:\s+author=["\']([^"\']*)["\'])?\](.*?)\[\/quote\]/is',
             function ($m) {
-                $author = htmlspecialchars(trim($m[1] ?? ''));
+                $author = hsc(trim($m[1] ?? ''));
                 $footer = $author ? '<footer>&#x2014; ' . $author . '</footer>' : '';
                 return '<blockquote class="sc-quote">' . trim($m[2]) . $footer . '</blockquote>';
             },
@@ -107,11 +107,11 @@ function render_content_html($html, $item = null)
             '/\[button([^\]]*)\]/i',
             function ($m) {
                 $attrs  = _shortcode_parse_attrs($m[1]);
-                $url    = htmlspecialchars($attrs['url']   ?? '#');
-                $label  = htmlspecialchars($attrs['label'] ?? 'Click');
+                $url    = hsc($attrs['url']   ?? '#');
+                $label  = hsc($attrs['label'] ?? 'Click');
                 $styles = ['primary', 'secondary', 'outline'];
                 $style  = in_array($attrs['style'] ?? '', $styles) ? $attrs['style'] : 'primary';
-                $target = !empty($attrs['target']) ? ' target="' . htmlspecialchars($attrs['target']) . '"' : '';
+                $target = !empty($attrs['target']) ? ' target="' . hsc($attrs['target']) . '"' : '';
                 return '<a href="' . $url . '" class="sc-btn sc-btn-' . $style . '"' . $target . '>' . $label . '</a>';
             },
             $html
@@ -160,6 +160,18 @@ function render_content_html($html, $item = null)
         $html = preg_replace_callback(
             '/\[contact_form\]/i',
             fn() => render_contact_form_html(),
+            $html
+        );
+    }
+
+    // <base href> points at the site root, so a bare href="#x" in content would
+    // resolve to the homepage instead of the current page — prefix it with the
+    // current page's path, same fix [toc] above already applies to its own links.
+    if (strpos($html, 'href="#') !== false || strpos($html, "href='#") !== false) {
+        $pageUrl = hsc(strtok($_SERVER['REQUEST_URI'] ?? '/', '?'), ENT_QUOTES);
+        $html = preg_replace_callback(
+            '/(?<=\s)(href\s*=\s*)(["\'])#([^"\']+)\2/i',
+            fn($m) => $m[1] . $m[2] . $pageUrl . '#' . $m[3] . $m[2],
             $html
         );
     }
@@ -241,24 +253,24 @@ function render_recent_articles_shortcode(int $limit, string $tag = '', string $
         $html .= '<article class="article-card">';
         if (!empty($a['image'])) {
             $html .= '<div class="article-thumbnail"><a href="' . $url . '">'
-                   . '<img src="' . getBaseUrl() . htmlspecialchars($a['image']) . '" alt="' . htmlspecialchars(!empty($a['image_alt']) ? $a['image_alt'] : $a['title']) . '" loading="lazy"' . _image_dimensions_attr($a['image']) . '>'
+                   . '<img src="' . getBaseUrl() . hsc($a['image']) . '" alt="' . hsc(!empty($a['image_alt']) ? $a['image_alt'] : $a['title']) . '" loading="lazy"' . _image_dimensions_attr($a['image']) . '>'
                    . '</a></div>';
         }
         $html .= '<div class="article-details">';
-        $html .= '<h3><a href="' . $url . '">' . htmlspecialchars($a['title']) . '</a></h3>';
+        $html .= '<h3><a href="' . $url . '">' . hsc($a['title']) . '</a></h3>';
         if (!empty($a['date']) && !empty($a['show_date'])) {
-            $html .= '<div class="article-date">' . htmlspecialchars(format_date($a['date'])) . '</div>';
+            $html .= '<div class="article-date">' . hsc(format_date($a['date'])) . '</div>';
         }
         if (!empty($a['tags']) && is_array($a['tags'])) {
             $html .= '<div class="article-tags">';
             foreach ($a['tags'] as $t) {
-                $html .= '<a href="' . getBaseUrl() . url_slug('tag') . '/' . sanitizeSlug($t) . '/" class="tag-link">' . htmlspecialchars($t) . '</a>';
+                $html .= '<a href="' . getBaseUrl() . url_slug('tag') . '/' . sanitizeSlug($t) . '/" class="tag-link">' . hsc($t) . '</a>';
             }
             $html .= '</div>';
         }
         if (!empty($summary)) {
             $ellipsis = empty($a['summary']) ? '&#8230;' : '';
-            $html .= '<div class="article-summary">' . htmlspecialchars($summary) . $ellipsis . '</div>';
+            $html .= '<div class="article-summary">' . hsc($summary) . $ellipsis . '</div>';
         }
         $html .= '</div>';
         $html .= '<a href="' . $url . '" class="read-more">' . __t('read_more', 'Read more') . '</a>';
@@ -290,13 +302,13 @@ function render_recent_projects_shortcode(int $limit): string
         $html .= '<article class="' . $cardClass . '">';
         if (!empty($p['image'])) {
             $html .= '<div class="project-thumbnail">'
-                   . '<img src="' . getBaseUrl() . htmlspecialchars($p['image']) . '" alt="' . htmlspecialchars(!empty($p['image_alt']) ? $p['image_alt'] : $p['title']) . '" loading="lazy"' . _image_dimensions_attr($p['image']) . '>'
+                   . '<img src="' . getBaseUrl() . hsc($p['image']) . '" alt="' . hsc(!empty($p['image_alt']) ? $p['image_alt'] : $p['title']) . '" loading="lazy"' . _image_dimensions_attr($p['image']) . '>'
                    . '</div>';
         }
         $html .= '<div class="project-overlay">';
-        $html .= '<h3>' . htmlspecialchars($p['title']) . '</h3>';
+        $html .= '<h3>' . hsc($p['title']) . '</h3>';
         if (!empty($desc)) {
-            $html .= '<div class="project-excerpt">' . htmlspecialchars($desc) . '</div>';
+            $html .= '<div class="project-excerpt">' . hsc($desc) . '</div>';
         }
         $html .= '<a href="' . $url . '" class="view-project">' . __t('view_project', 'View project') . '</a>';
         $html .= '</div></article>';
@@ -333,7 +345,7 @@ function render_contact_form_html(): string
     $cssLink = '';
     if (!$cssInjected) {
         $theme       = loadConfig()['active_theme'] ?? 'default';
-        $cssLink     = '<link rel="stylesheet" href="' . getBaseUrl() . 'theme/' . htmlspecialchars($theme) . '/css/contact.css">' . "\n";
+        $cssLink     = '<link rel="stylesheet" href="' . getBaseUrl() . 'theme/' . hsc($theme) . '/css/contact.css">' . "\n";
         $cssInjected = true;
     }
 
@@ -352,10 +364,10 @@ function render_contact_form_html(): string
 
     $statusHtml = '';
     if (isset($_GET['contact_sent']) && $_GET['contact_sent'] === '1') {
-        $msg        = htmlspecialchars($settings['contact_success_message'] ?? __t('contact_sent_ok', 'Your message has been sent. Thank you!'));
+        $msg        = hsc($settings['contact_success_message'] ?? __t('contact_sent_ok', 'Your message has been sent. Thank you!'));
         $statusHtml = '<p class="contact-status success">' . $msg . '</p>' . "\n";
     } elseif (!empty($_GET['contact_error'])) {
-        $msg        = htmlspecialchars($settings['contact_error_message'] ?? __t('contact_sent_error', 'An error occurred. Please try again.'));
+        $msg        = hsc($settings['contact_error_message'] ?? __t('contact_sent_error', 'An error occurred. Please try again.'));
         $statusHtml = '<p class="contact-status error">' . $msg . '</p>' . "\n";
     }
 
@@ -367,28 +379,28 @@ function render_contact_form_html(): string
         $html .= '<script src="https://js.hcaptcha.com/1/api.js" async defer></script>' . "\n";
     }
     $html .= $statusHtml;
-    $html .= '<form class="contact-form" method="post" action="' . htmlspecialchars($handlerUrl) . '" novalidate>' . "\n";
-    $html .= '<input type="hidden" name="_csrf" value="' . htmlspecialchars($csrfToken) . '">' . "\n";
+    $html .= '<form class="contact-form" method="post" action="' . hsc($handlerUrl) . '" novalidate>' . "\n";
+    $html .= '<input type="hidden" name="_csrf" value="' . hsc($csrfToken) . '">' . "\n";
     $html .= '<input type="hidden" name="_ft"   value="' . $timestamp . '">' . "\n";
     $html .= '<input type="text" name="_hp" value="" tabindex="-1" autocomplete="off" style="display:none!important;position:absolute;left:-9999px;" aria-hidden="true">' . "\n";
 
     $html .= '<div class="contact-field"><label for="contact_name">'
-           . htmlspecialchars($labelName) . ' <span class="required-mark" aria-hidden="true">*</span></label>'
-           . '<input type="text" id="contact_name" name="contact_name" placeholder="' . htmlspecialchars($placeholderN) . '" required autocomplete="name" maxlength="100"></div>' . "\n";
+           . hsc($labelName) . ' <span class="required-mark" aria-hidden="true">*</span></label>'
+           . '<input type="text" id="contact_name" name="contact_name" placeholder="' . hsc($placeholderN) . '" required autocomplete="name" maxlength="100"></div>' . "\n";
 
     $html .= '<div class="contact-field"><label for="contact_email">'
-           . htmlspecialchars($labelEmail) . ' <span class="required-mark" aria-hidden="true">*</span></label>'
-           . '<input type="email" id="contact_email" name="contact_email" placeholder="' . htmlspecialchars($placeholderE) . '" required autocomplete="email" maxlength="254"></div>' . "\n";
+           . hsc($labelEmail) . ' <span class="required-mark" aria-hidden="true">*</span></label>'
+           . '<input type="email" id="contact_email" name="contact_email" placeholder="' . hsc($placeholderE) . '" required autocomplete="email" maxlength="254"></div>' . "\n";
 
     $html .= '<div class="contact-field"><label for="contact_message">'
-           . htmlspecialchars($labelMessage) . ' <span class="required-mark" aria-hidden="true">*</span></label>'
-           . '<textarea id="contact_message" name="contact_message" rows="6" placeholder="' . htmlspecialchars($placeholderM) . '" required minlength="10" maxlength="5000"></textarea></div>' . "\n";
+           . hsc($labelMessage) . ' <span class="required-mark" aria-hidden="true">*</span></label>'
+           . '<textarea id="contact_message" name="contact_message" rows="6" placeholder="' . hsc($placeholderM) . '" required minlength="10" maxlength="5000"></textarea></div>' . "\n";
 
     if ($hcaptchaEnabled) {
-        $html .= '<div class="contact-field"><div class="h-captcha" data-sitekey="' . htmlspecialchars($hcaptchaSiteKey) . '"></div></div>' . "\n";
+        $html .= '<div class="contact-field"><div class="h-captcha" data-sitekey="' . hsc($hcaptchaSiteKey) . '"></div></div>' . "\n";
     }
 
-    $html .= '<div class="contact-field contact-submit"><button type="submit">' . htmlspecialchars($labelSubmit) . '</button></div>' . "\n";
+    $html .= '<div class="contact-field contact-submit"><button type="submit">' . hsc($labelSubmit) . '</button></div>' . "\n";
     $html .= '</form>' . "\n";
 
     return $html;

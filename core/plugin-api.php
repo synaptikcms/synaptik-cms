@@ -62,7 +62,7 @@ function pl_save_registry(array $registry): bool
     $json = json_encode($registry, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($json === false) return false;
 
-    $tmp = PL_REGISTRY_PATH . '.tmp';
+    $tmp = PL_REGISTRY_PATH . '.' . getmypid() . '.tmp';
     if (file_put_contents($tmp, $json, LOCK_EX) === false) return false;
 
     return rename($tmp, PL_REGISTRY_PATH);
@@ -256,7 +256,7 @@ function _pl_save_options(string $slug, array $data): bool
     }
     $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($json === false) return false;
-    $tmp = $path . '.tmp';
+    $tmp = $path . '.' . getmypid() . '.tmp';
     if (file_put_contents($tmp, $json, LOCK_EX) === false) return false;
     $ok = rename($tmp, $path);
     if ($ok) $GLOBALS['_pl_options_cache'][$slug] = $data;

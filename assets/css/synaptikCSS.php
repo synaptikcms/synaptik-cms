@@ -1,8 +1,6 @@
 <?php
 $files = [
     __DIR__ . '/search.css',
-    __DIR__ . '/shortcodes.css',
-    __DIR__ . '/gallery-layout.css',
 ];
 
 // ── ETag / 304 handling ───────────────────────────────────────
@@ -44,3 +42,6 @@ foreach ($files as $f) {
   :root:not([data-theme="light"]) .sl-logo-light { display: none; }
   :root:not([data-theme="light"]) .sl-logo-dark { display: inline-block; }
 }
+.snk-credit { font-size: .72rem; }
+.snk-credit a { text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 1px; }
+.snk-credit a:hover { color: currentColor; }

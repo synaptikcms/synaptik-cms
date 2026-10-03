@@ -81,12 +81,14 @@ function sl_type_label(string $type, bool $plural = false): string {
 	if ($override !== '') return $override;
 	$fallback = $labels[$plural ? 'singular' : 'plural'] ?? '';
 	if ($fallback !== '') return $fallback;
+	$registryLabel = sl_type_registry_label($type, $plural);
+	if ($registryLabel !== '') return $registryLabel;
 	return __t($plural ? $type . 's' : $type, ucfirst($type));
 }
 
 function sl_type_labels_json(): string {
 	$labels = [];
-	foreach (['article', 'page', 'project'] as $type) {
+	foreach (sl_all_type_slugs() as $type) {
 		$labels[$type]         = sl_type_label($type, false);
 		$labels[$type . 's']   = sl_type_label($type, true);
 	}
@@ -94,15 +96,12 @@ function sl_type_labels_json(): string {
 }
 
 function url_slug(string $type): string {
-	foreach (['article', 'page', 'project'] as $_baseType) {
-		$_plural = null;
-		if ($type === $_baseType) $_plural = false;
-		elseif ($type === $_baseType . 's') $_plural = true;
-		if ($_plural !== null) {
-			$settings = loadConfig();
-			$override = $settings['type_labels'][$_baseType][$_plural ? 'plural' : 'singular'] ?? '';
-			if ($override !== '') return sanitizeSlug($override);
-			break;
+	if (sl_content_type_exists($type)) {
+		return sl_type_url_slug($type, false);
+	}
+	foreach (sl_all_type_slugs() as $_baseType) {
+		if ($type === $_baseType . 's') {
+			return sl_type_url_slug($_baseType, true);
 		}
 	}
 
@@ -131,9 +130,9 @@ function cleanUrl($type, $slug = null, $page = null, $category = null) {
 		return $baseUrl . url_slug('tag') . "/" . $category . "/";
 	}
 
-	if (in_array($type, ["article", "project", "page"])) {
+	if (sl_content_type_exists($type)) {
 		if ($slug === null && $page === null) {
-			return $baseUrl . url_slug($type . 's') . "/";
+			return $baseUrl . sl_type_url_slug($type, true) . "/";
 		} elseif ($slug !== null && $page === null) {
 			if ($type === "page") {
 				if ($category !== null && !empty($category)) {
@@ -156,13 +155,48 @@ function cleanUrl($type, $slug = null, $page = null, $category = null) {
 					return $baseUrl . url_slug('project') . "/" . $catPath . "/" . $slug . "/";
 				}
 				return $baseUrl . url_slug('project') . "/" . $slug . "/";
+			} else {
+				// Custom content types keep their own url_base prefix even when
+				// categorized (same shape as "project"), so a new type never
+				// needs the bare category-chain form and its ambiguity risk.
+				if ($category !== null && !empty($category)) {
+					$data = isset($GLOBALS['data']) ? $GLOBALS['data'] : ['categories' => sl_load_categories()];
+					$catPath = getCategoryPath(sanitizeSlug($category), $data);
+					return $baseUrl . url_slug($type) . "/" . $catPath . "/" . $slug . "/";
+				}
+				return $baseUrl . url_slug($type) . "/" . $slug . "/";
 			}
 		} elseif ($page !== null) {
-			return $baseUrl . url_slug($type . 's') . "/page/" . $page . "/";
+			return $baseUrl . sl_type_url_slug($type, true) . "/page/" . $page . "/";
 		}
 	}
 
 	return $baseUrl;
+}
+
+function sl_canonical_content_redirect($type, $slug, $category, $settings) {
+	if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET') return null;
+	if (isset($_SESSION['admin']) && $_SESSION['admin'] === true) return null;
+	if (!sl_content_type_exists($type) || $slug === '') return null;
+
+	if ($type === 'page'
+		&& ($settings['homepage_type'] ?? '') === 'page'
+		&& !empty($settings['homepage_page_id'])
+		&& $settings['homepage_page_id'] === $slug
+	) {
+		$canonicalUrl = cleanUrl('home');
+	} else {
+		$canonicalUrl = cleanUrl($type, $slug, null, $category ?: null);
+	}
+
+	$scheme      = _sl_request_is_https() ? 'https' : 'http';
+	$requestPath = strtok($_SERVER['REQUEST_URI'] ?? '/', '?');
+	$currentUrl  = $scheme . '://' . _sl_request_host() . $requestPath;
+
+	if ($currentUrl === $canonicalUrl) return null;
+
+	$query = $_SERVER['QUERY_STRING'] ?? '';
+	return $query !== '' ? $canonicalUrl . '?' . $query : $canonicalUrl;
 }
 
 function adminCleanUrl($contentType, $slug, $customSlug = '', $category = '') {
