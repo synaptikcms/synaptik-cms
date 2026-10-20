@@ -254,7 +254,7 @@ function _md_to_html(string $md, bool $isTopLevel = true): string
 
     // Append footnote list if any definitions were found
     if ($footnotes) {
-        $currentPath = hsc(strtok($_SERVER['REQUEST_URI'] ?? '/', '?'));
+        $currentPath = hsc(_sl_request_path());
         $output .= '<ol class="md-footnotes">' . "\n";
         foreach ($footnotes as $key => $text) {
             $keyEsc  = hsc($key);
@@ -430,7 +430,7 @@ function _md_inline(string $text): string {
     $text = preg_replace('/\*(.+?)\*|(?<!\w)_(.+?)_(?!\w)/',       '<em>$1$2</em>',         $text);
     $text = preg_replace('/~~(.+?)~~/',                              '<s>$1</s>',             $text);
 
-    $currentPath = hsc(strtok($_SERVER['REQUEST_URI'] ?? '/', '?'), ENT_QUOTES, 'UTF-8');
+    $currentPath = hsc(_sl_request_path(), ENT_QUOTES, 'UTF-8');
     $text = preg_replace_callback(
         '/\[\^([^\]]+)\]/',
         function ($m) use ($currentPath) {

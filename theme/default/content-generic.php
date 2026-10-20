@@ -5,26 +5,26 @@
     <?php if (!empty($item['category'])): ?>
     <div class="content-eyebrow">
         <a href="<?php echo getBaseUrl() . url_slug('category') . '/' . sanitizeSlug($item['category']) . '/'; ?>" class="content-category-link">
-            <?php echo htmlspecialchars($item['category']); ?>
+            <?php echo hsc($item['category']); ?>
         </a>
     </div>
     <?php endif; ?>
     <?php if (!isset($item['show_title']) || $item['show_title']): ?>
-    <h1 class="content-title"><?php echo htmlspecialchars($item['title']); ?></h1>
+    <h1 class="content-title"><?php echo hsc($item['title']); ?></h1>
     <?php endif; ?>
     <?php if (!empty($item['date']) && !empty($item['show_date'])): ?>
-    <time datetime="<?php echo htmlspecialchars($item['date']); ?>"><?php echo htmlspecialchars(format_date($item['date'])); ?></time>
+    <time datetime="<?php echo hsc($item['date']); ?>"><?php echo hsc(format_date($item['date'])); ?></time>
     <?php endif; ?>
     <?php if (!empty($item['tags']) && is_array($item['tags'])): ?>
     <div class="content-tags">
         <?php foreach ($item['tags'] as $tag): ?>
-        <a href="<?php echo getBaseUrl() . url_slug('tag') . '/' . sanitizeSlug($tag) . '/'; ?>"><?php echo htmlspecialchars($tag); ?></a>
+        <a href="<?php echo getBaseUrl() . url_slug('tag') . '/' . sanitizeSlug($tag) . '/'; ?>"><?php echo hsc($tag); ?></a>
         <?php endforeach; ?>
     </div>
     <?php endif; ?>
     <?php if (!empty($item['image']) && !empty($item['show_featured_image'])): ?>
     <figure class="content-featured-image">
-        <img src="<?php echo getBaseUrl() . htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars($item['title']); ?>">
+        <img src="<?php echo getBaseUrl() . hsc($item['image']); ?>" alt="<?php echo hsc($item['title']); ?>">
     </figure>
     <?php endif; ?>
     <?php $customFieldsHtml = render_item_custom_fields($item, $type ?? ''); ?>

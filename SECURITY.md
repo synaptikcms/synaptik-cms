@@ -14,7 +14,8 @@ Other bugs and issues can be reported at [https://github.com/synaptikcms/synapti
 
 We are grateful to the following researchers who responsibly disclosed vulnerabilities and helped improve Synaptik CMS.
 
-| Researcher | Version | Finding |
-|---|---|---|
+| Researcher                                         | Version | Finding                                                                                                                               |
+| -------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | [@treeandcoffee](https://github.com/treeandcoffee) | 1.3.4.4 | Full security audit — 1 critical, 7 high, 9 medium findings across admin endpoints, data layer, session handling, and file management |
-| [Dinesh Goud](https://github.com/d1n3sh-0x3) | 1.3.4.4 | File manager: path traversal via rename/move, missing extension validation |
+| [Dinesh Goud](https://github.com/d1n3sh-0x3)       | 1.3.4.4 | File manager: path traversal via rename/move, missing extension validation                                                            |
+|                                                    | 1.4.6   | File manager: authenticated remote code execution via rename (.txt to .php)                                                           |

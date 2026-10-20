@@ -58,7 +58,7 @@ function render_content_html($html, $item = null)
             $html
         );
         if (!empty($tocHeadings)) {
-            $pageUrl = hsc(strtok($_SERVER['REQUEST_URI'], '?'));
+            $pageUrl = hsc(_sl_request_path());
             $tocLabel = __t('toc_label', 'On this page');
             $toc = '<nav class="sc-toc" data-label="' . hsc($tocLabel) . '"><ul>';
             foreach ($tocHeadings as $h) {
@@ -168,7 +168,7 @@ function render_content_html($html, $item = null)
     // resolve to the homepage instead of the current page — prefix it with the
     // current page's path, same fix [toc] above already applies to its own links.
     if (strpos($html, 'href="#') !== false || strpos($html, "href='#") !== false) {
-        $pageUrl = hsc(strtok($_SERVER['REQUEST_URI'] ?? '/', '?'), ENT_QUOTES);
+        $pageUrl = hsc(_sl_request_path(), ENT_QUOTES);
         $html = preg_replace_callback(
             '/(?<=\s)(href\s*=\s*)(["\'])#([^"\']+)\2/i',
             fn($m) => $m[1] . $m[2] . $pageUrl . '#' . $m[3] . $m[2],

@@ -71,52 +71,70 @@ function admin_decode_html($html) {
 	return html_entity_decode($html);
 }
 
-function syncMenuUrlsForCategory($data, $oldCategorySlug, $newCategoryName) {
-	$settingsFile = dirname(__DIR__, 3) . '/config.json';
-	if (!file_exists($settingsFile)) return;
+function menu_sync_load_config(): ?array {
+	$file = CMS_ROOT . '/config.json';
+	if (!is_file($file)) return null;
 
-	$settings = json_decode(file_get_contents($settingsFile), true);
-	if (!is_array($settings) || empty($settings['main_menu'])) return;
+	$settings = json_decode((string) file_get_contents($file), true);
+	if (!is_array($settings) || empty($settings['main_menu']) || !is_array($settings['main_menu'])) return null;
 
-	$newCategorySlug = sanitizeSlug($newCategoryName);
+	return $settings;
+}
+
+function menu_sync_content_url(string $contentType, string $contentSlug, string $categoryPath): string {
+	if ($categoryPath === '') return $contentType . '/' . $contentSlug . '/';
+	if ($contentType === 'article' || $contentType === 'page') return $categoryPath . '/' . $contentSlug . '/';
+	return $contentType . '/' . $categoryPath . '/' . $contentSlug . '/';
+}
+
+function menu_sync_taxonomy_items(array &$menu, string $kind, string $oldSlug, ?string $newSlug): bool {
+	$key     = $kind . '_slug';
 	$changed = false;
 
-	foreach ($settings['main_menu'] as &$menuItem) {
-		if (empty($menuItem['content_type']) || empty($menuItem['content_slug'])) continue;
+	foreach ($menu as &$menuItem) {
+		if (($menuItem[$key] ?? '') !== $oldSlug) continue;
 
-		$contentType = $menuItem['content_type'];
-		$contentSlug = $menuItem['content_slug'];
+		if ($newSlug === null) {
+			$menuItem['url']          = '#' . $kind . '-deleted';
+			$menuItem['content_slug'] = '';
+			$changed = true;
+			continue;
+		}
 
-		if (empty($data[$contentType])) continue;
+		$newUrl = admin_front_url_slug($kind) . '/' . $newSlug . '/';
+		if (($menuItem['url'] ?? '') !== $newUrl || $oldSlug !== $newSlug) {
+			$menuItem['url'] = $newUrl;
+			$menuItem[$key]  = $newSlug;
+			$changed = true;
+		}
+	}
+	unset($menuItem);
+
+	return $changed;
+}
+
+function menu_sync_content_items(array &$menu, array $data): bool {
+	$changed = false;
+
+	foreach ($menu as &$menuItem) {
+		$contentType = $menuItem['content_type'] ?? '';
+		$contentSlug = $menuItem['content_slug'] ?? '';
+		if ($contentType === '' || $contentType === 'list' || $contentSlug === '' || empty($data[$contentType])) continue;
 
 		foreach ($data[$contentType] as $contentItem) {
-			$itemSlug = !empty($contentItem['custom_slug'])
-				? $contentItem['custom_slug']
-				: ($contentItem['slug'] ?? '');
-
+			$itemSlug = !empty($contentItem['custom_slug']) ? $contentItem['custom_slug'] : ($contentItem['slug'] ?? '');
 			if ($itemSlug !== $contentSlug) continue;
 
-			$currentCategorySlug = !empty($contentItem['category'])
-				? sanitizeSlug($contentItem['category'])
-				: '';
+			$categorySlug = !empty($contentItem['category']) ? sanitizeSlug($contentItem['category']) : '';
+			$categoryPath = $categorySlug !== '' ? getCategoryPath($categorySlug, $data) : '';
 
-			if ($currentCategorySlug !== $newCategorySlug) break;
+			if ($categoryPath === '' && empty($menuItem['content_category'])) break;
 
-			$catPath = getCategoryPath($newCategorySlug, $data);
-			if ($contentType === 'article' && !empty($catPath)) {
-				$newUrl = $catPath . '/' . $contentSlug . '/';
-			} elseif ($contentType === 'project' && !empty($catPath)) {
-				$newUrl = 'project/' . $catPath . '/' . $contentSlug . '/';
-			} elseif ($contentType === 'page' && !empty($catPath)) {
-				$newUrl = $catPath . '/' . $contentSlug . '/';
-			} else {
-				$newUrl = $contentType . '/' . $contentSlug . '/';
-			}
-
-			if ($menuItem['url'] !== $newUrl) {
+			$newUrl = menu_sync_content_url($contentType, $contentSlug, $categoryPath);
+			if (($menuItem['url'] ?? '') !== $newUrl) {
 				$menuItem['url'] = $newUrl;
 				if (array_key_exists('content_category', $menuItem)) {
-					$menuItem['content_category'] = $newCategoryName;
+					$menuItem['content_category'] = $contentItem['category'] ?? '';
 				}
 				$changed = true;
 			}
@@ -125,43 +143,25 @@ function syncMenuUrlsForCategory($data, $oldCategorySlug, $newCategoryName) {
 	}
 	unset($menuItem);
 
-	if ($changed) {
-		file_put_contents(
-			$settingsFile,
-			json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
-		);
-	}
+	return $changed;
 }
 
-function syncMenuUrlsForTag($oldTagSlug, $newTagName) {
-	$settingsFile = dirname(__DIR__, 3) . '/config.json';
-	if (!file_exists($settingsFile)) return;
+function syncMenuUrlsForCategory($data, $oldCategorySlug, $newCategorySlug) {
+	$settings = menu_sync_load_config();
+	if ($settings === null) return;
 
-	$settings = json_decode(file_get_contents($settingsFile), true);
-	if (!is_array($settings) || empty($settings['main_menu'])) return;
+	$changed = menu_sync_taxonomy_items($settings['main_menu'], 'category', (string) $oldCategorySlug, $newCategorySlug === null ? null : (string) $newCategorySlug);
+	if (menu_sync_content_items($settings['main_menu'], $data)) $changed = true;
 
-	$changed = false;
+	if ($changed) sl_admin_save_config($settings);
+}
 
-	foreach ($settings['main_menu'] as &$menuItem) {
-		if (empty($menuItem['tag_slug'])) continue;
-		if ($menuItem['tag_slug'] !== $oldTagSlug) continue;
+function syncMenuUrlsForTag($oldTagSlug, $newTagSlug) {
+	$settings = menu_sync_load_config();
+	if ($settings === null) return;
 
-		if ($newTagName === null) {			$menuItem['url'] = '#tag-deleted';
-			$menuItem['content_slug'] = '';
-		} else {
-			$newTagSlug = sanitizeSlug($newTagName);
-			$menuItem['url'] = 'tag/' . $newTagSlug . '/';
-			$menuItem['tag_slug'] = $newTagSlug;
-		}
-		$changed = true;
-	}
-	unset($menuItem);
-
-	if ($changed) {
-		file_put_contents(
-			$settingsFile,
-			json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
-		);
+	if (menu_sync_taxonomy_items($settings['main_menu'], 'tag', (string) $oldTagSlug, $newTagSlug === null ? null : (string) $newTagSlug)) {
+		sl_admin_save_config($settings);
 	}
 }
 

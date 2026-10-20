@@ -1,5 +1,25 @@
 <?php
 
+function sl_sitemap_stale_flag_path(): string
+{
+    return CMS_ROOT . '/private/sitemap-stale';
+}
+
+function sl_mark_sitemap_stale(): void
+{
+    $flag = sl_sitemap_stale_flag_path();
+    if (is_dir(dirname($flag))) @touch($flag);
+}
+
+function _sl_promote_write(string $path, array $data): void
+{
+    $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($json === false) return;
+    $tmp = $path . '.' . getmypid() . '.tmp';
+    if (file_put_contents($tmp, $json, LOCK_EX) === false) return;
+    if (!rename($tmp, $path)) @unlink($tmp);
+}
+
 function sl_promote_scheduled(string $type): void
 {
     $index   = sl_load_index_unfiltered($type);
@@ -21,19 +41,14 @@ function sl_promote_scheduled(string $type): void
             $item = ($raw !== false) ? json_decode($raw, true) : null;
             if (is_array($item)) {
                 $item['status'] = 'published';
-                file_put_contents(
-                    $itemPath,
-                    json_encode($item, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
-                );
+                _sl_promote_write($itemPath, $item);
             }
         }
     }
 
     if ($changed) {
-        file_put_contents(
-            sl_index_path($type),
-            json_encode(array_values($index), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
-        );
+        sl_mark_sitemap_stale();
+        _sl_promote_write(sl_index_path($type), array_values($index));
         sl_invalidate_index_cache($type);
         sl_bump_content_signature();
     }

@@ -176,6 +176,7 @@ if ($action === 'unpublish' && $contentType && isset($data[$contentType][$index]
 if ($action === 'unpublish' && $contentType && isset($data[$contentType][$index])) {
 	$item = $data[$contentType][$index];
 	if (($item['status'] ?? 'published') !== 'unpublished') {
+		$wasPublished          = ($item['status'] ?? 'published') === 'published';
 		$item['status']        = 'unpublished';
 		$item['publish_at']    = '';
 		$item['last_modified'] = date('Y-m-d H:i');
@@ -188,6 +189,8 @@ if ($action === 'unpublish' && $contentType && isset($data[$contentType][$index]
 		$indexEntry          = sl_admin_extract_index_entry($contentType, $item);
 		$indexEntry['_file'] = $fileSlug;
 		sl_admin_update_index($contentType, $indexEntry);
+
+		if ($wasPublished) sm_regenerate();
 
 		$_SESSION['message'] = __t('content_unpublished');
 	}
@@ -296,8 +299,9 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 					unset($item);
 				}
 				unset($data['categories'][$sourceSlug]);
-				syncMenuUrlsForCategory($data, $sourceSlug, $targetName);
+				syncMenuUrlsForCategory($data, $sourceSlug, $targetSlug);
 				saveData($data);
+				sm_regenerate();
 				$_SESSION['message'] = __t('cats_merged');
 			}
 			header('Location: index.php?action=manage_categories'); exit;
@@ -350,7 +354,7 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 				}
 			}
 
-			if ($anyChanges) { saveData($data); syncMenuUrlsForCategory($data, $oldSlug, $newName); $_SESSION['message'] = __t('category_updated'); }
+			if ($anyChanges) { saveData($data); syncMenuUrlsForCategory($data, $oldSlug, $newSlug); sm_regenerate(); $_SESSION['message'] = __t('category_updated'); }
 			else { $_SESSION['message'] = __t('category_no_changes'); }
 			header('Location: index.php?action=manage_categories'); exit;
 		}
@@ -439,8 +443,9 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 					unset($item);
 				}
 				unset($data['tags'][$sourceSlug]);
-				syncMenuUrlsForTag($sourceSlug, null);
+				syncMenuUrlsForTag($sourceSlug, $targetSlug);
 				saveData($data);
+				sm_regenerate();
 				$_SESSION['message'] = __t('tags_merged');
 			}
 			header('Location: index.php?action=manage_tags'); exit;
@@ -489,7 +494,7 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 				}
 			}
 
-			if ($anyChanges) { saveData($data); syncMenuUrlsForTag($oldSlug, $newName); $_SESSION['message'] = __t('tag_updated'); }
+			if ($anyChanges) { saveData($data); syncMenuUrlsForTag($oldSlug, $newSlug); sm_regenerate(); $_SESSION['message'] = __t('tag_updated'); }
 			else { $_SESSION['message'] = __t('tag_no_changes'); }
 			header('Location: index.php?action=manage_tags'); exit;
 		}
@@ -524,6 +529,8 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 		}
 		if (isset($data['categories'][$categorySlug])) { unset($data['categories'][$categorySlug]); $anyChanges = true; }
 		saveData($data);
+		syncMenuUrlsForCategory($data, $categorySlug, null);
+		sm_regenerate();
 		$_SESSION['message'] = $anyChanges ? __t('category_deleted') : __t('category_no_changes');
 		header('Location: index.php?action=manage_categories'); exit;
 	}
@@ -553,6 +560,7 @@ if ($action === 'manage_categories' || $action === 'manage_tags') {
 		if (isset($data['tags'][$tagSlug])) { unset($data['tags'][$tagSlug]); $anyChanges = true; }
 		saveData($data);
 		syncMenuUrlsForTag($tagSlug, null);
+		sm_regenerate();
 		$_SESSION['message'] = $anyChanges ? __t('tag_deleted') : __t('tag_no_changes');
 		header('Location: index.php?action=manage_tags'); exit;
 	}
@@ -595,6 +603,7 @@ if ($action === 'manage_content_types') {
 			if ($result === true) {
 				$result = sl_admin_update_content_type($targetSlug, $contentTypeFields);
 			}
+			if ($result === true) sm_regenerate();
 			$_SESSION['message'] = $result === true ? __t('content_type_updated', 'Content type updated.') : $result;
 			header('Location: index.php?action=manage_content_types'); exit;
 		}

@@ -11,6 +11,8 @@ if (!admin_is_logged_in()) {
 	exit;
 }
 
+sm_regenerate_if_stale();
+
 function admin_verify_csrf(): bool {
 	$token = $_POST['csrf_token'] ?? $_GET['csrf_token'] ?? '';
 	return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);

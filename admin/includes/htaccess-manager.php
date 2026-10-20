@@ -39,7 +39,7 @@ function sl_htaccess_validate(string $rules): ?string {
 	if (strpos($rules, SL_HTACCESS_BEGIN) !== false || strpos($rules, SL_HTACCESS_END) !== false) {
 		return __t('htaccess_error_marker', 'These rules cannot contain the managed-block markers.');
 	}
-	if (preg_match('/\b(AddHandler|SetHandler|Action|Header|RequestHeader)\b|\bphp_admin_(value|flag)\b|<Directory\b|<VirtualHost\b|\bAllowOverride\b/i', $rules)) {
+	if (preg_match('/\b(AddHandler|SetHandler|Action|Header|RequestHeader)\b|\bphp_(admin_)?(value|flag)\b|<Directory\b|<VirtualHost\b|\bAllowOverride\b/i', $rules)) {
 		return __t('htaccess_error_denylist', 'These rules contain a directive that is blocked here for safety (handlers, Header/RequestHeader, php_admin_*, <Directory>, <VirtualHost>, AllowOverride). Add it through FTP if you really need it.');
 	}
 
@@ -120,10 +120,39 @@ function sl_htaccess_store_rules(string $rules): void {
 	}
 }
 
-function sl_htaccess_probe(): ?int {
-	if (!function_exists('admin_site_url')) return null;
-	$url = admin_site_url();
-	if (!is_string($url) || $url === '') return null;
+function sl_htaccess_probe_urls(): array {
+	if (!function_exists('admin_site_url')) return [];
+	$base = admin_site_url();
+	if (!is_string($base) || $base === '') return [];
+	return [$base, $base . resolve_admin_dir() . '/auth.php'];
+}
+
+function sl_htaccess_probe_all(): array {
+	$results = [];
+	foreach (sl_htaccess_probe_urls() as $url) {
+		$results[$url] = sl_htaccess_probe($url);
+	}
+	return $results;
+}
+
+function sl_htaccess_probe_failure(array $before, array $after): ?int {
+	foreach ($after as $url => $status) {
+		$baseline = $before[$url] ?? null;
+		if ($status === null) {
+			if ($baseline !== null) return 0;
+			continue;
+		}
+		if ($status >= 500) return $status;
+		if ($status >= 400 && ($baseline === null || $baseline < 400)) return $status;
+	}
+	return null;
+}
+
+function sl_htaccess_probe(?string $url = null): ?int {
+	if ($url === null) {
+		$url = sl_htaccess_probe_urls()[0] ?? '';
+	}
+	if ($url === '') return null;
 
 	if (function_exists('curl_init')) {
 		$ch = curl_init($url);
@@ -180,20 +209,25 @@ function sl_htaccess_apply(string $rules): array {
 	}
 
 	sl_htaccess_backup($current);
+	$before = sl_htaccess_probe_all();
 
 	if (!sl_htaccess_write($path, $updated)) {
 		return ['ok' => false, 'error' => __t('htaccess_error_write_failed', 'Could not write the .htaccess file.')];
 	}
 
-	$status = sl_htaccess_probe();
-	if ($status !== null && $status >= 500) {
+	$after   = sl_htaccess_probe_all();
+	$failure = sl_htaccess_probe_failure($before, $after);
+	if ($failure !== null) {
 		sl_htaccess_write($path, $current);
-		return ['ok' => false, 'error' => sprintf(__t('htaccess_error_broke_site'), $status)];
+		$message = $failure === 0
+			? __t('htaccess_error_unreachable', 'These rules made the site unreachable, so they were not kept and the previous .htaccess was put back. Check the directives and try again.')
+			: sprintf(__t('htaccess_error_broke_site'), $failure);
+		return ['ok' => false, 'error' => $message];
 	}
 
 	sl_htaccess_store_rules($rules);
 
-	return ['ok' => true, 'error' => null, 'unverified' => $status === null];
+	return ['ok' => true, 'error' => null, 'unverified' => in_array(null, $after, true) || $after === []];
 }
 
 function sl_htaccess_restore_latest(): array {

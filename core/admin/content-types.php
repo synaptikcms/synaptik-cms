@@ -2,7 +2,7 @@
 
 function sl_content_type_reserved_slugs(): array
 {
-    return ['category', 'tag', 'home', 'search', 'admin'];
+    return ['category', 'tag', 'home', 'search', 'admin', 'drafts'];
 }
 
 function sl_url_slug_map(?string $exceptType = null): array
@@ -16,6 +16,23 @@ function sl_url_slug_map(?string $exceptType = null): array
     return $map;
 }
 
+function sl_content_type_dir_occupied(string $slug): bool
+{
+    $dir = sl_data_dir() . '/' . sl_type_dir($slug);
+    if (!is_dir($dir)) return false;
+    $ignored = ['.', '..', '_index.json', '.trash', '.DS_Store'];
+    return array_diff(scandir($dir) ?: [], $ignored) !== [];
+}
+
+function sl_url_base_is_system_path(string $urlBase, ?string $exceptType = null): bool
+{
+    if ($urlBase === sanitizeSlug(resolve_admin_dir())) return true;
+    if ($exceptType !== null && in_array($urlBase, [sl_type_url_slug($exceptType, false), sl_type_url_slug($exceptType, true)], true)) {
+        return false;
+    }
+    return is_dir(CMS_ROOT . '/' . $urlBase);
+}
+
 function sl_url_base_available(string $urlBase, ?string $exceptType = null): bool
 {
     $localizedReserved = [
@@ -23,6 +40,9 @@ function sl_url_base_available(string $urlBase, ?string $exceptType = null): boo
         sanitizeSlug(__t('url_slug_tag', 'tag')),
     ];
     if (in_array($urlBase, sl_content_type_reserved_slugs(), true) || in_array($urlBase, $localizedReserved, true)) {
+        return false;
+    }
+    if (sl_url_base_is_system_path($urlBase, $exceptType)) {
         return false;
     }
     return !isset(sl_url_slug_map($exceptType)[$urlBase]);
@@ -75,6 +95,9 @@ function sl_content_type_validate_identifier(string $slug, array $types, ?string
     }
     if (isset($types[$slug])) {
         return __t('content_type_already_exists', 'A content type with this identifier already exists.');
+    }
+    if (sl_content_type_dir_occupied($slug)) {
+        return __t('content_type_rename_dir_exists', 'A data folder with this identifier already exists.');
     }
     foreach (array_keys($types) as $existing) {
         if ($existing === $exceptType) continue;

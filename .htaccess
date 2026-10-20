@@ -76,7 +76,9 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
 
     # Content Security Policy
-    # script-src  : self + hCaptcha widget loader + optional CDNs (commented) —
+    # script-src  : self + hCaptcha widget loader + Google Tag Manager (used by the
+    #               Synaptik CMS theme). A theme or plugin that loads scripts from
+    #               another host must add that host here —
     #               'unsafe-inline' dropped — all front-end JS lives in external
     #               files now; server-rendered data reaches it via
     #               <script type="application/json"> islands (see front-boot.js).
@@ -100,7 +102,7 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     #               export-release.sh and zip-themes.sh both run it and refuse
     #               to ship if it fails. tests/Unit/CspHashTest.php also locks
     #               this invariant in for `phpunit`/local dev.
-    # frame-src   : hCaptcha iframe only
+    # frame-src   : same origin + hCaptcha iframe
     # style-src   : theme CSS + inline styles + Google Fonts (if used) —
     #               'unsafe-inline' kept — user-authored content (articles/pages)
     #               can carry inline style="" attributes from the rich-text editor.
@@ -111,8 +113,8 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     # connect-src : same-origin XHR/fetch + hCaptcha verification API
     Header always set Content-Security-Policy "\
 default-src 'self'; \
-script-src 'self' 'sha256-IkTdP30yHFaVfjZm1HcruKVpJKKwowAYPMKI+GVaAlY=' https://js.hcaptcha.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.googletagmanager.com; \
-frame-src https://newassets.hcaptcha.com; \
+script-src 'self' 'sha256-IkTdP30yHFaVfjZm1HcruKVpJKKwowAYPMKI+GVaAlY=' https://js.hcaptcha.com https://www.googletagmanager.com; \
+frame-src 'self' https://newassets.hcaptcha.com; \
 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.bunny.net https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; \
 font-src 'self' https://fonts.gstatic.com https://fonts.bunny.net https://cdn.jsdelivr.net; \
 img-src 'self' data: blob: https:; \

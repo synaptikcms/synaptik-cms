@@ -526,15 +526,18 @@ function handleRename() {
 	if (empty($itemType) || empty($originalName) || $newName === '') {
 		return ['success' => false, 'message' => __t('fm_rename_missing_data')];
 	}
+	$dir              = rtrim($baseUploadPath . $currentPath, '/');
+	$originalItemPath = $dir . '/' . basename($originalName);
+	$newItemPath      = $dir . '/' . $newName;
+	$itemType         = is_dir($originalItemPath) ? 'folder' : 'file';
 	if ($itemType === 'file') {
 		$ext = strtolower(pathinfo($newName, PATHINFO_EXTENSION));
 		if (!in_array($ext, $allowedTypes, true)) {
 			return ['success' => false, 'message' => __t('fm_invalid_request')];
 		}
+	} elseif (strpos($newName, '.') !== false) {
+		return ['success' => false, 'message' => __t('fm_invalid_request')];
 	}
-	$dir              = rtrim($baseUploadPath . $currentPath, '/');
-	$originalItemPath = $dir . '/' . basename($originalName);
-	$newItemPath      = $dir . '/' . $newName;
 	if (!file_exists($originalItemPath)
 		|| fm_assert_within_base($originalItemPath, $baseUploadPath) === null) {
 		return ['success' => false, 'message' => sprintf(__t('fm_item_not_found'), $originalName)];

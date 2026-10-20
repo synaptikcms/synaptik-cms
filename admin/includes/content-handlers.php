@@ -160,49 +160,26 @@ function handleContentEdit() {
 }
 
 function syncMenuUrls($contentType, $oldSlug, $newSlug, $newCategory) {
-	$settingsFile = '../config.json';
-	if (!file_exists($settingsFile)) return;
+	$settings = menu_sync_load_config();
+	if ($settings === null) return;
 
-	$settings = json_decode(file_get_contents($settingsFile), true);
-	if (!is_array($settings) || empty($settings['main_menu'])) return;
-
-	$data = ['categories' => sl_load_categories()];
+	$categorySlug = !empty($newCategory) ? sanitizeSlug($newCategory) : '';
+	$catPath      = $categorySlug !== '' ? getCategoryPath($categorySlug, ['categories' => sl_load_categories()]) : '';
 
 	$changed = false;
-	$categorySlug = !empty($newCategory) ? sanitizeSlug($newCategory) : '';
-
-	$catPath = !empty($categorySlug) ? getCategoryPath($categorySlug, $data) : '';
-
 	foreach ($settings['main_menu'] as &$item) {
-		if (
-			isset($item['content_type']) && $item['content_type'] === $contentType &&
-			isset($item['content_slug']) && $item['content_slug'] === $oldSlug
-		) {
-			if ($contentType === 'article' && !empty($catPath)) {
-				$newUrl = $catPath . '/' . $newSlug . '/';
-			} elseif ($contentType === 'project' && !empty($catPath)) {
-				$newUrl = 'project/' . $catPath . '/' . $newSlug . '/';
-			} elseif ($contentType === 'page' && !empty($catPath)) {
-				$newUrl = $catPath . '/' . $newSlug . '/';
-			} elseif (!empty($catPath)) {
-				$newUrl = $contentType . '/' . $catPath . '/' . $newSlug . '/';
-			} else {
-				$newUrl = $contentType . '/' . $newSlug . '/';
-			}
+		if (($item['content_type'] ?? '') !== $contentType || ($item['content_slug'] ?? '') !== $oldSlug) continue;
 
-			$item['url']          = $newUrl;
-			$item['content_slug'] = $newSlug;
-			if (array_key_exists('content_category', $item)) {
-				$item['content_category'] = $newCategory;
-			}
-			$changed = true;
+		$item['url']          = menu_sync_content_url($contentType, $newSlug, $catPath);
+		$item['content_slug'] = $newSlug;
+		if (array_key_exists('content_category', $item)) {
+			$item['content_category'] = $newCategory;
 		}
+		$changed = true;
 	}
 	unset($item);
 
-	if ($changed) {
-		file_put_contents($settingsFile, json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-	}
+	if ($changed) sl_admin_save_config($settings);
 }
 
 function handleImageUpload($file, $contentType) {

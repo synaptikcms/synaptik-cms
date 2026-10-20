@@ -47,6 +47,13 @@ function _sl_raw_request_host(): string
     return strtolower($host);
 }
 
+function _sl_request_path(): string
+{
+    $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+    if (!is_string($path) || $path === '') return '/';
+    return '/' . ltrim($path, '/');
+}
+
 function _sl_request_host(): string
 {
     $configured = _sl_configured_canonical_host();

@@ -204,6 +204,14 @@ function sm_regenerate(): bool
     return $ok;
 }
 
+function sm_regenerate_if_stale(): void
+{
+    $flag = sl_sitemap_stale_flag_path();
+    if (!is_file($flag)) return;
+    @unlink($flag);
+    if (!sm_regenerate()) sl_mark_sitemap_stale();
+}
+
 function sm_indexnow_state_path(): string
 {
     return CMS_ROOT . '/private/indexnow.json';
